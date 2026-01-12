@@ -80,6 +80,14 @@ You can refer to the [examples](./examples) for more details.
    AGORA_APP_ID=<your-app-id> AGORA_APP_CERT=<your-app-certificate> ./bin/recv_pcm | grep "recv_pcm"
    ```
 
+   Notice that your computer should have a microphone to play the audio.
+
+   If you want to play the test PCM audio, you can use the following command(requires [ffmpeg](https://ffmpeg.org/)):
+
+   ```console
+   ffplay -f s16le -ar 16000 -ch_layout mono -autoexit ./examples/testdata/send_audio_16k_1ch.pcm
+   ```
+
 ## License
 
 The project is licensed under the MIT License.
