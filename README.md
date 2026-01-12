@@ -16,18 +16,19 @@ agora-server-sdk provides the clean APIs based on the original SDK to help you q
 You can quickly create an Agora RTC connection as follows:
 
 ```go
+...
 // Create an Agora RTC service instance.
 svc, err := agorasdk.NewService(
-	agorasdk.WithAppID(*appID),
-	agorasdk.WithAppCert(*appCert),
-	agorasdk.WithChannelName(*channelName),
-	agorasdk.WithUserID(*userID),
-	agorasdk.WithLogPath(*logPath),
-	agorasdk.WithConfigDir(*configDir),
-	agorasdk.WithDataDir(*dataDir),
+	agorasdk.WithAppID(appID),
+	agorasdk.WithAppCert(appCert),
+	agorasdk.WithChannelName(channelName),
+	agorasdk.WithUserID(userID),
+	agorasdk.WithLogPath(logPath),
+	agorasdk.WithConfigDir(configDir),
+	agorasdk.WithDataDir(dataDir),
 )
 if err != nil {
-	logFatalf("failed to create service: %v", err)
+	log.Fatalf("failed to create service: %v", err)
 }
 defer svc.Release()
 
@@ -38,41 +39,60 @@ conn, err := svc.NewRTCConnection(
 	agorasdk.WithAudioChannelType(defaultAudioChannelType),
 )
 if err != nil {
-	logFatalf("failed to create RTC connection: %v", err)
+	log.Fatalf("failed to create RTC connection: %v", err)
 }
 defer conn.Release()
 
 // Publish audio to the RTC connection.
 if err := conn.PublishAudio(); err != nil {
-	logFatalf("failed to publish audio: %v", err)
+	log.Fatalf("failed to publish audio: %v", err)
 }
+...
 ```
 
 You can refer to the [examples](./examples) for more details.
 
 ## Prerequisites
 
-1. Go >= 1.24 or higher
+1. Go >= 1.24 or higher.
 
 2. Log in to the [Agora Console](https://console.agora.io/), create a project, and obtain the App ID and App Certificate.
 
-## Quick Start
+## Quick Start to Run the Examples
 
-1. Install agora-server-sdk
+1. Install [pkg-config](https://pkg-config.freedesktop.org/wiki/) and [portaudio](https://www.portaudio.com/).
+
+   For macOS, you can use the following command to install portaudio:
+
+   ```console
+   brew install portaudio
+   ```
+
+   For Ubuntu, you can use the following command to install portaudio:
+
+   ```console
+   sudo apt-get update
+   sudo apt-get install portaudio19-dev
+   ```
+
+2. Download the agora-server-sdk repository.
 
    ```console
    git clone https://github.com/zyy17/agora-server-sdk.git
    ```
 
-2. Build the examples
+3. Build the examples.
 
    ```console
    make build-examples
    ```
 
-3. Run the examples
+4. Run the examples.
 
    ```console
+   # Export the Agora SDK library path(only for Linux).
+   export LD_LIBRARY_PATH=./third_party/Agora-Golang-Server-SDK/agora_sdk
+
    # Send PCM audio to the Agora RTC channel
    AGORA_APP_ID=<your-app-id> AGORA_APP_CERT=<your-app-certificate> ./bin/send_pcm | grep "send_pcm"
 
