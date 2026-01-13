@@ -1,2 +1,3 @@
 bin
-agora_rtc
+agora_libs/*
+agora_example

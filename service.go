@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	agoraservice "github.com/AgoraIO-Extensions/Agora-Golang-Server-SDK/v2/go_sdk/rtc"
 	rtctokenbuilder "github.com/AgoraIO/Tools/DynamicKey/AgoraDynamicKey/go/src/rtctokenbuilder2"
+	agoraservice "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 const (

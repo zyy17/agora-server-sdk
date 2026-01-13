@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	agoraservice "github.com/AgoraIO-Extensions/Agora-Golang-Server-SDK/v2/go_sdk/rtc"
+	agoraservice "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 var (
