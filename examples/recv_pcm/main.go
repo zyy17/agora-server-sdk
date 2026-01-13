@@ -11,15 +11,15 @@ import (
 	"syscall"
 	"time"
 
-	agoraservice "github.com/AgoraIO-Extensions/Agora-Golang-Server-SDK/v2/go_sdk/rtc"
 	"github.com/gordonklaus/portaudio"
 	agorasdk "github.com/zyy17/agora-server-sdk"
+	agoraservice "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 const (
 	exampleName             = "recv_pcm"
 	defaultChannelName      = "agora_sdk_example"
-	defaultAgoraBaseDir     = "./agora_rtc"
+	defaultAgoraBaseDir     = "./agora_example"
 	defaultUserID           = "0"
 	defaultSampleRate       = 16000
 	defaultAudioChannelType = agorasdk.AudioChannelTypeMono

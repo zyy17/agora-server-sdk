@@ -2,7 +2,7 @@
 
 ## Overview
 
-[agora-server-sdk](https://pkg.go.dev/github.com/zyy17/agora-server-sdk) is a further encapsulation of [Agora-Golang-Server-SDK](https://github.com/AgoraIO-Extensions/Agora-Golang-Server-SDK) to improve the developer experience when using Agora services.
+[agora-server-sdk](https://pkg.go.dev/github.com/zyy17/agora-server-sdk) is a further encapsulation based on the [Agora-Golang-Server-SDK](https://github.com/AgoraIO-Extensions/Agora-Golang-Server-SDK), designed to improve the developer experience when using Agora services.
 
 The project is still in an **early stage of development** and the API is subject to change.
 
@@ -58,7 +58,27 @@ You can refer to the [examples](./examples) for more details.
 
 2. Log in to the [Agora Console](https://console.agora.io/), create a project, and obtain the App ID and App Certificate.
 
-## Quick Start to Run the Examples
+## Quick Start
+
+1. Use the `agora-server-sdk`
+
+   ```console
+   go get github.com/zyy17/agora-server-sdk
+   ```
+
+2. Download the Agora libraries.
+
+   ```console
+   curl -fsSL https://raw.githubusercontent.com/zyy17/agora-server-sdk/refs/heads/main/scripts/download_agora_libs.sh | sh
+   ```
+
+3. Build with Agora libraries, for example:
+
+   ```console
+   CGO_LDFLAGS="-L$(PWD)/agora_libs" go build -o my_app main.go
+   ```
+
+## Run the Examples
 
 1. Install [pkg-config](https://pkg-config.freedesktop.org/wiki/) and [portaudio](https://www.portaudio.com/).
 
@@ -91,7 +111,8 @@ You can refer to the [examples](./examples) for more details.
 
    ```console
    # Export the Agora SDK library path(only for Linux).
-   export LD_LIBRARY_PATH=./third_party/Agora-Golang-Server-SDK/agora_sdk
+   # If you are using macOS, you should export DYLD_LIBRARY_PATH instead of LD_LIBRARY_PATH.
+   export LD_LIBRARY_PATH=$(PWD)/agora_libs
 
    # Send PCM audio to the Agora RTC channel
    AGORA_APP_ID=<your-app-id> AGORA_APP_CERT=<your-app-certificate> ./bin/send_pcm | grep "send_pcm"
