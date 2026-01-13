@@ -54,22 +54,21 @@ You can refer to the [examples](./examples) for more details.
 
 ## Prerequisites
 
-1. Go >= 1.24 or higher.
-
-2. Log in to the [Agora Console](https://console.agora.io/), create a project, and obtain the App ID and App Certificate.
+Go >= 1.23 or higher.
 
 ## Quick Start
 
-1. Use the `agora-server-sdk`
+1. Use the `agora-server-sdk` module in your project:
 
    ```console
    go get github.com/zyy17/agora-server-sdk
    ```
 
-2. Download the Agora libraries.
+2. Download the Agora libraries. It will download the Agora libraries to the current directory as `agora_libs/`:
 
    ```console
-   curl -fsSL https://raw.githubusercontent.com/zyy17/agora-server-sdk/refs/heads/main/scripts/download_agora_libs.sh | sh
+   curl -fsSL \
+     https://raw.githubusercontent.com/zyy17/agora-server-sdk/refs/heads/main/scripts/download_agora_libs.sh | sh
    ```
 
 3. Build with Agora libraries, for example:
@@ -80,7 +79,7 @@ You can refer to the [examples](./examples) for more details.
 
 ## Run the Examples
 
-1. Install [pkg-config](https://pkg-config.freedesktop.org/wiki/) and [portaudio](https://www.portaudio.com/).
+1. Install [pkg-config](https://pkg-config.freedesktop.org/wiki/) and [portaudio](https://www.portaudio.com/):
 
    For macOS, you can use the following command to install portaudio:
 
@@ -95,21 +94,23 @@ You can refer to the [examples](./examples) for more details.
    sudo apt-get install portaudio19-dev
    ```
 
-2. Download the agora-server-sdk repository.
+2. Download the `agora-server-sdk` repository:
 
    ```console
    git clone https://github.com/zyy17/agora-server-sdk.git
    ```
 
-3. Build the examples.
+3. Build the examples:
 
    ```console
    make build-examples
    ```
 
-4. Run the examples.
+4. Run the examples:
 
-   ```console
+   You can log in to the [Agora Console](https://console.agora.io/), create a project, and obtain the App ID and App Certificate. Then, you can run the examples as follows:
+
+   ```shell
    # Export the Agora SDK library path(only for Linux).
    # If you are using macOS, you should export DYLD_LIBRARY_PATH instead of LD_LIBRARY_PATH.
    export LD_LIBRARY_PATH=$(PWD)/agora_libs
