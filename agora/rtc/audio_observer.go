@@ -1,7 +1,7 @@
 package agoraservice
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../lib/include/c/api2 -I${SRCDIR}/../lib/include/c/base
+#cgo CFLAGS: -I${SRCDIR}/../headers/include/c/api2 -I${SRCDIR}/../headers/include/c/base
 
 #include <string.h>
 #include "agora_local_user.h"
@@ -114,14 +114,13 @@ func goOnPlaybackAudioFrameBeforeMixing(cLocalUser unsafe.Pointer, channelId *C.
 	var ret bool = false
 	var vadResultFrame *AudioFrame = nil
 	var vadResultStat VadState = VadStateInvalid
-	
+
 	if con.audioVadManager != nil {
 		vadResultFrame, vadResultStat = con.audioVadManager.Process(goChannelId, goUid, goFrame)
 	}
 	ret = con.audioObserver.OnPlaybackAudioFrameBeforeMixing(con.GetLocalUser(), goChannelId, goUid, goFrame, vadResultStat, vadResultFrame)
 
-	
-	if ret  {
+	if ret {
 		return C.int(1)
 	}
 	return C.int(0)

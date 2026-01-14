@@ -77,6 +77,16 @@ Go >= 1.23 or higher.
    CGO_LDFLAGS="-L$(PWD)/agora_libs" go build -o my_app main.go
    ```
 
+## How to Sync with Agora Upstream Libraries
+
+1. The current released version of the Agora libraries will be recorded in the `agora_sdk_version` file.
+
+2. Run the following command to sync the headers of the Agora libraries into the `agora/headers` directory.
+
+   ```console
+   make sync-agora-libs-headers
+   ```
+
 ## License
 
 The project is licensed under the MIT License.

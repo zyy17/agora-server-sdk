@@ -1,6 +1,6 @@
 package agoraservice
 
-// #cgo CFLAGS: -I${SRCDIR}/../lib/include/c/api2 -I${SRCDIR}/../lib/include/c/base
+// #cgo CFLAGS: -I${SRCDIR}/../headers/include/c/api2 -I${SRCDIR}/../headers/include/c/base
 // #include "agora_media_node_factory.h"
 import "C"
 import (
@@ -31,7 +31,7 @@ type EncodedAudioFrameInfo struct {
 
 	// NumberOfChannels is the number of channels of the audio frame.
 	NumberOfChannels int
-	CaptureTimeMs int64
+	CaptureTimeMs    int64
 }
 
 type AudioEncodedFrameSender struct {
@@ -64,11 +64,10 @@ func (sender *AudioEncodedFrameSender) Release() {
 
 func (sender *AudioEncodedFrameSender) SendEncodedAudioFrame(payload []byte, frameInfo *EncodedAudioFrameInfo) int {
 
-	
-	if frameInfo == nil || payload == nil  || sender.closed || len(payload) == 0{
+	if frameInfo == nil || payload == nil || sender.closed || len(payload) == 0 {
 		return -1
 	}
-   
+
 	sender.mu.Lock()
 	defer sender.mu.Unlock()
 	// check if sender is closed or not initialized

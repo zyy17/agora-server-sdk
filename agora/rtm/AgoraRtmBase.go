@@ -1,11 +1,9 @@
 package agorartm
 
 /*
-//引入Agora C封装
-#cgo linux CFLAGS: -I${SRCDIR}/../lib/agora_rtm_sdk_c/include -I${SRCDIR}/../lib/agora_rtm_sdk_c/agora_rtm_sdk/high_level_api/include
-#cgo darwin CFLAGS: -I${SRCDIR}/../lib/agora_rtm_sdk_c/include -I${SRCDIR}/../lib/agora_rtm_sdk_c/agora_rtm_sdk/high_level_api/include
+#cgo linux CFLAGS: -I${SRCDIR}/../headers/agora_rtm_sdk_c/include -I${SRCDIR}/../headers/agora_rtm_sdk_c/agora_rtm_sdk/high_level_api/include
+#cgo darwin CFLAGS: -I${SRCDIR}/../headers/agora_rtm_sdk_c/include -I${SRCDIR}/../headers/agora_rtm_sdk_c/agora_rtm_sdk/high_level_api/include
 
-//链接AgoraRTM SDK
 #cgo linux LDFLAGS: -lagora_rtm_sdk -laosl -lagora_rtm_sdk_c
 #cgo darwin LDFLAGS: -lAgoraRtmKit -laosl -lagora_rtm_sdk_c
 #include <stdlib.h>

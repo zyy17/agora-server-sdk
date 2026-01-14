@@ -1,7 +1,7 @@
 package agoraservice
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../lib/include/c/api2 -I${SRCDIR}/../lib/include/c/base
+#cgo CFLAGS: -I${SRCDIR}/../headers/include/c/api2 -I${SRCDIR}/../headers/include/c/base
 #include <string.h>
 #include <stdlib.h>
 #include "agora_audio_track.h"

@@ -1,8 +1,8 @@
 package agoraservice
 
-// #cgo darwin CFLAGS: -I${SRCDIR}/../lib/include/c/api2 -I${SRCDIR}/../lib/include/c/base
+// #cgo darwin CFLAGS: -I${SRCDIR}/../headers/include/c/api2 -I${SRCDIR}/../headers/include/c/base
 // #cgo darwin LDFLAGS: -lAgoraRtcKit -lAgorafdkaac -lAgoraffmpeg -lAgoraAiNoiseSuppressionExtension
-// #cgo linux CFLAGS: -D__linux__=1 -I${SRCDIR}/../lib/include/c/api2 -I${SRCDIR}/../lib/include/c/base
+// #cgo linux CFLAGS: -D__linux__=1 -I${SRCDIR}/../headers/include/c/api2 -I${SRCDIR}/../headers/include/c/base
 // #cgo linux LDFLAGS: -lagora_rtc_sdk -lagora-fdkaac -laosl
 // #include "agora_local_user.h"
 // #include "agora_rtc_conn.h"

@@ -19,6 +19,16 @@ build-examples: download-agora-libs ## Build the examples.
 download-agora-libs: ## Download the official Agora libraries into agora_libs.
 	./scripts/download_agora_libs.sh
 
+.PHONY: sync-agora-libs-headers
+sync-agora-libs-headers: ## Sync the official Agora headers into agora/headers.
+	./scripts/sync_agora_libs_headers.sh
+	$(MAKE) add-trailing-newlines
+
 .PHONY: add-trailing-newlines
 add-trailing-newlines: ## Add trailing newlines to the Agora headers and source files.
 	find agora -type f \( -name "*.h" -o -name "*.c" \) -exec sed -i -e '$$a\' {} +
+
+.PHONY: clean
+clean: ## Clean the build files.
+	rm -rf $(AGORA_LIBS_DIR)
+	rm -rf $(OUTPUT_BIN_PATH)

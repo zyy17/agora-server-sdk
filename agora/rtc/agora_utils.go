@@ -1,26 +1,25 @@
 package agoraservice
 
-// #cgo CFLAGS: -I${SRCDIR}/../lib/include/c/api2 -I${SRCDIR}/../lib/include/c/base
+// #cgo CFLAGS: -I${SRCDIR}/../headers/include/c/api2 -I${SRCDIR}/../headers/include/c/base
 // #include <stdlib.h>
 // #include "agora_parameter.h"
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"sync"
-	"time"
-	"encoding/binary"
-	"unsafe"
 	"sync/atomic"
+	"time"
+	"unsafe"
 )
 
 // AudioConsumer provides utility functions for the Agora SDK.
-// const def 
+// const def
 const (
-	MinPacketsToSend = 10 // change min packets to send from 18 to 10
-	RtcE2EDelay = 200 //e2e delay 90ms for iphone, 120ms for android;150ms for web. so we use 200ms here
+	MinPacketsToSend = 10  // change min packets to send from 18 to 10
+	RtcE2EDelay      = 200 //e2e delay 90ms for iphone, 120ms for android;150ms for web. so we use 200ms here
 )
-
 
 // AudioConsumer handles PCM data consumption and sending
 type AudioConsumer struct {
@@ -36,10 +35,10 @@ type AudioConsumer struct {
 	samplesPerChannel int
 
 	// State
-	isInitialized bool
+	isInitialized     bool
 	lastConsumeedTime int64 // in ms
-	isDirectMode bool  // default to false, if true, means the pcmSender is in direct mode, and the data will be sent directly to the rtc channel
-	directDataLen int // the length of the data in the direct mode
+	isDirectMode      bool  // default to false, if true, means the pcmSender is in direct mode, and the data will be sent directly to the rtc channel
+	directDataLen     int   // the length of the data in the direct mode
 }
 
 // NewAudioConsumer creates a new AudioConsumer instance
@@ -60,12 +59,11 @@ func NewAudioConsumer(pcmSender *AudioPcmDataSender, sampleRate int, channels in
 			Buffer:         make([]byte, 0, bytesPerFrame), // Pre-allocate frame buffer
 		},
 		bytesPerFrame:     bytesPerFrame,
-		samplesPerChannel: sampleRate / 100 ,
+		samplesPerChannel: sampleRate / 100,
 		isInitialized:     true,
 		lastConsumeedTime: 0,
-		directDataLen: 0,
+		directDataLen:     0,
 	}
-	
 
 	fmt.Printf("NewAudioConsumer, audioScenario: %d, isDirectMode: %d\n", pcmSender.audioScenario, consumer.IsDirectMode())
 
@@ -74,6 +72,7 @@ func NewAudioConsumer(pcmSender *AudioPcmDataSender, sampleRate int, channels in
 func (ac *AudioConsumer) IsDirectMode() bool {
 	return ac.pcmSender.audioScenario == AudioScenarioAiServer
 }
+
 // 暂时不处理非10ms整数的情况
 func (ac *AudioConsumer) directPush(data []byte) {
 	ac.frame.Buffer = data
@@ -81,14 +80,13 @@ func (ac *AudioConsumer) directPush(data []byte) {
 
 	ac.frame.SamplesPerChannel = ac.samplesPerChannel * actualPackets
 	ac.mu.Lock()
-	ac.directDataLen += len(data) // not equal to the actual packets, because the data may not be 10ms aligned	
+	ac.directDataLen += len(data) // not equal to the actual packets, because the data may not be 10ms aligned
 	ac.mu.Unlock()
 
 	//fmt.Printf("directPush data len: %d, directDataLen: %d\n", len(data),ac.directDataLen)
-	
+
 	ac.pcmSender.SendAudioPcmData(ac.frame)
 }
-
 
 // PushPCMData adds PCM data to the buffer
 func (ac *AudioConsumer) undirectPush(data []byte) {
@@ -107,7 +105,7 @@ func (ac *AudioConsumer) PushPCMData(data []byte) {
 		ac.directPush(data)
 	} else {
 		ac.undirectPush(data)
-	}	
+	}
 }
 
 // reset resets the consumer's timing state
@@ -123,7 +121,7 @@ func (ac *AudioConsumer) reset() {
 }
 
 func (ac *AudioConsumer) calculateCurWantPackets() int {
-	
+
 	now := time.Now().UnixMilli()
 	elapsedTime := now - ac.startTime
 	expectedTotalPackets := int(elapsedTime / 10) //change type from
@@ -137,7 +135,7 @@ func (ac *AudioConsumer) calculateCurWantPackets() int {
 	}
 
 	if dataLen > 0 {
-	    ac.lastConsumeedTime = now
+		ac.lastConsumeedTime = now
 	}
 
 	// Handle underflow
@@ -160,8 +158,6 @@ func (ac *AudioConsumer) calculateCurWantPackets() int {
 
 	return actualPackets
 }
-
-	
 
 // Consume processes and sends audio data
 func (ac *AudioConsumer) undirectConsume() int {
@@ -193,7 +189,7 @@ func (ac *AudioConsumer) undirectConsume() int {
 		}
 		// for quickly release buffer
 		ac.frame.Buffer = nil
-		frameData	= nil
+		frameData = nil
 		return ret
 	}
 
@@ -201,7 +197,7 @@ func (ac *AudioConsumer) undirectConsume() int {
 }
 
 func (ac *AudioConsumer) directConsume() int {
-	
+
 	actualPackets := ac.calculateCurWantPackets()
 	if actualPackets < 1 {
 		return -3
@@ -213,14 +209,10 @@ func (ac *AudioConsumer) directConsume() int {
 	ac.directDataLen -= bytesToSend
 	defer ac.mu.Unlock()
 
-	
-
 	if bytesToSend > 0 {
-		
 
 		ac.consumedPackets += actualPackets
 
-		
 		return 0
 	}
 
@@ -241,7 +233,7 @@ func (ac *AudioConsumer) Consume() int {
 // Len returns the current buffer length
 func (ac *AudioConsumer) Len() int {
 	if ac.IsDirectMode() {
-		return ac.directDataLen;
+		return ac.directDataLen
 	} else {
 		return ac.buffer.Len()
 	}
@@ -254,7 +246,9 @@ func (ac *AudioConsumer) Clear() {
 	ac.directDataLen = 0
 	ac.buffer.Reset()
 }
-/*判断AudioConsumer中的数据是否已经完全推送给了RTC 频道
+
+/*
+判断AudioConsumer中的数据是否已经完全推送给了RTC 频道
 //因为audioconsumer内部有一定的缓存机制，所以当get_remaining_data_size 返回是0的时候，还有数据没有推送给
 rtc 频道。如果要判断数据是否完全推送给了rtc 频道，需要调用这个api来做判断。
 return value：1--push to rtc completed, 0--push to rtc not completed   -1--error
@@ -270,17 +264,16 @@ func (ac *AudioConsumer) IsPushToRtcCompleted() int {
 	} else {
 		remain_size = ac.buffer.Len()
 	}
-	
+
 	if remain_size == 0 {
 		now := time.Now().UnixMilli()
 		diff := now - ac.lastConsumeedTime
-		if diff > MinPacketsToSend*10 + RtcE2EDelay {
+		if diff > MinPacketsToSend*10+RtcE2EDelay {
 			return 1
 		}
 	}
 	return 0
 }
-
 
 // Release frees resources
 func (ac *AudioConsumer) Release() {
@@ -329,8 +322,8 @@ type VadDump struct {
 	frameCount int
 	// date: 2025-11-03, add voice prob, rms, pitch file for debug
 	voiceProbFile *os.File
-	rmsFile *os.File
-	pitchFile *os.File
+	rmsFile       *os.File
+	pitchFile     *os.File
 	// data for viceprob, rms, pitch file
 	itemData []byte
 }
@@ -353,20 +346,19 @@ func NewVadDump(path string) *VadDump {
 		}
 	}
 	ret := &VadDump{
-		mode:       1,
-		path:       vadPath,
-		count:      0, // count of the vad section dump file
-		sourceFile: nil,
-		vadFile:    nil,
-		labelFile:  nil,
-		isOpen:     false,
-		frameCount: 0, // count of audio frame
+		mode:          1,
+		path:          vadPath,
+		count:         0, // count of the vad section dump file
+		sourceFile:    nil,
+		vadFile:       nil,
+		labelFile:     nil,
+		isOpen:        false,
+		frameCount:    0, // count of audio frame
 		voiceProbFile: nil,
-		rmsFile: nil,
-		pitchFile: nil,
+		rmsFile:       nil,
+		pitchFile:     nil,
 		// 960 bytes or 10ms is big enough for voice prob, rms, pitch data, i.e can support up to 48khz
 		itemData: nil,
-
 	}
 	return ret
 }
@@ -437,7 +429,7 @@ func (v *VadDump) fillItemData(value int16, leninBytes int) {
 	}
 	// chang byte to int16 ptr
 	int16Ptr := (*int16)(unsafe.Pointer(&v.itemData[0]))
-	count := leninBytes/2;
+	count := leninBytes / 2
 	for i := 0; i < count; i++ {
 		elem := (*int16)(unsafe.Pointer(uintptr(unsafe.Pointer(int16Ptr)) + uintptr(i)*2))
 		*elem = int16(value)
@@ -537,6 +529,7 @@ func (v *VadDump) Close() int {
 	v.count = 0
 	return 0
 }
+
 //why use queue instead of chan?
 // 1. chan is not thread-safe, so we need to use mutex to protect the queue;
 // 2. chan is blocking, so we need to use select to avoid blocking;
@@ -606,7 +599,7 @@ func (q *Queue) Dequeue() interface{} {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 	size = len(q.items)
-	if (size > 0) {
+	if size > 0 {
 		item := q.items[0]
 		q.items = q.items[1:]
 		return item
@@ -679,43 +672,46 @@ func GenerateWAVHeader(sampleRate int, channels int, pcmDataSizeInBytes int) []b
 }
 
 type PrecisionTimer struct {
-    ticker   *time.Ticker
-    stopChan chan bool
+	ticker   *time.Ticker
+	stopChan chan bool
 }
 
 func NewPrecisionTimer(interval int) *PrecisionTimer {
-    return &PrecisionTimer{
-        ticker:   time.NewTicker(time.Duration(interval) * time.Millisecond),
-        stopChan: make(chan bool),
-    }
+	return &PrecisionTimer{
+		ticker:   time.NewTicker(time.Duration(interval) * time.Millisecond),
+		stopChan: make(chan bool),
+	}
 }
 func (t *PrecisionTimer) Start(taskFunc func()) {
-    go func() {
-        for {
-            select {
-            case <-t.ticker.C:
-                taskFunc()
-            case <-t.stopChan:
-                t.ticker.Stop()
-                return
-            }
-        }
-    }()
+	go func() {
+		for {
+			select {
+			case <-t.ticker.C:
+				taskFunc()
+			case <-t.stopChan:
+				t.ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 func (pt *PrecisionTimer) Stop() {
-    pt.ticker.Stop()
-    close(pt.stopChan)
+	pt.ticker.Stop()
+	close(pt.stopChan)
 }
+
 type IdleItem struct {
-	Handle unsafe.Pointer
+	Handle    unsafe.Pointer
 	LifeCycle int // in ms
 }
+
 func newIdleItem(handle unsafe.Pointer, lifeCycle int) *IdleItem {
-    return &IdleItem{
-        Handle: handle,
-        LifeCycle: lifeCycle,
-    }
+	return &IdleItem{
+		Handle:    handle,
+		LifeCycle: lifeCycle,
+	}
 }
+
 /*
 lock-freee ring buffer implementation
 for single producer and single consumer
@@ -723,105 +719,105 @@ for single producer and single consumer
 
 // production level lock-free ring buffer
 type LockFreeRingBuffer struct {
-    buffer   []*AudioFrame
-    mask     uint64  // capacity - 1, for bitwise operation instead of modulo
-    
-    // Cache line padding to avoid false sharing
-    _pad0    [8]uint64
-    writePos uint64  // only writer access
-    _pad1    [8]uint64
-    readPos  uint64  // only reader access
-    _pad2    [8]uint64
+	buffer []*AudioFrame
+	mask   uint64 // capacity - 1, for bitwise operation instead of modulo
+
+	// Cache line padding to avoid false sharing
+	_pad0    [8]uint64
+	writePos uint64 // only writer access
+	_pad1    [8]uint64
+	readPos  uint64 // only reader access
+	_pad2    [8]uint64
 }
 
 // create ring buffer (capacity must be 2^n)
 func NewLockFreeRingBuffer(capacity int) *LockFreeRingBuffer {
-    // ensure capacity is power of 2
-    if capacity&(capacity-1) != 0 {
-        panic("capacity must be power of 2")
-    }
-    
-    return &LockFreeRingBuffer{
-        buffer: make([]*AudioFrame, capacity),
-        mask:   uint64(capacity - 1),
-    }
+	// ensure capacity is power of 2
+	if capacity&(capacity-1) != 0 {
+		panic("capacity must be power of 2")
+	}
+
+	return &LockFreeRingBuffer{
+		buffer: make([]*AudioFrame, capacity),
+		mask:   uint64(capacity - 1),
+	}
 }
 
 // write (in C callback, must be non-blocking)
 func (rb *LockFreeRingBuffer) TryWrite(frame *AudioFrame) bool {
-    // use relaxed semantic read (better performance)
-    w := atomic.LoadUint64(&rb.writePos)
-    r := atomic.LoadUint64(&rb.readPos)
-    
-    // use bitwise operation instead of modulo (performance提升 3-5 倍)
-    if (w+1)&rb.mask == r&rb.mask {
-        return false // full
-    }
-    
-    // write data
-    rb.buffer[w&rb.mask] = frame
-    
-    // Release semantic ensure write visibility
-    atomic.StoreUint64(&rb.writePos, w+1)
-    return true
+	// use relaxed semantic read (better performance)
+	w := atomic.LoadUint64(&rb.writePos)
+	r := atomic.LoadUint64(&rb.readPos)
+
+	// use bitwise operation instead of modulo (performance提升 3-5 倍)
+	if (w+1)&rb.mask == r&rb.mask {
+		return false // full
+	}
+
+	// write data
+	rb.buffer[w&rb.mask] = frame
+
+	// Release semantic ensure write visibility
+	atomic.StoreUint64(&rb.writePos, w+1)
+	return true
 }
 
 // batch write (optional, better performance)
 func (rb *LockFreeRingBuffer) TryWriteBatch(frames []*AudioFrame) int {
-    written := 0
-    for _, frame := range frames {
-        if !rb.TryWrite(frame) {
-            break
-        }
-        written++
-    }
-    return written
+	written := 0
+	for _, frame := range frames {
+		if !rb.TryWrite(frame) {
+			break
+		}
+		written++
+	}
+	return written
 }
 
 // read (in Go side)
 func (rb *LockFreeRingBuffer) TryRead() (*AudioFrame, bool) {
-    r := atomic.LoadUint64(&rb.readPos)
-    w := atomic.LoadUint64(&rb.writePos)
-    
-    if r == w {
-        return nil, false // empty
-    }
-    
-    frame := rb.buffer[r&rb.mask]
-    atomic.StoreUint64(&rb.readPos, r+1)
-    return frame, true
+	r := atomic.LoadUint64(&rb.readPos)
+	w := atomic.LoadUint64(&rb.writePos)
+
+	if r == w {
+		return nil, false // empty
+	}
+
+	frame := rb.buffer[r&rb.mask]
+	atomic.StoreUint64(&rb.readPos, r+1)
+	return frame, true
 }
 
 // batch read (better performance)
 func (rb *LockFreeRingBuffer) TryReadBatch(maxFrames int) []*AudioFrame {
-    frames := make([]*AudioFrame, 0, maxFrames)
-    
-    for i := 0; i < maxFrames; i++ {
-        if frame, ok := rb.TryRead(); ok {
-            frames = append(frames, frame)
-        } else {
-            break
-        }
-    }
-    
-    return frames
+	frames := make([]*AudioFrame, 0, maxFrames)
+
+	for i := 0; i < maxFrames; i++ {
+		if frame, ok := rb.TryRead(); ok {
+			frames = append(frames, frame)
+		} else {
+			break
+		}
+	}
+
+	return frames
 }
 
 // get current data size
 func (rb *LockFreeRingBuffer) Size() int {
-    w := atomic.LoadUint64(&rb.writePos)
-    r := atomic.LoadUint64(&rb.readPos)
-    return int((w - r) & rb.mask)
+	w := atomic.LoadUint64(&rb.writePos)
+	r := atomic.LoadUint64(&rb.readPos)
+	return int((w - r) & rb.mask)
 }
 
 // check if empty
 func (rb *LockFreeRingBuffer) IsEmpty() bool {
-    w := atomic.LoadUint64(&rb.writePos)
-    r := atomic.LoadUint64(&rb.readPos)
-    return w == r
+	w := atomic.LoadUint64(&rb.writePos)
+	r := atomic.LoadUint64(&rb.readPos)
+	return w == r
 }
 
 // capacity
 func (rb *LockFreeRingBuffer) Capacity() int {
-    return len(rb.buffer)
+	return len(rb.buffer)
 }
