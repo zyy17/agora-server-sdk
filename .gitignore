@@ -1,3 +1,5 @@
 bin
 agora_libs/*
 agora_example
+agora_cache.db
+agora_rtc
