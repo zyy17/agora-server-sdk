@@ -4,7 +4,7 @@
 
 [agora-server-sdk](https://pkg.go.dev/github.com/zyy17/agora-server-sdk) is a further encapsulation based on the [Agora-Golang-Server-SDK](https://github.com/AgoraIO-Extensions/Agora-Golang-Server-SDK), designed to improve the developer experience when using Agora services.
 
-The project is still in an **early stage of development** and the API is subject to change.
+The project is still in an **early stage of development** and the APIs are subject to change.
 
 ## Design
 
@@ -50,7 +50,7 @@ if err := conn.PublishAudio(); err != nil {
 ...
 ```
 
-You can refer to the [examples](./examples) for more details.
+You can refer to the [examples](./examples/README.md) for more details.
 
 ## Prerequisites
 
@@ -75,59 +75,6 @@ Go >= 1.23 or higher.
 
    ```console
    CGO_LDFLAGS="-L$(PWD)/agora_libs" go build -o my_app main.go
-   ```
-
-## Run the Examples
-
-1. Install [pkg-config](https://pkg-config.freedesktop.org/wiki/) and [portaudio](https://www.portaudio.com/):
-
-   For macOS, you can use the following command to install portaudio:
-
-   ```console
-   brew install portaudio
-   ```
-
-   For Ubuntu, you can use the following command to install portaudio:
-
-   ```console
-   sudo apt-get update
-   sudo apt-get install portaudio19-dev
-   ```
-
-2. Download the `agora-server-sdk` repository:
-
-   ```console
-   git clone https://github.com/zyy17/agora-server-sdk.git
-   ```
-
-3. Build the examples:
-
-   ```console
-   make build-examples
-   ```
-
-4. Run the examples:
-
-   You can log in to the [Agora Console](https://console.agora.io/), create a project, and obtain the App ID and App Certificate. Then, you can run the examples as follows:
-
-   ```shell
-   # Export the Agora SDK library path(only for Linux).
-   # If you are using macOS, you should export DYLD_LIBRARY_PATH instead of LD_LIBRARY_PATH.
-   export LD_LIBRARY_PATH=$(PWD)/agora_libs
-
-   # Send PCM audio to the Agora RTC channel
-   AGORA_APP_ID=<your-app-id> AGORA_APP_CERT=<your-app-certificate> ./bin/send_pcm | grep "send_pcm"
-
-   # Receive PCM audio from the Agora RTC channel
-   AGORA_APP_ID=<your-app-id> AGORA_APP_CERT=<your-app-certificate> ./bin/recv_pcm | grep "recv_pcm"
-   ```
-
-   Notice that your computer should have a microphone to play the audio.
-
-   If you want to play the test PCM audio, you can use the following command(requires [ffmpeg](https://ffmpeg.org/)):
-
-   ```console
-   ffplay -f s16le -ar 16000 -ch_layout mono -autoexit ./examples/testdata/send_audio_16k_1ch.pcm
    ```
 
 ## License
