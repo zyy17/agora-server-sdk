@@ -34,7 +34,7 @@ export AGORA_APP_CERT=<your-app-certificate>
    make build-examples
    ```
 
-## Send and receive PCM audio
+## Send and Receive PCM Audio
 
 The `send_pcm` and `recv_pcm` examples are used to send and receive PCM audio to the Agora RTC channel. The `send_pcm` example sends a test PCM audio to the Agora RTC channel, and the `recv_pcm` example receives the PCM audio from the Agora RTC channel and plays it through the speaker on your computer.
 
