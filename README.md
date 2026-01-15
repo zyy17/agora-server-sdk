@@ -71,21 +71,33 @@ Go >= 1.23 or higher.
      https://raw.githubusercontent.com/zyy17/agora-server-sdk/refs/heads/main/scripts/download_agora_libs.sh | sh
    ```
 
-3. Build with Agora libraries, for example:
+3. Build with Agora libraries:
 
    ```console
-   CGO_LDFLAGS="-L$(PWD)/agora_libs" go build -o my_app main.go
+   # For Linux
+   CGO_LDFLAGS="-L$(pwd)/agora_libs -Wl,-rpath-link=$(pwd)/agora_libs" go build -o my_app main.go
+
+   # For macOS
+   CGO_LDFLAGS="-L$(pwd)/agora_libs" go build -o my_app main.go
+   ```
+
+4. Run with dynamic library path:
+
+   ```console
+   # For Linux
+   LD_LIBRARY_PATH=$(pwd)/agora_libs ./my_app
+
+   # For macOS
+   DYLD_LIBRARY_PATH=$(pwd)/agora_libs ./my_app
    ```
 
 ## How to Sync with Agora Upstream Libraries
 
-1. The current released version of the Agora libraries will be recorded in the `agora_sdk_version` file.
+Run the following command to sync the headers of the Agora libraries into the `agora/headers` directory.
 
-2. Run the following command to sync the headers of the Agora libraries into the `agora/headers` directory.
-
-   ```console
-   make sync-agora-libs-headers
-   ```
+```console
+make sync-agora-libs-headers
+```
 
 ## License
 

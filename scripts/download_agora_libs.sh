@@ -5,8 +5,9 @@ set -euo pipefail
 # Base URL for downloading SDKs.
 readonly BASE_URL="https://download.agora.io/sdk/release"
 
-# SDK version file.
-readonly SDK_VERSION_FILE="agora_sdk_version"
+# Latest SDK versions.
+readonly LINUX_SDK_URL="${BASE_URL}/agora_rtc_sdk_x86_64-linux-gnu-v4.4.32.156_27122_SERVER_20251229_1956_996360_20251021_1427-3a.zip"
+readonly DARWIN_SDK_URL="${BASE_URL}/agora_sdk_mac_v4.4.32.156_26548_FULL_20251230_1429_996508_20251021_1427-3a.zip"
 
 # Target libraries directory.
 readonly TARGET_LIBS_DIR="agora_libs"
@@ -50,28 +51,6 @@ detect_architecture() {
             exit 1
             ;;
     esac
-}
-
-# Read the SDK version from the file for the given OS.
-read_sdk_version() {
-    local sdk_version_file=$1
-    local os=$2
-    if [[ ! -f "${sdk_version_file}" ]]; then
-        echo "Unknown sdk version" >&2
-        exit 1
-    fi
-
-    # Read the file and extract the filename for the given OS.
-    # Format: os: filename
-    local version_line
-    version_line=$(grep "^${os}:" "${sdk_version_file}" || true)
-    if [[ -z "${version_line}" ]]; then
-        echo "Unknown sdk version for OS: ${os}" >&2
-        exit 1
-    fi
-    
-    # Extract filename (everything after "os: ")
-    echo "${version_line#*: }"
 }
 
 # Download and extract SDK.
@@ -136,11 +115,15 @@ main() {
     # Create target libraries directory if it doesn't exist.
     mkdir -p "${TARGET_LIBS_DIR}"
     
-    # Read the SDK version for the given OS.
-    SDK_VERSION=$(read_sdk_version "${SDK_VERSION_FILE}" "${os}")
+     # Download SDK based on OS.
+    if [[ "${os}" == "darwin" ]]; then
+        SDK_DOWNLOAD_URL="${DARWIN_SDK_URL}"
+    else
+        SDK_DOWNLOAD_URL="${LINUX_SDK_URL}"
+    fi
 
     # Download the SDK.
-    check_and_download "${BASE_URL}/${SDK_VERSION}" "agora_sdk_${architecture}_${os}" ${TARGET_LIBS_DIR} "${os}"
+    check_and_download "${SDK_DOWNLOAD_URL}" "agora_sdk_${architecture}_${os}" ${TARGET_LIBS_DIR} "${os}"
     
     echo "✓ All SDKs downloaded to ${TARGET_LIBS_DIR}"
 }

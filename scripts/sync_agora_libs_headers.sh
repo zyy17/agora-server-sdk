@@ -5,8 +5,8 @@ set -euo pipefail
 # Base URL for downloading SDKs.
 readonly BASE_URL="https://download.agora.io/sdk/release"
 
-# SDK version file.
-readonly SDK_VERSION_FILE="agora_sdk_version"
+# Latest Linux SDK version.
+readonly LINUX_SDK_URL="${BASE_URL}/agora_rtc_sdk_x86_64-linux-gnu-v4.4.32.156_27122_SERVER_20251229_1956_996360_20251021_1427-3a.zip"
 
 # Target directory for headers.
 readonly TARGET_DIR="agora/headers"
@@ -21,35 +21,13 @@ readonly HEADERS_TO_SYNC=(
 readonly TEMP_DIR=$(mktemp -d)
 trap "rm -rf ${TEMP_DIR}" EXIT
 
-# Read the SDK version from the file for the given OS.
-read_sdk_version() {
-    local sdk_version_file=$1
-    local os=$2
-    if [[ ! -f "${sdk_version_file}" ]]; then
-        echo "Unknown sdk version" >&2
-        exit 1
-    fi
-
-    # Read the file and extract the filename for the given OS.
-    # Format: os: filename
-    local version_line
-    version_line=$(grep "^${os}:" "${sdk_version_file}" || true)
-    if [[ -z "${version_line}" ]]; then
-        echo "Unknown sdk version for OS: ${os}" >&2
-        exit 1
-    fi
-    
-    # Extract filename (everything after "os: ")
-    echo "${version_line#*: }"
-}
-
 main() {
-    echo "Reading Linux SDK version from ${SDK_VERSION_FILE}..."
+    # Extract filename from URL (everything after the last /)
     local sdk_filename
-    sdk_filename=$(read_sdk_version "${SDK_VERSION_FILE}" "linux")
-    echo "Found SDK: ${sdk_filename}"
+    sdk_filename="${LINUX_SDK_URL##*/}"
+    echo "Using SDK: ${sdk_filename}"
     
-    local download_url="${BASE_URL}/${sdk_filename}"
+    local download_url="${LINUX_SDK_URL}"
     local zip_file="${TEMP_DIR}/${sdk_filename}"
     local extract_dir="${TEMP_DIR}/extracted"
     
