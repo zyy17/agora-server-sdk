@@ -506,6 +506,18 @@ class IRtcConnection : public RefCountInterface {
    * - < 0: Failure.
    */
   virtual int getUserInfoByUid(uid_t uid, rtc::UserInfo* userInfo) = 0;
+
+  /** Set local uplink and downlink qos value manually.
+   *
+   * @param uplinkQos  Manually specify the uplink quality value 
+   * @param downlinkQos  Manually specify the downlink quality value
+   * 
+   * * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   *
+   */
+  virtual int setLocalQos(int uplinkQos, int downlinkQos) = 0;
 };
 
 /**

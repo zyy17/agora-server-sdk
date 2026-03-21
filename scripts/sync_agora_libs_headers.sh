@@ -6,7 +6,7 @@ set -euo pipefail
 readonly BASE_URL="https://download.agora.io/sdk/release"
 
 # Latest Linux SDK version.
-readonly LINUX_SDK_URL="${BASE_URL}/agora_rtc_sdk_x86_64-linux-gnu-v4.4.32.156_27122_SERVER_20251229_1956_996360_20251021_1427-3a.zip"
+readonly LINUX_SDK_URL="${BASE_URL}/agora_rtc_sdk_x86_64-linux-gnu-v4.4.32.164_27464_SERVER_20260228_1031_1017176_20251021_1427-3a.zip"
 
 # Target directory for headers.
 readonly TARGET_DIR="agora/headers"
