@@ -206,6 +206,14 @@ type VideoConfig struct {
 	Encoder *rtc.VideoEncoderConfiguration
 	// EncodedSender optionally configures the encoded-video sender. Join copies the value.
 	EncodedSender *rtc.VideoEncodedImageSenderOptions
+	// OnEncodedFrame optionally returns the synchronous native accept/reject
+	// decision for a received encoded frame. Prefer EncodedVideo() for ordinary
+	// asynchronous handling. It must return promptly without blocking, calling
+	// lifecycle-locked Session/Service methods, or retaining/concurrently accessing
+	// the copied callback buffers. It may run concurrently. Edits do not modify
+	// native packets or the independent receive-queue copy. A panic rejects the
+	// frame and emits CallbackPanic. Nil accepts every received frame.
+	OnEncodedFrame func(ReceivedEncodedVideo) bool
 }
 
 // AudioPosition is a bitmask of native PCM observation points.
