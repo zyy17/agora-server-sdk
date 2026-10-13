@@ -326,76 +326,16 @@ func NewRtmClientWithError(config *RtmConfig) (*IRtmClient, int) {
 		return nil, int(C.RTM_ERROR_INVALID_PARAMETER)
 	}
 
-	cConfig := C.C_RtmConfig_New()
-	if cConfig == nil {
+	resources := newRtmClientConfigResources()
+	if resources == nil {
 		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
-	defer C.C_RtmConfig_Delete(cConfig)
+	defer resources.free()
+	resources.populate(config)
+	cConfig := resources.config
 
-	cConfig.appId = C.CString(config.AppId)
-	defer C.free(unsafe.Pointer(cConfig.appId))
-	cConfig.userId = C.CString(config.UserId)
-	defer C.free(unsafe.Pointer(cConfig.userId))
-	cConfig.areaCode = C.enum_C_RTM_AREA_CODE(config.AreaCode)
-	cConfig.protocolType = config.ProtocolType
-	cConfig.presenceTimeout = C.uint32_t(config.PresenceTimeout)
-	cConfig.heartbeatInterval = C.uint32_t(config.HeartbeatInterval)
-	cConfig.reconnectTimeout = C.uint32_t(config.ReconnectTimeout)
-	cConfig.multipath = C.bool(config.Multipath)
-	cConfig.context = config.Context
-	cConfig.useStringUserId = C.bool(config.UseStringUserId)
-
-	// add log config
-	cLogConfig := (*C.struct_C_RtmLogConfig)(nil)
-	if config.LogConfig != nil {
-		cLogConfig = (*C.struct_C_RtmLogConfig)(config.LogConfig.toC())
-		cConfig.logConfig.filePath = cLogConfig.filePath
-		cConfig.logConfig.fileSizeInKB = cLogConfig.fileSizeInKB
-		cConfig.logConfig.level = cLogConfig.level
-	}
-
-	defer freeRtmLogConfig(unsafe.Pointer(cLogConfig))
-
-	// add encryption config
-	cEncryptionConfig := (*C.struct_C_RtmEncryptionConfig)(nil)
-	if config.EncryptionConfig != nil {
-		cEncryptionConfig = (*C.struct_C_RtmEncryptionConfig)(config.EncryptionConfig.toC())
-		cConfig.encryptionConfig.encryptionMode = cEncryptionConfig.encryptionMode
-		cConfig.encryptionConfig.encryptionKey = cEncryptionConfig.encryptionKey
-		cConfig.encryptionConfig.encryptionSalt = cEncryptionConfig.encryptionSalt
-	}
-	defer freeRtmEncryptionConfig(unsafe.Pointer(cEncryptionConfig))
-
-	// add proxy config
-	cProxyConfig := (*C.struct_C_RtmProxyConfig)(nil)
-	if config.ProxyConfig != nil {
-		cProxyConfig = (*C.struct_C_RtmProxyConfig)(config.ProxyConfig.toC())
-		cConfig.proxyConfig.proxyType = cProxyConfig.proxyType
-		cConfig.proxyConfig.server = cProxyConfig.server
-		cConfig.proxyConfig.port = cProxyConfig.port
-		cConfig.proxyConfig.account = cProxyConfig.account
-		cConfig.proxyConfig.password = cProxyConfig.password
-	}
-	defer freeRtmProxyConfig(unsafe.Pointer(cProxyConfig))
-
-	// add private config
-	cPrivateConfig := (*C.struct_C_RtmPrivateConfig)(nil)
-	if config.PrivateConfig != nil {
-		cPrivateConfig = (*C.struct_C_RtmPrivateConfig)(config.PrivateConfig.toC())
-		cConfig.privateConfig.serviceType = cPrivateConfig.serviceType
-		cConfig.privateConfig.accessPointHosts = cPrivateConfig.accessPointHosts
-		cConfig.privateConfig.accessPointHostsCount = cPrivateConfig.accessPointHostsCount
-	}
-	defer freeRtmPrivateConfig(unsafe.Pointer(cPrivateConfig))
-
-	// The native SDK requires a handler even when callers do not want events.
-	client := &IRtmClient{handler: &RtmEventHandler{}}
-	if config.EventHandler != nil {
-		handler := *config.EventHandler // Immutable for the native client's lifetime.
-		client.handler = &handler
-	}
-	client.cEventHandler = CRtmEventHandler()
-	if client.cEventHandler == nil {
+	client := newRtmClientWithEventHandler(config.EventHandler)
+	if client == nil {
 		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
 	cConfig.eventHandler = client.cEventHandler
@@ -410,7 +350,6 @@ func NewRtmClientWithError(config *RtmConfig) (*IRtmClient, int) {
 
 	var errorCode C.int
 	rtmClient := C.agora_rtm_client_create(cConfig, &errorCode)
-
 	if rtmClient == nil {
 		if errorCode == 0 {
 			errorCode = C.RTM_ERROR_NOT_INITIALIZED
@@ -422,37 +361,130 @@ func NewRtmClientWithError(config *RtmConfig) (*IRtmClient, int) {
 	if errorCode != 0 {
 		return nil, int(errorCode)
 	}
-
-	// get storage
-	cStorage := C.agora_rtm_client_get_storage(client.rtmClient)
-	if cStorage == nil {
-		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
+	if code := client.loadNativeInterfaces(); code != 0 {
+		return nil, code
 	}
-	client.storage = &IRtmStorage{rtmStorage: unsafe.Pointer(cStorage)}
-
-	// get lock
-	cLock := C.agora_rtm_client_get_lock(client.rtmClient)
-	if cLock == nil {
-		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
-	}
-	client.lock = &IRtmLock{rtmLock: unsafe.Pointer(cLock)}
-
-	// get presence
-	cPresence := C.agora_rtm_client_get_presence(client.rtmClient)
-	if cPresence == nil {
-		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
-	}
-	client.presence = &IRtmPresence{rtmPresence: unsafe.Pointer(cPresence)}
-
-	// get history
-	cHistory := C.agora_rtm_client_get_history(client.rtmClient)
-	if cHistory == nil {
-		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
-	}
-	client.history = &IRtmHistory{rtmHistory: unsafe.Pointer(cHistory)}
 
 	success = true
 	return client, 0
+}
+
+// rtmClientConfigResources owns the temporary allocations borrowed by the native
+// configuration. They must remain alive until client construction finishes.
+type rtmClientConfigResources struct {
+	config     *C.struct_C_RtmConfig
+	appID      *C.char
+	userID     *C.char
+	log        *C.struct_C_RtmLogConfig
+	encryption *C.struct_C_RtmEncryptionConfig
+	proxy      *C.struct_C_RtmProxyConfig
+	private    *C.struct_C_RtmPrivateConfig
+}
+
+func newRtmClientConfigResources() *rtmClientConfigResources {
+	config := C.C_RtmConfig_New()
+	if config == nil {
+		return nil
+	}
+	return &rtmClientConfigResources{config: config}
+}
+
+func (resources *rtmClientConfigResources) populate(config *RtmConfig) {
+	cConfig := resources.config
+	cConfig.appId = C.CString(config.AppId)
+	resources.appID = cConfig.appId
+	cConfig.userId = C.CString(config.UserId)
+	resources.userID = cConfig.userId
+	cConfig.areaCode = C.enum_C_RTM_AREA_CODE(config.AreaCode)
+	cConfig.protocolType = config.ProtocolType
+	cConfig.presenceTimeout = C.uint32_t(config.PresenceTimeout)
+	cConfig.heartbeatInterval = C.uint32_t(config.HeartbeatInterval)
+	cConfig.reconnectTimeout = C.uint32_t(config.ReconnectTimeout)
+	cConfig.multipath = C.bool(config.Multipath)
+	cConfig.context = config.Context
+	cConfig.useStringUserId = C.bool(config.UseStringUserId)
+
+	if config.LogConfig != nil {
+		resources.log = (*C.struct_C_RtmLogConfig)(config.LogConfig.toC())
+		cConfig.logConfig.filePath = resources.log.filePath
+		cConfig.logConfig.fileSizeInKB = resources.log.fileSizeInKB
+		cConfig.logConfig.level = resources.log.level
+	}
+
+	if config.EncryptionConfig != nil {
+		resources.encryption = (*C.struct_C_RtmEncryptionConfig)(config.EncryptionConfig.toC())
+		cConfig.encryptionConfig.encryptionMode = resources.encryption.encryptionMode
+		cConfig.encryptionConfig.encryptionKey = resources.encryption.encryptionKey
+		cConfig.encryptionConfig.encryptionSalt = resources.encryption.encryptionSalt
+	}
+
+	if config.ProxyConfig != nil {
+		resources.proxy = (*C.struct_C_RtmProxyConfig)(config.ProxyConfig.toC())
+		cConfig.proxyConfig.proxyType = resources.proxy.proxyType
+		cConfig.proxyConfig.server = resources.proxy.server
+		cConfig.proxyConfig.port = resources.proxy.port
+		cConfig.proxyConfig.account = resources.proxy.account
+		cConfig.proxyConfig.password = resources.proxy.password
+	}
+
+	if config.PrivateConfig != nil {
+		resources.private = (*C.struct_C_RtmPrivateConfig)(config.PrivateConfig.toC())
+		cConfig.privateConfig.serviceType = resources.private.serviceType
+		cConfig.privateConfig.accessPointHosts = resources.private.accessPointHosts
+		cConfig.privateConfig.accessPointHostsCount = resources.private.accessPointHostsCount
+	}
+}
+
+func (resources *rtmClientConfigResources) free() {
+	// Release the borrowed child allocations in reverse construction order.
+	freeRtmPrivateConfig(unsafe.Pointer(resources.private))
+	freeRtmProxyConfig(unsafe.Pointer(resources.proxy))
+	freeRtmEncryptionConfig(unsafe.Pointer(resources.encryption))
+	freeRtmLogConfig(unsafe.Pointer(resources.log))
+	C.free(unsafe.Pointer(resources.userID))
+	C.free(unsafe.Pointer(resources.appID))
+	C.C_RtmConfig_Delete(resources.config)
+}
+
+func newRtmClientWithEventHandler(eventHandler *RtmEventHandler) *IRtmClient {
+	// The native SDK requires a handler even when callers do not want events.
+	client := &IRtmClient{handler: &RtmEventHandler{}}
+	if eventHandler != nil {
+		handler := *eventHandler // Immutable for the native client's lifetime.
+		client.handler = &handler
+	}
+	client.cEventHandler = CRtmEventHandler()
+	if client.cEventHandler == nil {
+		return nil
+	}
+	return client
+}
+
+func (client *IRtmClient) loadNativeInterfaces() int {
+	cStorage := C.agora_rtm_client_get_storage(client.rtmClient)
+	if cStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	client.storage = &IRtmStorage{rtmStorage: unsafe.Pointer(cStorage)}
+
+	cLock := C.agora_rtm_client_get_lock(client.rtmClient)
+	if cLock == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	client.lock = &IRtmLock{rtmLock: unsafe.Pointer(cLock)}
+
+	cPresence := C.agora_rtm_client_get_presence(client.rtmClient)
+	if cPresence == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	client.presence = &IRtmPresence{rtmPresence: unsafe.Pointer(cPresence)}
+
+	cHistory := C.agora_rtm_client_get_history(client.rtmClient)
+	if cHistory == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	client.history = &IRtmHistory{rtmHistory: unsafe.Pointer(cHistory)}
+	return 0
 }
 
 /**
