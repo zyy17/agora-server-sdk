@@ -299,6 +299,12 @@ func normalized(c ChannelConfig) (ChannelConfig, error) {
 	if err := c.validateAudioCallbacks(); err != nil {
 		return c, err
 	}
+	if err := validateVideoEncoder(c.Video.Encoder); err != nil {
+		return c, err
+	}
+	if err := validateEncodedVideoSender(c.Video.EncodedSender); err != nil {
+		return c, err
+	}
 	if err := c.validateMediaOptions(); err != nil {
 		return c, err
 	}

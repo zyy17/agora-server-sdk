@@ -1383,30 +1383,11 @@ func (conn *RtcConnection) PushAudioPcmData(data []byte, sampleRate int, channel
 	if conn == nil {
 		return -2000
 	}
-	conn.audioMu.Lock()
-	defer conn.audioMu.Unlock()
-	if conn == nil || conn.cConnection == nil || conn.audioSender == nil {
-		return -2000
-	}
 	frame, valid := makePCMFrame(data, sampleRate, channels, startPtsInMs)
 	if !valid {
 		return -2
 	}
-	readLen := len(data)
-
-	//for ai server limited mode only
-	// for every new round, should call the function to set the total extra send ms
-	// automatically set the total extra send ms when the pcm data is sent
-	isNewRound := conn.pcmConsumeStats.isNewRound(sampleRate, channels)
-	if isNewRound {
-		conn.setTotalExtraSendMs()
-	}
-
-	ret := conn.audioSender.SendAudioPcmData(frame)
-	if ret == 0 {
-		conn.pcmConsumeStats.addPcmData(readLen, sampleRate, channels)
-	}
-	return ret
+	return conn.PushAudioFrame(frame)
 }
 
 func (conn *RtcConnection) PushAudioEncodedData(data []byte, frameInfo *EncodedAudioFrameInfo) int {
