@@ -135,7 +135,9 @@ type AgoraService struct {
 	// for encoded audio frame received
 	encAudioFrameObserverItemsMap sync.Map
 	// date: 20260618, add field to keep service config
-	serviceConfig *AgoraServiceConfig
+	serviceConfig   *AgoraServiceConfig
+	deliverMuteData runtimeOption[bool]
+	extraSendSpeed  runtimeOption[int]
 }
 
 // / newAgoraService creates a new instance of AgoraService
@@ -408,6 +410,8 @@ func Release() int {
 		agoraService.service = nil
 	}
 	agoraService.inited = false
+	agoraService.deliverMuteData.reset()
+	agoraService.extraSendSpeed.reset()
 	agoraService.idleMode = false
 	agoraService.serviceConfig = nil
 	agoraService.apmConfig = nil

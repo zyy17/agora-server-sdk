@@ -127,8 +127,10 @@ func (conn *RtcConnection) PushAudioFrame(frame *AudioFrame) int {
 	if code := conn.recoverAudioPublication(func() int { return conn.localUser.publishAudio(conn.audioTrack) }); code != 0 {
 		return code
 	}
-	if conn.pcmConsumeStats != nil && conn.pcmConsumeStats.isNewRound(frame.SamplesPerSec, frame.Channels) {
-		conn.setTotalExtraSendMs()
+	if conn.pcmConsumeStats != nil && conn.pcmConsumeStats.isNewRound(frame.SamplesPerSec, frame.Channels) && conn.sendExternalAudioParameters != nil && conn.sendExternalAudioParameters.Enabled {
+		if code := conn.setTotalExtraSendMs(); code != 0 {
+			return code
+		}
 	}
 	result := conn.audioSender.SendAudioPcmData(frame)
 	if result == 0 && conn.pcmConsumeStats != nil {

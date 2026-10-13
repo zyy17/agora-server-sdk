@@ -76,3 +76,66 @@ func TestPublicationStateReflectsPartialOperations(t *testing.T) {
 		t.Fatal("released native state retained")
 	}
 }
+
+func TestNativeExternalAudioRuntimeOptions(t *testing.T) {
+	if os.Getenv("AGORA_NATIVE_SMOKE") != "1" {
+		t.Skip("set AGORA_NATIVE_SMOKE=1 for credential-free native configuration")
+	}
+	t.Chdir(t.TempDir())
+	for round := range 2 {
+		cfg := NewAgoraServiceConfig()
+		cfg.AppId, cfg.LogPath = "00000000000000000000000000000000", t.TempDir()+"/agora.log"
+		cfg.ConfigDir, cfg.DataDir, cfg.IdleMode = t.TempDir(), t.TempDir(), false
+		if code := Initialize(cfg); code != 0 {
+			t.Fatal(code)
+		}
+		create := func(value bool, speed int) *RtcConnection {
+			pub := NewRtcConPublishConfig()
+			pub.SendExternalAudioParameters = &SendExternalAudioParameters{Enabled: true, SendMs: 500, SendSpeed: speed, DeliverMuteDataForFakeAdm: value}
+			return NewRtcConnection(&RtcConnectionConfig{ClientRole: ClientRoleBroadcaster, ChannelProfile: ChannelProfileLiveBroadcasting}, pub)
+		}
+		if conn := create(round != 0, 1); conn != nil {
+			conn.Release()
+			Release()
+			t.Fatal("invalid enabled speed accepted")
+		}
+		conn := create(round != 0, 2)
+		if conn == nil {
+			Release()
+			t.Fatal("valid external-audio engine configuration failed")
+		}
+		if code := conn.setTotalExtraSendMs(); code != 0 {
+			conn.Release()
+			Release()
+			t.Fatalf("native per-track extra-send budget rejected: %d", code)
+		}
+		matching := create(round != 0, 2)
+		if matching == nil {
+			conn.Release()
+			Release()
+			t.Fatal("identical global option rejected")
+		}
+		if conflict := create(round == 0, 2); conflict != nil {
+			conflict.Release()
+			matching.Release()
+			conn.Release()
+			Release()
+			t.Fatal("conflicting global option silently applied")
+		}
+		if conflict := create(round != 0, 3); conflict != nil {
+			conflict.Release()
+			matching.Release()
+			conn.Release()
+			Release()
+			t.Fatal("conflicting runtime send speed silently applied")
+		}
+		matching.Release()
+		conn.Release()
+		if code := Release(); code != 0 {
+			t.Fatal(code)
+		}
+		if agoraService.deliverMuteData.configured || agoraService.extraSendSpeed.configured {
+			t.Fatal("successful Release retained global option")
+		}
+	}
+}

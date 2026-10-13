@@ -381,13 +381,24 @@ type RtcConnectionPublishConfig struct {
 	SendExternalAudioParameters *SendExternalAudioParameters
 }
 
-// note: DeliverMuteDataForFakeAdm can only set to rtc engine level, can not
-// set to connection level
-// so if once a connection has set to true, wihich will affect all the connections,
+// SendExternalAudioParameters configures the native external-audio AI send path.
+// SendSpeed (clamped to 5) and DeliverMuteDataForFakeAdm are engine-wide,
+// not independent per connection. Each first successfully applied enabled option
+// selects its value until successful service Release. Matching requests are
+// idempotent; conflicts or native setter failures cause NewRtcConnection to fail.
+// Successfully applied options remain selected if a later setup step fails.
+// Closing the selecting connection does not reset these runtime-wide settings.
+// Native parameter acceptance does not guarantee achieved send throughput.
 type SendExternalAudioParameters struct {
-	Enabled                   bool
-	SendMs                    int
-	SendSpeed                 int
+	// Enabled opts into the native external-audio send path.
+	Enabled bool
+	// SendMs is the positive per-track extra-send budget in milliseconds.
+	SendMs int
+	// SendSpeed selects the engine-wide extra-frame parameter. Enabled requests
+	// require a value greater than 1; values greater than 5 are clamped to 5.
+	SendSpeed int
+	// DeliverMuteDataForFakeAdm selects the engine-wide mute-data option.
+	// Concurrent sessions must request the same value within one runtime.
 	DeliverMuteDataForFakeAdm bool
 }
 
@@ -1692,13 +1703,20 @@ func (conn *RtcConnection) setExtraSendFrameSpeed(sendExternalAudioParameters *S
 	if conn == nil || conn.cConnection == nil || conn.localUser == nil || conn.localUser.cLocalUser == nil {
 		return -2000
 	}
-	if code := configureExtraSendFrameSpeed(sendExternalAudioParameters, conn.GetAgoraParameter().SetParameters); code != 0 {
+	if sendExternalAudioParameters == nil || !sendExternalAudioParameters.Enabled || sendExternalAudioParameters.SendMs <= 0 || sendExternalAudioParameters.SendSpeed <= 1 {
+		return -2001
+	}
+	// The pinned native SDK accepts this key on the service parameter interface,
+	// not the connection interface. Keep its engine-wide scope explicit.
+	speed := min(sendExternalAudioParameters.SendSpeed, 5)
+	if code := agoraService.extraSendSpeed.apply(speed, func(int) int {
+		return configureExtraSendFrameSpeed(sendExternalAudioParameters, GetAgoraParameter().SetParameters)
+	}); code != 0 {
 		return code
 	}
 
-	// deliver mute data for fake adm: can only effect at service level, no effect for connection level
-	setDeliverMuteData(sendExternalAudioParameters.DeliverMuteDataForFakeAdm)
-	return 0
+	// This is engine-wide. Never silently override an existing runtime choice.
+	return setDeliverMuteData(sendExternalAudioParameters.DeliverMuteDataForFakeAdm)
 }
 
 func (conn *RtcConnection) setTotalExtraSendMs() int {
@@ -1718,23 +1736,6 @@ func isSupportExternalAudio(publishConfig *RtcConnectionPublishConfig) bool {
 		return true
 	}
 	return false
-}
-
-// add a closer function to set only once the extra audio send ms the agora parameter
-var deliverMuteDataHasSet bool = false
-
-func setDeliverMuteData(deliverMuteData bool) bool {
-
-	fmt.Printf("createDeliverMuteDataSetter, deliverMuteData: %t\n", deliverMuteDataHasSet)
-
-	if !deliverMuteData && !deliverMuteDataHasSet {
-		agoraParameterHandler := GetAgoraParameter()
-		agoraParameterHandler.SetParameters("{\"che.audio.deliver_mute_data_for_fake_adm\":false}")
-		deliverMuteDataHasSet = true // set the flag to ensure only once
-		fmt.Printf("createDeliverMuteDataSetter, deliverMuteData: %t, deliverMuteDataHasSet: %t\n", deliverMuteData, deliverMuteDataHasSet)
-	}
-
-	return deliverMuteDataHasSet
 }
 
 // send intra request to the remote user to request a new key frame
