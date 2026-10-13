@@ -17,7 +17,7 @@ After `NewService` succeeds, create sessions with `Service.Join`. Join failures 
 config:
   htmlLabels: false
   flowchart:
-    diagramPadding: 64
+    diagramPadding: 96
     nodeSpacing: 24
     rankSpacing: 32
 ---
@@ -37,7 +37,7 @@ Cleanup follows this order and continues if a step fails; the returned error com
 config:
   htmlLabels: false
   flowchart:
-    diagramPadding: 64
+    diagramPadding: 96
     nodeSpacing: 24
     rankSpacing: 32
 ---
