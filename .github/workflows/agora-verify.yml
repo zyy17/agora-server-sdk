@@ -1,0 +1,126 @@
+# Bounded live verification. See docs/credential-verification.md.
+# This does not certify the full SDK feature surface.
+# Dispatch the reviewed main commit explicitly; no automatic live runs.
+name: Agora live verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'integration: synthetic RTC media/data + RTM; auth: authentication only'
+        type: choice
+        required: true
+        default: integration
+        options:
+          - integration
+          - auth
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agora-credential-verification
+  cancel-in-progress: false
+
+jobs:
+  auth:
+    name: Bounded RTC and RTM verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '1'
+      GOTOOLCHAIN: local
+      GOFLAGS: -mod=readonly
+    steps:
+      - name: Require trusted main dispatch and configured credentials
+        shell: bash
+        env:
+          AGORA_APP_ID: ${{ secrets.AGORA_APP_ID || vars.AGORA_APP_ID }}
+          AGORA_APP_CERTIFICATE: ${{ secrets.AGORA_APP_CERTIFICATE }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REPOSITORY" != 'zyy17/agora-server-sdk' || "$GITHUB_REF" != 'refs/heads/main' ]]; then
+            echo '::error::Run this workflow from branch main in zyy17/agora-server-sdk.'
+            exit 1
+          fi
+          for name in AGORA_APP_ID AGORA_APP_CERTIFICATE; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::$name is missing. Configure the repository Actions secret with this exact name."
+              exit 1
+            fi
+            if [[ ! "${!name}" =~ ^[[:xdigit:]]{32}$ ]]; then
+              echo "::error::$name must contain exactly 32 hexadecimal characters."
+              exit 1
+            fi
+          done
+          echo 'Credential presence and format passed; live authentication has not run yet.'
+
+      - name: Check out the exact main dispatch commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: zyy17/agora-server-sdk
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Record and verify evaluated commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual=$(git rev-parse HEAD)
+          [[ "$actual" == "$GITHUB_SHA" ]] || { echo '::error::Checkout SHA does not match dispatch SHA.'; exit 1; }
+          printf 'Evaluated main commit: %s\n' "$actual"
+          printf 'Agora verification of main commit `%s`.\n' "$actual" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          cache: true
+
+      - name: Install native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential curl unzip
+
+      - name: Download checksum-pinned native SDK
+        run: make download-agora-libs
+
+      - name: Verify modules and offline harness tests
+        run: |
+          go mod download
+          go mod verify
+          ./scripts/with_agora_env.sh go test -race -count=1 ./internal/cmd/agoraverify
+          ./scripts/with_agora_env.sh go build -o "$RUNNER_TEMP/agora-verify-bin" ./internal/cmd/agoraverify
+
+      - name: Run selected Agora checks (90-second hard limit)
+        timeout-minutes: 2
+        shell: bash
+        env:
+          AGORA_APP_ID: ${{ secrets.AGORA_APP_ID || vars.AGORA_APP_ID }}
+          AGORA_APP_CERTIFICATE: ${{ secrets.AGORA_APP_CERTIFICATE }}
+          AGORA_VERIFY_LIVE: '1'
+          VERIFY_SCOPE: ${{ inputs.scope }}
+        run: |
+          set -euo pipefail
+          umask 077
+          ulimit -c 0
+          args=(--live)
+          case "$VERIFY_SCOPE" in
+            integration) args+=(--features) ;;
+            auth) ;;
+            *) echo '::error::Unknown verification scope.'; exit 1 ;;
+          esac
+          AGORA_VERIFY_TEMP="$RUNNER_TEMP/agora-auth-private"
+          mkdir -p "$AGORA_VERIFY_TEMP"
+          export TMPDIR="$AGORA_VERIFY_TEMP"
+          trap 'rm -rf -- "$AGORA_VERIFY_TEMP"' EXIT
+          # 85s graceful termination + 5s kill grace bounds native hangs to 90s.
+          # Do not enable shell tracing, capture native diagnostics, or upload logs.
+          timeout --signal=TERM --kill-after=5s 85s ./scripts/with_agora_env.sh "$RUNNER_TEMP/agora-verify-bin" "${args[@]}"
+
+      - name: Remove private logs and verifier binary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf -- "$RUNNER_TEMP/agora-auth-private"
+          rm -f -- "$RUNNER_TEMP/agora-verify-bin"
