@@ -6,14 +6,42 @@ import (
 	"io"
 )
 
-// AACFrame is a raw AAC-LC access unit with its ADTS header removed.
+// AACFrame is one raw AAC-LC access unit with its ADTS header and optional CRC
+// removed. [ReadADTS] returns only mono or stereo frames containing one raw block;
+// the compressed payload is not decoded or otherwise validated.
 type AACFrame struct {
-	Data                                    []byte
-	SampleRate, Channels, SamplesPerChannel int
+	// Data contains the encoded AAC access unit without ADTS framing.
+	// ReadADTS allocates this slice; the caller owns it and may retain or modify it.
+	Data []byte
+	// SampleRate is the sampling frequency in hertz, as declared by the header.
+	SampleRate int
+	// Channels is the number of audio channels: 1 for mono or 2 for stereo.
+	Channels int
+	// SamplesPerChannel is the number of samples represented per channel.
+	// ReadADTS sets this to 1024 for every supported AAC-LC access unit.
+	SamplesPerChannel int
 }
 
-// ReadADTS reads one AAC-LC ADTS frame. Multi-block and implicit/PCE channel
-// configurations are rejected rather than guessed.
+// ReadADTS reads one AAC-LC frame from an ADTS stream. It accepts MPEG-2 or MPEG-4
+// ADTS with an explicit mono or stereo channel configuration and exactly one raw
+// data block. Implicit/PCE channel configurations, other profiles, and reserved
+// sample-rate indexes are rejected. Supported sample rates are 7350, 8000, 11025,
+// 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000, 88200, and 96000 Hz.
+//
+// The total frame length includes the seven-byte header and, when present, a
+// two-byte CRC. It must include at least one payload byte and cannot exceed 8191
+// bytes. The CRC is consumed but not checked. On success, the result owns its
+// payload, and the reader is positioned immediately after the frame.
+//
+// Invalid lengths return [ErrInvalidPacket]; unsupported or malformed header
+// fields return descriptive errors. Header, CRC, and payload reads propagate
+// errors from [io.ReadFull]. If input ends partway through any of those segments,
+// the error is [io.ErrUnexpectedEOF]. EOF before the first byte of a segment is
+// [io.EOF], including an entirely missing CRC or payload after a valid header.
+// Every error returns a zero [AACFrame].
+//
+// ReadADTS neither closes r nor scans ahead to recover from malformed input.
+// Calls sharing a reader must be serialized by the caller.
 func ReadADTS(r io.Reader) (AACFrame, error) {
 	var h [7]byte
 	if _, err := io.ReadFull(r, h[:]); err != nil {

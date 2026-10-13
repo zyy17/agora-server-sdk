@@ -1,4 +1,3 @@
-// Package mediaio provides bounded packet framing for encoded-media pipelines.
 package mediaio
 
 import (
@@ -7,12 +6,29 @@ import (
 	"io"
 )
 
+// MaxPacketSize is the maximum length-prefix packet payload, in bytes (16 MiB).
+// The four-byte length header is not included. It does not set the ADTS limit;
+// ADTS frames have their own 13-bit total-length field.
 const MaxPacketSize = 16 << 20
 
+// ErrInvalidPacket indicates an empty or oversized length-prefix packet, or an
+// ADTS frame length that leaves no payload. Other ADTS format errors are separate
+// errors. Callers can identify this sentinel with errors.Is.
 var ErrInvalidPacket = errors.New("mediaio: invalid packet size")
 
-// ReadPacket reads a uint32 big-endian size followed by exactly that many bytes.
-// The format retains encoder packet/access-unit boundaries; it is not MP4/Ogg.
+// ReadPacket reads one packet: a four-byte unsigned big-endian payload length
+// followed by exactly that many payload bytes. Valid lengths are 1 through
+// [MaxPacketSize], inclusive. It reads no bytes beyond that packet and returns a
+// newly allocated slice that the caller may retain and modify.
+//
+// A zero or oversized length returns [ErrInvalidPacket] after consuming the
+// header, without reading the payload. Reader errors are propagated from
+// [io.ReadFull], and every error returns a nil packet. At end of input, a partial
+// header or payload returns [io.ErrUnexpectedEOF]. [io.EOF] is returned if no
+// header bytes remain, but also if a valid header has no payload bytes at all.
+//
+// ReadPacket neither closes r nor attempts to resynchronize after an error.
+// Calls sharing a reader must be serialized by the caller.
 func ReadPacket(r io.Reader) ([]byte, error) {
 	var header [4]byte
 	if _, err := io.ReadFull(r, header[:]); err != nil {
@@ -29,6 +45,18 @@ func ReadPacket(r io.Reader) ([]byte, error) {
 	return packet, nil
 }
 
+// WritePacket writes packet as a four-byte unsigned big-endian payload length
+// followed by the payload. It returns [ErrInvalidPacket] without writing when
+// packet is empty or larger than [MaxPacketSize].
+//
+// WritePacket does not modify or retain packet. The caller must not modify the
+// slice until the call returns. Short writes with progress are retried; a writer
+// that reports no progress or an impossible byte count causes [io.ErrShortWrite].
+// Other writer errors are returned unchanged. An error can leave a partial
+// header or payload in w; writes are not transactional.
+//
+// WritePacket neither flushes nor closes w. Calls sharing a writer must be
+// serialized by the caller to preserve packet boundaries.
 func WritePacket(w io.Writer, packet []byte) error {
 	if len(packet) == 0 || len(packet) > MaxPacketSize {
 		return ErrInvalidPacket
