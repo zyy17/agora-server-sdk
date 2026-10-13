@@ -120,3 +120,43 @@ func TestReceiveVideoPreservesDescriptorsAndOwnership(t *testing.T) {
 		t.Fatalf("lost encoded metadata: %+v", encoded)
 	}
 }
+
+func TestVideoEncoderAndSimulcastBounds(t *testing.T) {
+	cfg := rtc.NewVideoEncoderConfiguration()
+	if err := validateVideoEncoder(cfg); err != nil {
+		t.Fatal("native defaults rejected", err)
+	}
+	for _, change := range []func(*rtc.VideoEncoderConfiguration){
+		func(c *rtc.VideoEncoderConfiguration) { c.Width = 1 },
+		func(c *rtc.VideoEncoderConfiguration) { c.Framerate = 241 },
+		func(c *rtc.VideoEncoderConfiguration) { c.Bitrate = math.MaxInt32 },
+		func(c *rtc.VideoEncoderConfiguration) { c.MinBitrate = math.MinInt32 },
+		func(c *rtc.VideoEncoderConfiguration) { c.CodecType = 99 },
+		func(c *rtc.VideoEncoderConfiguration) { c.OrientationMode = 99 },
+		func(c *rtc.VideoEncoderConfiguration) { c.DegradePreference = 99 },
+		func(c *rtc.VideoEncoderConfiguration) { c.MirrorMode = 99 },
+	} {
+		copy := *cfg
+		change(&copy)
+		if err := validateVideoEncoder(&copy); !errors.Is(err, ErrInvalidConfig) {
+			t.Fatal(copy, err)
+		}
+	}
+	if err := validateEncodedVideoSender(&rtc.VideoEncodedImageSenderOptions{CodecType: rtc.VideoCodecTypeAv1, TargetBitrate: 2000}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateEncodedVideoSender(&rtc.VideoEncodedImageSenderOptions{CcMode: 99}); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatal(err)
+	}
+	if err := validateSimulcast(false, rtc.SimulcastStreamConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSimulcast(true, rtc.SimulcastStreamConfig{Width: 320, Height: 240, Framerate: 15, Bitrate: 500}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []rtc.SimulcastStreamConfig{{}, {Width: 320, Height: 240, Framerate: 241}, {Width: 320, Height: 240, Framerate: 15, Bitrate: math.MaxInt32 + 1}} {
+		if err := validateSimulcast(true, c); !errors.Is(err, ErrInvalidConfig) {
+			t.Fatal(c, err)
+		}
+	}
+}

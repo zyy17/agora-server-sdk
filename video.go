@@ -155,9 +155,28 @@ func (s *Session) encodedVideoObserver() *rtc.VideoEncodedFrameObserver {
 		if i == nil {
 			return true
 		}
-		s.encodedVideo.push(ReceivedEncodedVideo{channel, uid, EncodedVideoFrame{Data: slices.Clone(data), Codec: VideoCodec(i.CodecType), Width: i.Width, Height: i.Height, FPS: i.FramesPerSecond, FrameType: VideoFrameType(i.FrameType), KeyFrame: i.FrameType == rtc.VideoFrameTypeKeyFrame, TrackID: i.TrackId, UID: i.Uid, TimestampMillis: i.CaptureTimeMs, DecodeTimestampMillis: i.DecodeTimeMs, PresentationMillis: i.PresentTimeMs, Rotation: int(i.Rotation), StreamID: i.StreamType, SEI: slices.Clone(i.SeiData)}})
-		return true
+		frame := ReceivedEncodedVideo{channel, uid, EncodedVideoFrame{Data: slices.Clone(data), Codec: VideoCodec(i.CodecType), Width: i.Width, Height: i.Height, FPS: i.FramesPerSecond, FrameType: VideoFrameType(i.FrameType), KeyFrame: i.FrameType == rtc.VideoFrameTypeKeyFrame, TrackID: i.TrackId, UID: i.Uid, TimestampMillis: i.CaptureTimeMs, DecodeTimestampMillis: i.DecodeTimeMs, PresentationMillis: i.PresentTimeMs, Rotation: int(i.Rotation), StreamID: i.StreamType, SEI: slices.Clone(i.SeiData)}}
+		accepted := s.processEncodedVideoCallback(frame)
+		s.encodedVideo.push(frame)
+		return accepted
 	}}
+}
+
+// processEncodedVideoCallback isolates application hooks from the queued packet.
+// Encoded observer decisions never write modified packet data back to native.
+func (s *Session) processEncodedVideoCallback(frame ReceivedEncodedVideo) (accepted bool) {
+	accepted = true
+	if callback := s.cfg.Video.OnEncodedFrame; callback != nil {
+		frame.Frame.Data, frame.Frame.SEI = slices.Clone(frame.Frame.Data), slices.Clone(frame.Frame.SEI)
+		defer func() {
+			if recover() != nil {
+				accepted = false
+				s.event(Event{Kind: CallbackPanic, Message: "encoded video callback panicked"})
+			}
+		}()
+		accepted = callback(frame)
+	}
+	return accepted
 }
 
 func validateDimensions(width, height int) error {
@@ -281,9 +300,14 @@ func (s *Session) SetVideoEncoder(cfg rtc.VideoEncoderConfiguration) error {
 }
 
 // SetSimulcast forwards native simulcast settings for the session's video track.
-// The native SDK validates cfg and determines feature/peer support; this call
-// does not change ReceiveConfig or subscriptions.
+// When enabling, dimensions must be 1–16384 and framerate 1–240. Bitrate
+// must fit nonnegative int32 in the native simulcast configuration units.
+// The native SDK determines feature/peer support; this call does not change
+// ReceiveConfig or subscriptions.
 func (s *Session) SetSimulcast(enabled bool, cfg rtc.SimulcastStreamConfig) error {
+	if err := validateSimulcast(enabled, cfg); err != nil {
+		return err
+	}
 	return s.withNative("set simulcast", func(c *rtc.RtcConnection) int { return c.SetSimulcastStream(enabled, &cfg) })
 }
 
@@ -340,6 +364,21 @@ func validateEncodedVideoSender(cfg *rtc.VideoEncodedImageSenderOptions) error {
 	}
 	if cfg.TargetBitrate < 0 || int64(cfg.TargetBitrate) > math.MaxInt32 {
 		return invalid("video target bitrate", "must fit nonnegative int32 Kbps")
+	}
+	return nil
+}
+
+func validateSimulcast(enabled bool, cfg rtc.SimulcastStreamConfig) error {
+	if enabled || cfg.Width != 0 || cfg.Height != 0 {
+		if err := validateDimensions(cfg.Width, cfg.Height); err != nil {
+			return err
+		}
+	}
+	if cfg.Framerate < 0 || cfg.Framerate > 240 || (enabled && cfg.Framerate == 0) {
+		return invalid("simulcast framerate", "must be 1–240 when enabled, or 0–240 when disabled")
+	}
+	if cfg.Bitrate < 0 || int64(cfg.Bitrate) > math.MaxInt32 {
+		return invalid("simulcast bitrate", "must fit nonnegative int32")
 	}
 	return nil
 }

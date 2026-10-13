@@ -66,3 +66,9 @@ Session 的 `TranscodeVideo` / `TranscodeOpus` 保持异步 worker 语义：接�
 ## 离线验证
 
 单测覆盖布局/溢出校验、元数据、复制接收数据、解码器构建开关、VAD 归属和 Close 并发。`-tags agora_test` 检查固定 C ABI 的媒体结构往返。Native smoke 无需凭据或加入频道，可验证真实处理器 48 kHz 双声道→16 kHz 单声道输出。可选解码 fixture 在 avcodec CI 作业执行。这些检查不能证明双端实时互通或全部平台/编码组合可用。
+
+## 同步观察决策
+
+`AudioConfig.ReceiveParameters` 可分别设置 Playback、Record、Mixed、EarMonitoring 的 PCM 格式和采样数。未配置项继承通常的 10 ms 只读接收格式；before-mixing 始终只读。`AudioConfig.Callbacks.OnFrame` 同步接受/拒绝帧；仅 `ReadWrite` 位置返回 true 时的原地 Data 编辑影响原生 PCM 及队列快照。拒绝或只读时的编辑、元数据及切片头变更均忽略；队列缓冲区与回调缓冲区独立。
+
+`VideoConfig.OnEncodedFrame` 同步接受/拒绝编码视频，编辑不会改变原生数据或队列快照。两类 hook 即使拒绝仍排入观察队列；panic 会被隔离并产生 `CallbackPanic` 事件、拒绝当前帧。回调须及时返回，不可阻塞 I/O、等待事件或调用需要生命周期锁的 Session/Service 方法，包括 Close/Send/WithNative/SetRole。回调可能并发执行，应用须同步自身状态。

@@ -66,3 +66,9 @@ Session `TranscodeVideo` and `TranscodeOpus` retain asynchronous worker behavior
 ## Offline verification
 
 Unit tests cover format/overflow validation, metadata preservation, copied receive data, decoder feature gates, VAD ownership and Close races. `-tags agora_test` tests round-trip media structures through the pinned C ABI. Native smoke tests create processors/detectors and verify 48 kHz stereo→16 kHz mono output without credentials or channel joins. Optional decoder fixtures run in the avcodec CI job. These checks do not prove live two-peer interoperability or all platform/codec combinations.
+
+## Synchronous observation decisions
+
+`AudioConfig.ReceiveParameters` independently selects Playback, Record, Mixed and EarMonitoring PCM format/sample counts. Unspecified entries inherit the normal 10 ms read-only receive format; before-mixing stays read-only. `AudioConfig.Callbacks.OnFrame` can accept/reject synchronously. Only accepted in-place Data edits at a `ReadWrite` point affect native PCM and the queued snapshot. Rejected/read-only edits and changes to metadata/slice headers are ignored. Queue buffers are independent of callback buffers.
+
+`VideoConfig.OnEncodedFrame` synchronously accepts/rejects encoded video; its edits never change native packets or queued snapshots. Both hook types still enqueue observations when rejected, contain panics as `CallbackPanic` plus rejection, and must return promptly. Do not perform blocking I/O, wait for events or call lifecycle-locking Session/Service methods (including Close/Send/WithNative/SetRole) from them. Hooks may run concurrently; synchronize application state.

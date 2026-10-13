@@ -116,25 +116,26 @@ type ReceivedEncodedAudio struct {
 }
 
 func (s *Session) audioObserver() *rtc.AudioFrameObserver {
-	params := rtc.AudioFrameObserverAudioParams{SampleRate: s.cfg.Audio.Receive.SampleRate, Channels: s.cfg.Audio.Receive.Channels, Mode: rtc.RawAudioFrameOpModeReadOnly, SamplesPerCall: s.cfg.Audio.Receive.SampleRate / 100 * s.cfg.Audio.Receive.Channels}
 	capture := func(position AudioPosition, channel string, f *rtc.AudioFrame) bool {
 		if f != nil {
 			out := copyAudioFrame(f)
 			out.Position, out.Channel = position, channel
-			s.audio.push(out)
+			return s.observeAudioFrame(out, f, s.audioFrameParameters(position).Mode == rtc.RawAudioFrameOpModeReadWrite)
 		}
 		return true
 	}
 	return &rtc.AudioFrameObserver{
-		OnGetAudioFramePosition:           func(*rtc.LocalUser) int { return int(s.cfg.Receive.AudioPositions) },
-		OnGetPlaybackAudioFrameParam:      func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return params },
-		OnGetRecordAudioFrameParam:        func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return params },
-		OnGetMixedAudioFrameParam:         func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return params },
-		OnGetEarMonitoringAudioFrameParam: func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return params },
-		OnRecordAudioFrame:                func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioRecord, ch, f) },
-		OnPlaybackAudioFrame:              func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioPlayback, ch, f) },
-		OnMixedAudioFrame:                 func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioMixed, ch, f) },
-		OnEarMonitoringAudioFrame:         func(_ *rtc.LocalUser, f *rtc.AudioFrame) bool { return capture(AudioEarMonitoring, s.cfg.Channel, f) },
+		OnGetAudioFramePosition:      func(*rtc.LocalUser) int { return int(s.cfg.Receive.AudioPositions) },
+		OnGetPlaybackAudioFrameParam: func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return s.audioFrameParameters(AudioPlayback) },
+		OnGetRecordAudioFrameParam:   func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return s.audioFrameParameters(AudioRecord) },
+		OnGetMixedAudioFrameParam:    func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return s.audioFrameParameters(AudioMixed) },
+		OnGetEarMonitoringAudioFrameParam: func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams {
+			return s.audioFrameParameters(AudioEarMonitoring)
+		},
+		OnRecordAudioFrame:        func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioRecord, ch, f) },
+		OnPlaybackAudioFrame:      func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioPlayback, ch, f) },
+		OnMixedAudioFrame:         func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioMixed, ch, f) },
+		OnEarMonitoringAudioFrame: func(_ *rtc.LocalUser, f *rtc.AudioFrame) bool { return capture(AudioEarMonitoring, s.cfg.Channel, f) },
 		OnPlaybackAudioFrameBeforeMixing: func(_ *rtc.LocalUser, channel, uid string, f *rtc.AudioFrame, vad rtc.VadState, speech *rtc.AudioFrame) bool {
 			if f == nil {
 				return true
@@ -144,10 +145,27 @@ func (s *Session) audioObserver() *rtc.AudioFrameObserver {
 			if speech != nil {
 				frame.Speech = slices.Clone(speech.Buffer)
 			}
-			s.audio.push(frame)
-			return true
+			return s.observeAudioFrame(frame, f, false)
 		},
 	}
+}
+
+// observeAudioFrame isolates synchronous hook buffers from the asynchronous
+// queue. Only accepted ReadWrite Data edits affect native and queued PCM.
+func (s *Session) observeAudioFrame(frame AudioFrame, native *rtc.AudioFrame, writable bool) bool {
+	if s.cfg.Audio.Callbacks == nil || s.cfg.Audio.Callbacks.OnFrame == nil {
+		s.audio.push(frame)
+		return true
+	}
+	hook := frame
+	hook.Data, hook.Speech = slices.Clone(frame.Data), slices.Clone(frame.Speech)
+	accepted := s.processAudioCallback(hook)
+	if accepted && writable {
+		copy(native.Buffer, hook.Data)
+		copy(frame.Data, hook.Data)
+	}
+	s.audio.push(frame)
+	return accepted
 }
 
 func copyAudioFrame(f *rtc.AudioFrame) AudioFrame {
