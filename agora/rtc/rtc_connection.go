@@ -522,6 +522,8 @@ func NewRtcConnection(cfg *RtcConnectionConfig, publishConfig *RtcConnectionPubl
 		return nil
 	}
 
+	conn.localUser.role.Store(int32(cfg.ClientRole))
+
 	// Make callback routing available before registering native observers.
 	agoraService.setConFromHandle(conn.cConnection, conn, ConTypeCCon)
 	agoraService.setConFromHandle(conn.localUser.cLocalUser, conn, ConTypeCLocalUser)
@@ -1580,13 +1582,23 @@ func (consumer *PcmConsumeStats) reset() {
 	consumer.duration = 0
 }
 
+// SetVideoEncoderConfiguration applies an encoder configuration to the owned
+// video track. An audience connection with configured video stores a copy until
+// promotion creates the track; the caller may reuse cfg after this call.
 func (conn *RtcConnection) SetVideoEncoderConfiguration(cfg *VideoEncoderConfiguration) int {
 	// validate the connection
-	if conn == nil || conn.cConnection == nil || conn.videoTrack == nil || conn.videoTrack.cTrack == nil {
+	if conn == nil || conn.cConnection == nil || cfg == nil {
 		return -1000
 	}
-	// keep configure
-	conn.videoEncoderConfiguration = cfg
+	// Audience sessions retain a copied encoder setting for lazy promotion.
+	copy := *cfg
+	conn.videoEncoderConfiguration = &copy
+	if conn.videoTrack == nil || conn.videoTrack.cTrack == nil {
+		if conn.publishConfig != nil && conn.publishConfig.VideoPublishType != VideoPublishTypeNoPublish {
+			return 0
+		}
+		return -1000
+	}
 
 	// validate the cfg
 
