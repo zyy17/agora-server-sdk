@@ -3,10 +3,12 @@ package agorasdk
 import (
 	"context"
 	"errors"
-	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 	"io"
+	"math"
 	"slices"
 	"time"
+
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 // AudioFrame is interleaved signed 16-bit little-endian PCM owned by the reader.
@@ -15,6 +17,8 @@ type AudioFrame struct {
 	Channel, UserID                                string
 	Data                                           []byte
 	SampleRate, Channels                           int
+	SamplesPerChannel, BytesPerSample              int
+	AVSyncType, FarField                           int
 	TimestampMillis, PresentationMillis            int64
 	VoiceProbability, MusicProbability, RMS, Pitch int
 	VAD                                            rtc.VadState
@@ -43,10 +47,12 @@ type ReceivedEncodedAudio struct {
 }
 
 func (s *Session) audioObserver() *rtc.AudioFrameObserver {
-	params := rtc.AudioFrameObserverAudioParams{SampleRate: s.cfg.Audio.SampleRate, Channels: s.cfg.Audio.Channels, Mode: rtc.RawAudioFrameOpModeReadOnly, SamplesPerCall: s.cfg.Audio.SampleRate / 100 * s.cfg.Audio.Channels}
+	params := rtc.AudioFrameObserverAudioParams{SampleRate: s.cfg.Audio.Receive.SampleRate, Channels: s.cfg.Audio.Receive.Channels, Mode: rtc.RawAudioFrameOpModeReadOnly, SamplesPerCall: s.cfg.Audio.Receive.SampleRate / 100 * s.cfg.Audio.Receive.Channels}
 	capture := func(position AudioPosition, channel string, f *rtc.AudioFrame) bool {
 		if f != nil {
-			s.audio.push(AudioFrame{Position: position, Channel: channel, Data: slices.Clone(f.Buffer), SampleRate: f.SamplesPerSec, Channels: f.Channels, TimestampMillis: f.RenderTimeMs, PresentationMillis: f.PresentTimeMs, VoiceProbability: f.VoiceProb, MusicProbability: f.MusicProb, RMS: f.Rms, Pitch: f.Pitch})
+			out := copyAudioFrame(f)
+			out.Position, out.Channel = position, channel
+			s.audio.push(out)
 		}
 		return true
 	}
@@ -64,8 +70,8 @@ func (s *Session) audioObserver() *rtc.AudioFrameObserver {
 			if f == nil {
 				return true
 			}
-			frame := AudioFrame{Position: AudioBeforeMixing, Channel: channel, UserID: uid, Data: slices.Clone(f.Buffer), SampleRate: f.SamplesPerSec, Channels: f.Channels,
-				TimestampMillis: f.RenderTimeMs, PresentationMillis: f.PresentTimeMs, VoiceProbability: f.VoiceProb, MusicProbability: f.MusicProb, RMS: f.Rms, Pitch: f.Pitch, VAD: vad}
+			frame := copyAudioFrame(f)
+			frame.Position, frame.Channel, frame.UserID, frame.VAD = AudioBeforeMixing, channel, uid, vad
 			if speech != nil {
 				frame.Speech = slices.Clone(speech.Buffer)
 			}
@@ -74,6 +80,12 @@ func (s *Session) audioObserver() *rtc.AudioFrameObserver {
 		},
 	}
 }
+func copyAudioFrame(f *rtc.AudioFrame) AudioFrame {
+	return AudioFrame{Data: slices.Clone(f.Buffer), SampleRate: f.SamplesPerSec, Channels: f.Channels,
+		SamplesPerChannel: f.SamplesPerChannel, BytesPerSample: f.BytesPerSample, AVSyncType: f.AvsyncType, FarField: f.FarFieldFlag,
+		TimestampMillis: f.RenderTimeMs, PresentationMillis: f.PresentTimeMs, VoiceProbability: f.VoiceProb, MusicProbability: f.MusicProb, RMS: f.Rms, Pitch: f.Pitch}
+}
+
 func (s *Session) encodedAudioObserver() *rtc.AudioEncodedFrameObserver {
 	return &rtc.AudioEncodedFrameObserver{OnEncodedAudioFrameReceived: func(uid string, data []byte, ts int64, codec int) {
 		s.encodedAudio.push(ReceivedEncodedAudio{s.cfg.Channel, uid, slices.Clone(data), AudioCodec(codec), ts})
@@ -83,18 +95,39 @@ func validatePCM(data []byte, rate, channels int) error {
 	if err := validatePCMFormat(rate, channels); err != nil {
 		return err
 	}
-	size := rate / 100 * channels * 2
-	if len(data) == 0 || len(data)%size != 0 {
-		return invalid("PCM data", "must contain complete nonempty 10 ms PCM16 frames")
+	samples := len(data) / (channels * 2)
+	if len(data) == 0 || len(data)%(channels*2) != 0 || uint64(samples) > math.MaxUint32 || samples%(rate/gcd(rate, 1000)) != 0 {
+		return invalid("PCM data", "must contain complete PCM16 samples with an integral millisecond duration (10 ms at 44100 Hz)")
 	}
 	return nil
 }
 
-// SendPCM publishes on first use. Data must contain complete 10 ms frames in the
-// session's configured sample rate/channels. It does not pace a file; use PlayPCM.
+func gcd(a, b int) int {
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
+}
+
+func validateProcessorPCM(data []byte, rate, channels int) error {
+	if err := validatePCMFormat(rate, channels); err != nil {
+		return err
+	}
+	if len(data) == 0 || len(data)%(rate/100*channels*2) != 0 {
+		return invalid("processor PCM data", "must contain complete nonempty 10 ms PCM16 frames")
+	}
+	return nil
+}
+
+// SendPCM publishes on first use. Data must contain complete PCM16 samples with
+// an integral millisecond duration (10 ms at 44100 Hz) in Audio.Send format.
+// Calls are not paced or buffered by the wrapper; use PlayPCM for paced files.
 func (s *Session) SendPCM(data []byte) error { return s.SendPCMAt(data, 0) }
+
+// SendPCMAt forwards presentationMillis unchanged, including opaque application
+// tags. It never increments or replaces the supplied value.
 func (s *Session) SendPCMAt(data []byte, presentationMillis int64) error {
-	if err := validatePCM(data, s.cfg.Audio.SampleRate, s.cfg.Audio.Channels); err != nil {
+	if err := validatePCM(data, s.cfg.Audio.Send.SampleRate, s.cfg.Audio.Send.Channels); err != nil {
 		return err
 	}
 	s.mu.Lock()
@@ -108,7 +141,7 @@ func (s *Session) SendPCMAt(data []byte, presentationMillis int64) error {
 	if err := s.publishAudioLocked(); err != nil {
 		return err
 	}
-	return check("send PCM", s.native.PushAudioPcmData(data, s.cfg.Audio.SampleRate, s.cfg.Audio.Channels, presentationMillis))
+	return check("send PCM", s.transport.PushAudioPcmData(data, s.cfg.Audio.Send.SampleRate, s.cfg.Audio.Send.Channels, presentationMillis))
 }
 
 // PlayPCM reads and paces PCM16 using a single 10 ms buffer. Reader must return
@@ -120,7 +153,7 @@ func (s *Session) PlayPCM(ctx context.Context, reader io.Reader) error {
 
 // PlayPCMAt paces PCM with an explicit initial presentation timestamp in milliseconds.
 func (s *Session) PlayPCMAt(ctx context.Context, reader io.Reader, presentationMillis int64) error {
-	return playPCM(ctx, reader, s.cfg.Audio.SampleRate, s.cfg.Audio.Channels, presentationMillis, s.SendPCMAt)
+	return playPCM(ctx, reader, s.cfg.Audio.Send.SampleRate, s.cfg.Audio.Send.Channels, presentationMillis, s.SendPCMAt)
 }
 func playPCM(ctx context.Context, reader io.Reader, rate, channels int, presentationMillis int64, send func([]byte, int64) error) error {
 	if ctx == nil || reader == nil {

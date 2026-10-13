@@ -174,7 +174,7 @@ func (s *Session) SendEncodedVideo(frame EncodedVideoFrame) error {
 	return check("send encoded video", s.native.PushVideoEncodedData(frame.Data, frame.nativeInfo()))
 }
 func (s *Session) RequestKeyFrame(userID string) error {
-	if err := validateUserID(userID); err != nil {
+	if err := s.validateRemoteUserID(userID); err != nil {
 		return err
 	}
 	return s.withNative("request keyframe", func(c *rtc.RtcConnection) int { return c.SendIntraRequest(userID) })

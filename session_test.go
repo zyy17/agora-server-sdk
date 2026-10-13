@@ -3,13 +3,14 @@ package agorasdk
 import (
 	"context"
 	"errors"
-	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 	"io"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 type fakeTransport struct {
@@ -27,6 +28,9 @@ func (f *fakeTransport) Connect(_, _, _, _ string) int {
 	}
 	return 0
 }
+func (f *fakeTransport) PublishAudio() int                            { return 0 }
+func (f *fakeTransport) UnpublishAudio() int                          { return 0 }
+func (f *fakeTransport) PushAudioPcmData([]byte, int, int, int64) int { return 0 }
 func (f *fakeTransport) Disconnect() int {
 	f.disconnects.Add(1)
 	f.mu.Lock()

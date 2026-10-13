@@ -4,6 +4,7 @@ package agoraservice
 // #include "agora_media_node_factory.h"
 import "C"
 import (
+	"math"
 	"sync"
 	"unsafe"
 )
@@ -81,7 +82,7 @@ func (sender *AudioPcmDataSender) SendAudioPcmData(frame *AudioFrame) int {
 	if sender.closed || sender.cSender == nil || frame == nil || len(frame.Buffer) == 0 {
 		return -1
 	}
-	if frame.BytesPerSample != 2 || frame.Channels < 1 || frame.Channels > 2 || frame.SamplesPerChannel <= 0 || frame.SamplesPerSec <= 0 {
+	if frame.BytesPerSample != 2 || frame.Channels < 1 || frame.Channels > 2 || frame.SamplesPerChannel <= 0 || uint64(frame.SamplesPerChannel) > math.MaxUint32 || frame.SamplesPerSec <= 0 || uint64(frame.SamplesPerSec) > math.MaxUint32 {
 		return -2
 	}
 	bytesPerSample := frame.BytesPerSample * frame.Channels

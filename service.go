@@ -3,9 +3,10 @@ package agorasdk
 import (
 	"context"
 	"errors"
-	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 	"strings"
 	"sync"
+
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 var runtimeOwner struct {
@@ -25,9 +26,11 @@ type Service struct {
 	release         func() error
 	processors      map[*AudioProcessor]struct{}
 	audioProcessing bool
+	identityMode    IdentityMode
+	setParameters   func(string) int
 }
 
-func NewService(cfg Config) (*Service, error) {
+func serviceConfig(cfg Config) (*rtc.AgoraServiceConfig, error) {
 	if len(cfg.AppID) != 32 || strings.ContainsRune(cfg.AppID, 0) {
 		return nil, invalid("app ID", "must be 32 characters")
 	}
@@ -38,7 +41,10 @@ func NewService(cfg Config) (*Service, error) {
 		native.APMConfig = rtc.NewAPMConfig()
 	}
 	native.AppId = cfg.AppID
-	native.UseStringUid = true
+	if cfg.IdentityMode > NumericIdentity {
+		return nil, invalid("identity mode", "is unknown")
+	}
+	native.UseStringUid = cfg.IdentityMode == StringIdentity
 	native.EnableVideo = cfg.Video
 	native.LogPath = cfg.LogPath
 	native.ConfigDir = cfg.ConfigDir
@@ -48,12 +54,20 @@ func NewService(cfg Config) (*Service, error) {
 			return nil, err
 		}
 	}
-	if !native.UseStringUid {
-		return nil, invalid("UseStringUid", "must remain true for the high-level API")
+	if native.UseStringUid != (cfg.IdentityMode == StringIdentity) {
+		return nil, invalid("UseStringUid", "must match Config.IdentityMode")
 	}
 	// Idle mode delays destruction beyond Session.Close and violates ownership.
 	if native.IdleMode {
 		return nil, invalid("IdleMode", "must remain false for deterministic Close")
+	}
+	return native, nil
+}
+
+func NewService(cfg Config) (*Service, error) {
+	native, err := serviceConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 	runtimeOwner.Lock()
 	defer runtimeOwner.Unlock()
@@ -64,7 +78,7 @@ func NewService(cfg Config) (*Service, error) {
 		return nil, err
 	}
 	runtimeOwner.active = true
-	return &Service{video: native.EnableVideo, sessions: make(map[*Session]struct{}), processors: make(map[*AudioProcessor]struct{}), audioProcessing: native.APMModel > 0, release: func() error {
+	return &Service{setParameters: rtc.GetAgoraParameter().SetParameters, identityMode: cfg.IdentityMode, video: native.EnableVideo, sessions: make(map[*Session]struct{}), processors: make(map[*AudioProcessor]struct{}), audioProcessing: native.APMModel > 0, release: func() error {
 		runtimeOwner.Lock()
 		defer runtimeOwner.Unlock()
 		err := check("release service", rtc.Release())
@@ -83,6 +97,9 @@ func (s *Service) Join(ctx context.Context, cfg ChannelConfig) (*Session, error)
 		return nil, invalid("context", "must not be nil")
 	}
 	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := s.identityMode.validateUserID(cfg.UserID, true); err != nil {
 		return nil, err
 	}
 	cfg, err := normalized(cfg)
@@ -139,3 +156,21 @@ func (s *Service) Close() error {
 	return s.closeErr
 }
 func (s *Service) remove(c *Session) { s.mu.Lock(); delete(s.sessions, c); s.mu.Unlock() }
+
+// SetParameters applies a native process-level JSON parameter object while the
+// Service owns the runtime. Call before Join for parameters that affect new
+// connections. Supported keys and timing requirements belong to the native SDK.
+func (s *Service) SetParameters(parameters string) error {
+	if err := validateParameters(parameters); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return ErrClosed
+	}
+	if s.setParameters == nil {
+		return ErrUnsupported
+	}
+	return check("set service parameters", s.setParameters(parameters))
+}

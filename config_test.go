@@ -2,8 +2,9 @@ package agorasdk
 
 import (
 	"errors"
-	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 	"testing"
+
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 func validChannel() ChannelConfig {
@@ -14,7 +15,7 @@ func TestConfigDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Audio.SampleRate != 16000 || c.Audio.Channels != 1 || c.QueueCapacity != 64 || c.JoinTimeout <= 0 {
+	if c.Audio.Send.SampleRate != 16000 || c.Audio.Send.Channels != 1 || c.QueueCapacity != 64 || c.JoinTimeout <= 0 {
 		t.Fatalf("%+v", c)
 	}
 	if c.Audio.Scenario.native() != rtc.AudioScenarioAiServer || ScenarioDefault.native() != rtc.AudioScenarioDefault {
@@ -28,10 +29,10 @@ func TestInvalidConfig(t *testing.T) {
 	}{
 		{"channel", func(c *ChannelConfig) { c.Channel = "" }}, {"NUL channel", func(c *ChannelConfig) { c.Channel = "a\x00b" }},
 		{"user", func(c *ChannelConfig) { c.UserID = "" }}, {"NUL token", func(c *ChannelConfig) { c.Token = "a\x00b" }},
-		{"rate", func(c *ChannelConfig) { c.Audio.SampleRate = -1 }}, {"channels", func(c *ChannelConfig) { c.Audio.Channels = 3 }},
+		{"rate", func(c *ChannelConfig) { c.Audio.Send.SampleRate = -1 }}, {"channels", func(c *ChannelConfig) { c.Audio.Send.Channels = 3 }},
 		{"queue", func(c *ChannelConfig) { c.QueueCapacity = -2 }}, {"timeout", func(c *ChannelConfig) { c.JoinTimeout = -1 }},
 		{"role", func(c *ChannelConfig) { c.Role = 99 }}, {"scenario", func(c *ChannelConfig) { c.Audio.Scenario = 99 }},
-		{"large scale auto", func(c *ChannelConfig) { c.Mode = LargeScale }}, {"VAD format", func(c *ChannelConfig) { c.Audio.VAD = true; c.Audio.SampleRate = 48000 }},
+		{"large scale auto", func(c *ChannelConfig) { c.Mode = LargeScale }}, {"VAD format", func(c *ChannelConfig) { c.Audio.VAD = true; c.Audio.Receive.SampleRate = 48000 }},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -115,5 +116,24 @@ func TestNativeError(t *testing.T) {
 	}
 	if check("ok", 0) != nil {
 		t.Fatal("success failed")
+	}
+}
+
+func TestIndependentAudioDefaultsAndVAD(t *testing.T) {
+	c := validChannel()
+	c.Audio.Send = PCMFormat{48000, 2}
+	c.Audio.VAD = true
+	got, err := normalized(c)
+	if err != nil || got.Audio.Receive != (PCMFormat{16000, 1}) || got.Audio.Send != (PCMFormat{48000, 2}) {
+		t.Fatal(got, err)
+	}
+	c.Receive.Disabled = true
+	if _, err := normalized(c); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatal(err)
+	}
+	c.Receive.Disabled = false
+	c.Receive.AudioPositions = AudioMixed
+	if _, err := normalized(c); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatal(err)
 	}
 }

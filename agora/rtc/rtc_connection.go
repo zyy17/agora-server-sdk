@@ -1419,31 +1419,11 @@ func (conn *RtcConnection) PushAudioPcmData(data []byte, sampleRate int, channel
 	if conn == nil || conn.cConnection == nil || conn.audioSender == nil {
 		return -2000
 	}
-	if len(data) == 0 || sampleRate < 8000 || sampleRate > 48000 || sampleRate%100 != 0 || channels < 1 || channels > 2 {
+	frame, valid := makePCMFrame(data, sampleRate, channels, startPtsInMs)
+	if !valid {
 		return -2
 	}
 	readLen := len(data)
-	bytesPer10ms := (sampleRate / 100) * 2 * channels
-	// validity check: only accepts data with lengths that are integer multiples of 10ms​​
-	if readLen%bytesPer10ms != 0 {
-		fmt.Printf("PushAudioPcmData data length is not integer multiples of 10ms, readLen: %d, bytesPerFrame: %d\n", readLen, bytesPer10ms)
-		return -2
-	}
-	packnumInMs := (readLen / bytesPer10ms) * 10
-
-	frame := &AudioFrame{
-		Buffer:            nil,
-		RenderTimeMs:      0,
-		PresentTimeMs:     startPtsInMs,
-		SamplesPerChannel: sampleRate / 100,
-		BytesPerSample:    2,
-		Channels:          channels,
-		SamplesPerSec:     sampleRate,
-		Type:              AudioFrameTypePCM16,
-	}
-
-	frame.Buffer = data
-	frame.SamplesPerChannel = sampleRate * packnumInMs / 1000
 
 	//for ai server limited mode only
 	// for every new round, should call the function to set the total extra send ms

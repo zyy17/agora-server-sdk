@@ -6,10 +6,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	sdk "github.com/zyy17/agora-server-sdk"
-	"github.com/zyy17/agora-server-sdk/examples/internal/example"
 	"os"
 	"path/filepath"
+
+	sdk "github.com/zyy17/agora-server-sdk"
+	"github.com/zyy17/agora-server-sdk/examples/internal/example"
 )
 
 func main() { example.Main(run) }
@@ -23,8 +24,8 @@ func run() error {
 	}
 	return example.Run(false, func(c *sdk.ChannelConfig) {
 		c.Role = sdk.Audience
-		c.Audio.SampleRate = *rate
-		c.Audio.Channels = *channels
+		c.Audio.Receive.SampleRate = *rate
+		c.Audio.Receive.Channels = *channels
 	}, func(ctx context.Context, s *sdk.Session) (err error) {
 		files := map[string]*os.File{}
 		defer func() {

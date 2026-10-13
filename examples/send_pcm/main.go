@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+
 	sdk "github.com/zyy17/agora-server-sdk"
 	"github.com/zyy17/agora-server-sdk/examples/internal/example"
-	"os"
 )
 
 func main() { example.Main(run) }
@@ -19,7 +20,7 @@ func run() error {
 		return err
 	}
 	defer file.Close()
-	return example.Run(false, func(c *sdk.ChannelConfig) { c.Audio.SampleRate = *rate; c.Audio.Channels = *channels }, func(ctx context.Context, s *sdk.Session) error {
+	return example.Run(false, func(c *sdk.ChannelConfig) { c.Audio.Send.SampleRate = *rate; c.Audio.Send.Channels = *channels }, func(ctx context.Context, s *sdk.Session) error {
 		if err := s.PlayPCM(ctx, file); err != nil {
 			return err
 		}

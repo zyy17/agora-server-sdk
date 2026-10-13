@@ -3,15 +3,19 @@ package agorasdk
 import (
 	"context"
 	"errors"
-	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 	"sync"
 	"sync/atomic"
+
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 type sessionTransport interface {
 	Connect(string, string, string, string) int
 	Disconnect() int
 	Release()
+	PublishAudio() int
+	UnpublishAudio() int
+	PushAudioPcmData([]byte, int, int, int64) int
 }
 
 // Session owns a connected RTC channel and its media streams. Use Close, not
@@ -115,7 +119,7 @@ func (s *Session) configure() error {
 			op  string
 			run func() int
 		}{"configure received PCM", func() int {
-			return s.native.GetLocalUser().SetPlaybackAudioFrameBeforeMixingParameters(s.cfg.Audio.Channels, s.cfg.Audio.SampleRate)
+			return s.native.GetLocalUser().SetPlaybackAudioFrameBeforeMixingParameters(s.cfg.Audio.Receive.Channels, s.cfg.Audio.Receive.SampleRate)
 		}})
 		steps = append(steps, struct {
 			op  string
@@ -281,7 +285,7 @@ func (s *Session) publishAudioLocked() error {
 	if s.audioPublished {
 		return nil
 	}
-	if err := check("publish audio", s.native.PublishAudio()); err != nil {
+	if err := check("publish audio", s.transport.PublishAudio()); err != nil {
 		return err
 	}
 	s.audioPublished = true
@@ -325,7 +329,7 @@ func (s *Session) UnpublishAudio() error {
 	if !s.audioPublished {
 		return nil
 	}
-	if err := check("unpublish audio", s.native.UnpublishAudio()); err != nil {
+	if err := check("unpublish audio", s.transport.UnpublishAudio()); err != nil {
 		return err
 	}
 	s.audioPublished = false

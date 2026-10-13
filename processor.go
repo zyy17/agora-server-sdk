@@ -1,9 +1,10 @@
 package agorasdk
 
 import (
-	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 	"slices"
 	"sync"
+
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 // ProcessorConfig configures native external audio processing. The installed SDK
@@ -72,7 +73,8 @@ func (s *Service) NewAudioProcessor(cfg ProcessorConfig) (*AudioProcessor, error
 		if f == nil {
 			return
 		}
-		out := AudioFrame{Data: slices.Clone(f.Buffer), SampleRate: f.SamplesPerSec, Channels: f.Channels, TimestampMillis: f.RenderTimeMs, PresentationMillis: f.PresentTimeMs, VAD: v, RMS: f.Rms, VoiceProbability: f.VoiceProb}
+		out := copyAudioFrame(f)
+		out.VAD = v
 		if speech != nil {
 			out.Speech = slices.Clone(speech.Buffer)
 		}
@@ -88,7 +90,7 @@ func (s *Service) NewAudioProcessor(cfg ProcessorConfig) (*AudioProcessor, error
 }
 func (p *AudioProcessor) Output() *Stream[AudioFrame] { return p.output }
 func (p *AudioProcessor) SendPCM(data []byte) error {
-	if err := validatePCM(data, p.rate, p.channels); err != nil {
+	if err := validateProcessorPCM(data, p.rate, p.channels); err != nil {
 		return err
 	}
 	p.mu.Lock()

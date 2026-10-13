@@ -1,21 +1,50 @@
 package agorasdk
 
 import (
-	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
+	"strconv"
 	"strings"
 	"time"
+
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 // Config owns process-wide settings. One Service may be open at a time.
 // Authentication is per channel; an App Certificate is never needed to join.
 type Config struct {
-	AppID string
-	Video bool
+	AppID        string
+	IdentityMode IdentityMode
+	Video        bool
 	// AudioProcessing enables native APM extensions for external processors.
 	AudioProcessing             bool
 	LogPath, ConfigDir, DataDir string
 	// ConfigureNative runs before initialization. Do not retain the pointer.
 	ConfigureNative func(*rtc.AgoraServiceConfig) error
+}
+
+// IdentityMode selects the native identity namespace for every session in a Service.
+type IdentityMode uint8
+
+const (
+	// StringIdentity uses string user accounts, including all-digit accounts.
+	StringIdentity IdentityMode = iota
+	// NumericIdentity uses canonical decimal uint32 UIDs, never string accounts.
+	NumericIdentity
+)
+
+func (m IdentityMode) validateUserID(uid string, allowAuto bool) error {
+	if m > NumericIdentity {
+		return invalid("identity mode", "is unknown")
+	}
+	if err := validateUserID(uid); err != nil {
+		return err
+	}
+	if m == NumericIdentity {
+		value, err := strconv.ParseUint(uid, 10, 32)
+		if err != nil || strconv.FormatUint(value, 10) != uid || (!allowAuto && value == 0) {
+			return invalid("numeric user ID", "must be a canonical decimal uint32; zero is allowed only when joining")
+		}
+	}
+	return nil
 }
 
 type Role uint8
@@ -66,13 +95,27 @@ func (s AudioScenario) native() rtc.AudioScenario {
 	return [...]rtc.AudioScenario{rtc.AudioScenarioAiServer, rtc.AudioScenarioDefault, rtc.AudioScenarioGameStreaming, rtc.AudioScenarioChatRoom, rtc.AudioScenarioChorus, rtc.AudioScenarioMeeting, rtc.AudioScenarioAiServer, rtc.AudioScenarioAiClient}[s]
 }
 
-// AudioConfig configures sending and receiving PCM16, or encoded audio.
+// PCMFormat describes signed interleaved little-endian PCM16.
+// Zero fields select 16 kHz mono independently for each direction.
+type PCMFormat struct{ SampleRate, Channels int }
+
+func (f PCMFormat) normalized() (PCMFormat, error) {
+	if f.SampleRate == 0 {
+		f.SampleRate = 16000
+	}
+	if f.Channels == 0 {
+		f.Channels = 1
+	}
+	return f, validatePCMFormat(f.SampleRate, f.Channels)
+}
+
+// AudioConfig configures independent send/receive PCM16 formats, or encoded audio.
 // Zero values select 16 kHz mono PCM with the upstream AI-server scenario.
 type AudioConfig struct {
-	Mode                 AudioMode
-	SampleRate, Channels int
-	Scenario             AudioScenario
-	Profile              rtc.AudioProfile
+	Mode          AudioMode
+	Send, Receive PCMFormat
+	Scenario      AudioScenario
+	Profile       rtc.AudioProfile
 	// VAD enables upstream VAD v2 on 16 kHz mono received PCM.
 	VAD       bool
 	VADConfig *rtc.AudioVadConfigV2
@@ -107,7 +150,10 @@ type ReceiveConfig struct {
 
 // ChannelConfig is independent for each join, including identity and token.
 type ChannelConfig struct {
-	Channel, UserID, Token string
+	Channel, Token string
+	// UserID is a string account in StringIdentity mode or a canonical decimal
+	// uint32 in NumericIdentity mode. Numeric "0" requests native UID allocation.
+	UserID string
 	// Info is the native connection info payload, normally empty.
 	Info    string
 	Role    Role
@@ -140,13 +186,11 @@ func normalized(c ChannelConfig) (ChannelConfig, error) {
 	if c.Role > Audience || c.Mode > LargeScale || c.Audio.Mode > NoAudio || c.Video.Mode > EncodedVideo {
 		return c, invalid("mode", "is unknown")
 	}
-	if c.Audio.SampleRate == 0 {
-		c.Audio.SampleRate = 16000
+	var err error
+	if c.Audio.Send, err = c.Audio.Send.normalized(); err != nil {
+		return c, err
 	}
-	if c.Audio.Channels == 0 {
-		c.Audio.Channels = 1
-	}
-	if err := validatePCMFormat(c.Audio.SampleRate, c.Audio.Channels); err != nil {
+	if c.Audio.Receive, err = c.Audio.Receive.normalized(); err != nil {
 		return c, err
 	}
 	if c.Receive.AudioPositions == 0 {
@@ -173,8 +217,11 @@ func normalized(c ChannelConfig) (ChannelConfig, error) {
 	if c.Audio.Scenario > ScenarioAIClient {
 		return c, invalid("audio scenario", "is unknown")
 	}
-	if c.Audio.VAD && (c.Audio.SampleRate != 16000 || c.Audio.Channels != 1) {
-		return c, invalid("VAD", "requires 16 kHz mono PCM")
+	if c.Audio.VAD && (c.Audio.Receive.SampleRate != 16000 || c.Audio.Receive.Channels != 1) {
+		return c, invalid("VAD", "requires 16 kHz mono received PCM")
+	}
+	if c.Audio.VAD && (c.Receive.Disabled || c.Receive.AudioPositions&AudioBeforeMixing == 0) {
+		return c, invalid("VAD", "requires received PCM at AudioBeforeMixing")
 	}
 	if c.Audio.VADConfig != nil {
 		if err := validateVAD(*c.Audio.VADConfig); err != nil {

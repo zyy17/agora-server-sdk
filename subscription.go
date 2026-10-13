@@ -2,8 +2,9 @@ package agorasdk
 
 import (
 	"encoding/json"
-	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 	"strings"
+
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 func validateUserID(uid string) error {
@@ -22,13 +23,13 @@ func validateParameters(value string) error {
 
 // SubscribeAudio subscribes one user. Manual subscriptions are required in large-scale channels.
 func (s *Session) SubscribeAudio(userID string) error {
-	if err := validateUserID(userID); err != nil {
+	if err := s.validateRemoteUserID(userID); err != nil {
 		return err
 	}
 	return s.withNative("subscribe audio", func(c *rtc.RtcConnection) int { return c.GetLocalUser().SubscribeAudio(userID) })
 }
 func (s *Session) UnsubscribeAudio(userID string) error {
-	if err := validateUserID(userID); err != nil {
+	if err := s.validateRemoteUserID(userID); err != nil {
 		return err
 	}
 	return s.withNative("unsubscribe audio", func(c *rtc.RtcConnection) int { return c.GetLocalUser().UnsubscribeAudio(userID) })
@@ -53,13 +54,13 @@ func (v VideoSubscription) native() *rtc.VideoSubscriptionOptions {
 	return &rtc.VideoSubscriptionOptions{StreamType: stream, EncodedFrameOnly: v.EncodedOnly}
 }
 func (s *Session) SubscribeVideo(userID string, options VideoSubscription) error {
-	if err := validateUserID(userID); err != nil {
+	if err := s.validateRemoteUserID(userID); err != nil {
 		return err
 	}
 	return s.withNative("subscribe video", func(c *rtc.RtcConnection) int { return c.GetLocalUser().SubscribeVideo(userID, options.native()) })
 }
 func (s *Session) UnsubscribeVideo(userID string) error {
-	if err := validateUserID(userID); err != nil {
+	if err := s.validateRemoteUserID(userID); err != nil {
 		return err
 	}
 	return s.withNative("unsubscribe video", func(c *rtc.RtcConnection) int { return c.GetLocalUser().UnsubscribeVideo(userID) })
@@ -81,4 +82,12 @@ func (s *Session) SendMessage(data []byte) error {
 		return invalid("message", "must contain 1–1024 bytes")
 	}
 	return s.withNative("send message", func(c *rtc.RtcConnection) int { return c.SendStreamMessage(data) })
+}
+
+func (s *Session) validateRemoteUserID(uid string) error {
+	mode := StringIdentity
+	if s.service != nil {
+		mode = s.service.identityMode
+	}
+	return mode.validateUserID(uid, false)
 }
