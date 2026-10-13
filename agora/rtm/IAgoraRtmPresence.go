@@ -37,6 +37,12 @@ type IRtmPresence struct {
  * - < 0: Failure.
  */
 func (this_ *IRtmPresence) WhoNow(channelName string, channelType RtmChannelType, options *PresenceOptions, requestId *uint64) int {
+	if this_ == nil || this_.rtmPresence == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 
@@ -72,6 +78,12 @@ func (this_ *IRtmPresence) WhoNow(channelName string, channelType RtmChannelType
  * - < 0: Failure.
  */
 func (this_ *IRtmPresence) WhereNow(userId string, requestId *uint64) int {
+	if this_ == nil || this_.rtmPresence == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cUserId := C.CString(userId)
 	defer C.free(unsafe.Pointer(cUserId))
 
@@ -95,35 +107,26 @@ func (this_ *IRtmPresence) WhereNow(userId string, requestId *uint64) int {
  * - < 0: Failure.
  */
 func (this_ *IRtmPresence) SetState(channelName string, channelType RtmChannelType, items []*StateItem, count uint, requestId *uint64) int {
+	if this_ == nil || this_.rtmPresence == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 
-	actualCount := uint(len(items))
-	if count < actualCount {
-		actualCount = count
+	if count > uint(len(items)) {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
 	}
-
-	var cItems *C.struct_C_StateItem
-	if actualCount > 0 {
-		cItemsArr := make([]*C.struct_C_StateItem, actualCount)
-		for i := uint(0); i < actualCount; i++ {
-			if items[i] != nil {
-				cItemsArr[i] = C.C_StateItem_New()
-				defer C.C_StateItem_Delete(cItemsArr[i])
-				cItemsArr[i].key = C.CString(items[i].Key)
-				cItemsArr[i].value = C.CString(items[i].Value)
-				defer C.free(unsafe.Pointer(cItemsArr[i].key))
-				defer C.free(unsafe.Pointer(cItemsArr[i].value))
-			}
-		}
-
-		for _, cItem := range cItemsArr {
-			if cItem != nil {
-				cItems = cItem
-				break
-			}
+	for _, item := range items[:count] {
+		if item == nil {
+			return int(C.RTM_ERROR_INVALID_PARAMETER)
 		}
 	}
+	actualCount := count
+	cItems, freeItems := newCStateItems(items[:count])
+	defer freeItems()
 
 	ret := int(C.agora_rtm_presence_set_state(this_.rtmPresence,
 		cChannelName,
@@ -148,27 +151,26 @@ func (this_ *IRtmPresence) SetState(channelName string, channelType RtmChannelTy
  * - < 0: Failure.
  */
 func (this_ *IRtmPresence) RemoveState(channelName string, channelType RtmChannelType, keys []string, count uint, requestId *uint64) int {
+	if this_ == nil || this_.rtmPresence == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 
-	actualCount := uint(len(keys))
-	if count < actualCount {
-		actualCount = count
+	if count > uint(len(keys)) {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
 	}
-
-	var cKeysArr [](*C.char)
-	if actualCount > 0 {
-		cKeysArr = make([](*C.char), actualCount)
-		for i := uint(0); i < actualCount; i++ {
-			cKeysArr[i] = C.CString(keys[i])
-			defer C.free(unsafe.Pointer(cKeysArr[i]))
-		}
-	}
+	actualCount := count
+	cKeysArr, freeKeys := newCStringArray(keys[:count])
+	defer freeKeys()
 
 	ret := int(C.agora_rtm_presence_remove_state(this_.rtmPresence,
 		cChannelName,
 		C.enum_C_RTM_CHANNEL_TYPE(channelType),
-		unsafe.SliceData(cKeysArr),
+		cKeysArr,
 		C.size_t(actualCount),
 		(*C.uint64_t)(requestId),
 	))
@@ -187,6 +189,12 @@ func (this_ *IRtmPresence) RemoveState(channelName string, channelType RtmChanne
  * - < 0: Failure.
  */
 func (this_ *IRtmPresence) GetState(channelName string, channelType RtmChannelType, userId string, requestId *uint64) int {
+	if this_ == nil || this_.rtmPresence == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 
@@ -215,6 +223,12 @@ func (this_ *IRtmPresence) GetState(channelName string, channelType RtmChannelTy
  * - < 0: Failure.
  */
 func (this_ *IRtmPresence) GetOnlineUsers(channelName string, channelType RtmChannelType, options *GetOnlineUsersOptions, requestId *uint64) int {
+	if this_ == nil || this_.rtmPresence == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 
@@ -250,6 +264,12 @@ func (this_ *IRtmPresence) GetOnlineUsers(channelName string, channelType RtmCha
  * - < 0: Failure.
  */
 func (this_ *IRtmPresence) GetUserChannels(userId string, requestId *uint64) int {
+	if this_ == nil || this_.rtmPresence == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cUserId := C.CString(userId)
 	defer C.free(unsafe.Pointer(cUserId))
 

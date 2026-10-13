@@ -7,6 +7,7 @@ package agorartm
 */
 import "C"
 import (
+	"sync"
 	"unsafe"
 )
 
@@ -24,6 +25,7 @@ type RtmConfig struct {
 	ProtocolType      uint32
 	PresenceTimeout   uint32
 	HeartbeatInterval uint32
+	ReconnectTimeout  uint32
 	Context           unsafe.Pointer
 	UseStringUserId   bool
 	Multipath         bool
@@ -50,7 +52,7 @@ func NewRtmConfig() *RtmConfig {
 		Context:           nil,
 		UseStringUserId:   false,
 		Multipath:         false,
-		EventHandler: nil,
+		EventHandler:      nil,
 		LogConfig:         nil,
 		ProxyConfig:       nil,
 		EncryptionConfig:  nil,
@@ -60,52 +62,6 @@ func NewRtmConfig() *RtmConfig {
 
 	return config
 }
-
-/**
- * The IRtmEventHandler class.
- *
- * The SDK uses this class to send callback event notifications to the app, and the app inherits
- * the methods in this class to retrieve these event notifications.
- *
- * All methods in this class have their default (empty)  implementations, and the app can inherit
- * only some of the required events instead of all. In the callback methods, the app should avoid
- * time-consuming tasks or calling blocking APIs, otherwise the SDK may not work properly.
- */
-// old IRtmEventHandler is deleted, please use new RtmEventHandler interface
-
-// new user friendly event handler interface design
-
-// RtmEventHandler define the event handler interface that user can implement
-// user only need to implement the needed methods, the methods that are not implemented will be ignored by SDK
-//
-// commonly used callback methods:
-//   - OnLoginResult: login result callback
-//   - OnLogoutResult: logout result callback
-//   - OnMessageEvent: message event callback
-//   - OnPresenceEvent: online status event callback
-//   - OnSubscribeResult: subscribe result callback
-//   - OnPublishResult: publish result callback
-//
-// usage one (object oriented):
-//
-//	type MyEventHandler struct{}
-//	func (h *MyEventHandler) OnLoginResult(requestId uint64, errorCode RTM_ERROR_CODE) {
-//	    // handle login result
-//	}
-//	rtmConfig.SetEventHandler(&MyEventHandler{})
-//
-// usage two (functional):
-//
-//	handler := &RtmEventHandlerConfig{
-//	    OnLoginResult: func(requestId uint64, errorCode RTM_ERROR_CODE) {
-//	        // handle login result
-//	    },
-//	}
-
-
-
-
-
 
 // #region MessageEvent
 type MessageEvent struct {
@@ -136,30 +92,7 @@ func (this_ *MessageEvent) fromC(cEvent *C.struct_C_MessageEvent) {
 	if cEvent == nil {
 		return
 	}
-
-	if !IsValidMemory(unsafe.Pointer(cEvent)) {
-		return
-	}
-
-	this_.ChannelType = RtmChannelType(cEvent.channelType)
-	this_.MessageType = RtmMessageType(cEvent.messageType)
-
-	if cEvent.channelName != nil {
-		this_.ChannelName = C.GoString(cEvent.channelName)
-	}
-	if cEvent.channelTopic != nil {
-		this_.ChannelTopic = C.GoString(cEvent.channelTopic)
-	}
-	if cEvent.publisher != nil {
-		this_.Publisher = C.GoString(cEvent.publisher)
-	}
-	if cEvent.customType != nil {
-		this_.CustomType = C.GoString(cEvent.customType)
-	}
-
-	if cEvent.message != nil && cEvent.messageLength > 0 {
-		this_.Message = C.GoBytes(unsafe.Pointer(cEvent.message), C.int(cEvent.messageLength))
-	}
+	*this_ = MessageEvent{ChannelType: RtmChannelType(cEvent.channelType), MessageType: RtmMessageType(cEvent.messageType), ChannelName: C.GoString(cEvent.channelName), ChannelTopic: C.GoString(cEvent.channelTopic), Message: copyMessageBytes(cEvent.message, cEvent.messageLength), Publisher: C.GoString(cEvent.publisher), CustomType: C.GoString(cEvent.customType)}
 }
 
 // #endregion MessageEvent
@@ -232,152 +165,22 @@ func (this_ *PresenceEvent) fromC(cEvent *C.struct_C_PresenceEvent) {
 	if cEvent == nil {
 		return
 	}
-
-	if !IsValidMemory(unsafe.Pointer(cEvent)) {
-		return
+	*this_ = PresenceEvent{Type: int(cEvent._type), ChannelType: RtmChannelType(cEvent.channelType), ChannelName: C.GoString(cEvent.channelName), Publisher: C.GoString(cEvent.publisher)}
+	states := copyStateItems(cEvent.stateItems, cEvent.stateItemCount)
+	this_.StateItems = make([]*StateItem, len(states))
+	for i := range states {
+		this_.StateItems[i] = &states[i]
 	}
-
-	this_.Type = int(cEvent._type)
-	this_.ChannelType = RtmChannelType(cEvent.channelType)
-
-	if cEvent.channelName != nil {
-		this_.ChannelName = C.GoString(cEvent.channelName)
+	this_.StateItemCount = uint(len(states))
+	intervalUsers := copyUserStates(cEvent.interval.userStateList, cEvent.interval.userStateCount)
+	this_.Interval = &IntervalInfo{JoinUserList: CUserListToUserList(&cEvent.interval.joinUserList), LeaveUserList: CUserListToUserList(&cEvent.interval.leaveUserList), TimeoutUserList: CUserListToUserList(&cEvent.interval.timeoutUserList), UserStateList: make([]*UserState, len(intervalUsers)), UserStateCount: uint(len(intervalUsers))}
+	for i := range intervalUsers {
+		this_.Interval.UserStateList[i] = &intervalUsers[i]
 	}
-	if cEvent.publisher != nil {
-		this_.Publisher = C.GoString(cEvent.publisher)
-	}
-
-	if cEvent.stateItems != nil && cEvent.stateItemCount > 0 {
-		if IsValidMemory(unsafe.Pointer(cEvent.stateItems)) {
-			itemCount := int(cEvent.stateItemCount)
-			if itemCount > 0 {
-				this_.StateItems = make([]*StateItem, itemCount)
-				this_.StateItemCount = uint(itemCount)
-
-				for i := 0; i < itemCount; i++ {
-					cItem := (*C.struct_C_StateItem)(unsafe.Pointer(uintptr(unsafe.Pointer(cEvent.stateItems)) + uintptr(i)*unsafe.Sizeof(C.struct_C_StateItem{})))
-					if cItem != nil && IsValidMemory(unsafe.Pointer(cItem)) {
-						stateItem := NewStateItem()
-						if stateItem != nil {
-							if cItem.key != nil {
-								stateItem.Key = FastSafeCGoString(cItem.key)
-							}
-							if cItem.value != nil {
-								stateItem.Value = FastSafeCGoString(cItem.value)
-							}
-							this_.StateItems[i] = stateItem
-						}
-					}
-				}
-			} else {
-				this_.StateItems = make([]*StateItem, 0)
-				this_.StateItemCount = 0
-			}
-		} else {
-			this_.StateItems = make([]*StateItem, 0)
-			this_.StateItemCount = 0
-		}
-	} else {
-		this_.StateItems = make([]*StateItem, 0)
-		this_.StateItemCount = 0
-	}
-
-	this_.Interval = NewIntervalInfo()
-	if this_.Interval != nil {
-		if cEvent.interval.userStateList != nil && cEvent.interval.userStateCount > 0 {
-			if IsValidMemory(unsafe.Pointer(cEvent.interval.userStateList)) {
-				userCount := int(cEvent.interval.userStateCount)
-				if userCount > 0 {
-					this_.Interval.UserStateList = make([]*UserState, userCount)
-					this_.Interval.UserStateCount = uint(userCount)
-
-					for i := 0; i < userCount; i++ {
-						cUserState := (*C.struct_C_UserState)(unsafe.Pointer(uintptr(unsafe.Pointer(cEvent.interval.userStateList)) + uintptr(i)*unsafe.Sizeof(C.struct_C_UserState{})))
-						if cUserState != nil && IsValidMemory(unsafe.Pointer(cUserState)) {
-							userState := NewUserState()
-							if userState != nil {
-								if cUserState.userId != nil {
-									userState.UserId = FastSafeCGoString(cUserState.userId)
-								}
-								if cUserState.states != nil && cUserState.statesCount > 0 {
-									if IsValidMemory(unsafe.Pointer(cUserState.states)) {
-										stateCount := int(cUserState.statesCount)
-										if stateCount > 0 {
-											userState.States = make([]StateItem, stateCount)
-											//userState.StatesCount = uint(stateCount)
-
-											for j := 0; j < stateCount; j++ {
-												cState := (*C.struct_C_StateItem)(unsafe.Pointer(uintptr(unsafe.Pointer(cUserState.states)) + uintptr(j)*unsafe.Sizeof(C.struct_C_StateItem{})))
-												if cState != nil && IsValidMemory(unsafe.Pointer(cState)) {
-													stateItem := StateItem{}
-													if cState.key != nil {
-														stateItem.Key = FastSafeCGoString(cState.key)
-													}
-													if cState.value != nil {
-														stateItem.Value = FastSafeCGoString(cState.value)
-													}
-													userState.States[j] = stateItem
-												}
-											}
-										}
-									}
-								}
-								this_.Interval.UserStateList[i] = userState
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	this_.Snapshot = NewSnapshotInfo()
-	if this_.Snapshot != nil {
-		if cEvent.snapshot.userStateList != nil && cEvent.snapshot.userCount > 0 {
-			if IsValidMemory(unsafe.Pointer(cEvent.snapshot.userStateList)) {
-				userCount := int(cEvent.snapshot.userCount)
-				if userCount > 0 {
-					this_.Snapshot.UserStateList = make([]*UserState, userCount)
-					this_.Snapshot.UserCount = uint(userCount)
-
-					for i := 0; i < userCount; i++ {
-						cUserState := (*C.struct_C_UserState)(unsafe.Pointer(uintptr(unsafe.Pointer(cEvent.snapshot.userStateList)) + uintptr(i)*unsafe.Sizeof(C.struct_C_UserState{})))
-						if cUserState != nil && IsValidMemory(unsafe.Pointer(cUserState)) {
-							userState := NewUserState()
-							if userState != nil {
-								if cUserState.userId != nil {
-									userState.UserId = FastSafeCGoString(cUserState.userId)
-								}
-								if cUserState.states != nil && cUserState.statesCount > 0 {
-									if IsValidMemory(unsafe.Pointer(cUserState.states)) {
-										stateCount := int(cUserState.statesCount)
-										if stateCount > 0 {
-											userState.States = make([]StateItem, stateCount)
-											//userState.StatesCount = uint(stateCount)
-
-											for j := 0; j < stateCount; j++ {
-												cState := (*C.struct_C_StateItem)(unsafe.Pointer(uintptr(unsafe.Pointer(cUserState.states)) + uintptr(j)*unsafe.Sizeof(C.struct_C_StateItem{})))
-												if cState != nil && IsValidMemory(unsafe.Pointer(cState)) {
-													stateItem := StateItem{}
-													if cState.key != nil {
-														stateItem.Key = FastSafeCGoString(cState.key)
-													}
-													if cState.value != nil {
-														stateItem.Value = FastSafeCGoString(cState.value)
-													}
-													userState.States[j] = stateItem
-												}
-											}
-										}
-									}
-								}
-								this_.Snapshot.UserStateList[i] = userState
-							}
-						}
-					}
-				}
-			}
-		}
+	snapshotUsers := copyUserStates(cEvent.snapshot.userStateList, cEvent.snapshot.userCount)
+	this_.Snapshot = &SnapshotInfo{UserStateList: make([]*UserState, len(snapshotUsers)), UserCount: uint(len(snapshotUsers))}
+	for i := range snapshotUsers {
+		this_.Snapshot.UserStateList[i] = &snapshotUsers[i]
 	}
 }
 
@@ -407,73 +210,18 @@ func (this_ *TopicEvent) fromC(cEvent *C.struct_C_TopicEvent) {
 	if cEvent == nil {
 		return
 	}
-
-	if !IsValidMemory(unsafe.Pointer(cEvent)) {
-		return
-	}
-
-	this_.Type = int(cEvent._type)
-
-	if cEvent.channelName != nil {
-		this_.ChannelName = C.GoString(cEvent.channelName)
-	}
-	if cEvent.publisher != nil {
-		this_.Publisher = C.GoString(cEvent.publisher)
-	}
-
-	if cEvent.topicInfos != nil && cEvent.topicInfoCount > 0 {
-		if IsValidMemory(unsafe.Pointer(cEvent.topicInfos)) {
-			infoCount := int(cEvent.topicInfoCount)
-			if infoCount > 0 {
-				this_.TopicInfos = make([]*TopicInfo, infoCount)
-				this_.TopicInfoCount = uint(infoCount)
-
-				for i := 0; i < infoCount; i++ {
-					cTopicInfo := (*C.struct_C_TopicInfo)(unsafe.Pointer(uintptr(unsafe.Pointer(cEvent.topicInfos)) + uintptr(i)*unsafe.Sizeof(C.struct_C_TopicInfo{})))
-					if cTopicInfo != nil && IsValidMemory(unsafe.Pointer(cTopicInfo)) {
-						topicInfo := NewTopicInfo()
-						if topicInfo != nil {
-							if cTopicInfo.topic != nil {
-								topicInfo.Topic = FastSafeCGoString(cTopicInfo.topic)
-							}
-							if cTopicInfo.publishers != nil && cTopicInfo.publisherCount > 0 {
-								if IsValidMemory(unsafe.Pointer(cTopicInfo.publishers)) {
-									pubCount := int(cTopicInfo.publisherCount)
-									if pubCount > 0 {
-										topicInfo.Publishers = make([]PublisherInfo, pubCount)
-										//topicInfo.PublisherCount = uint(pubCount)
-
-										for j := 0; j < pubCount; j++ {
-											cPublisher := (*C.struct_C_PublisherInfo)(unsafe.Pointer(uintptr(unsafe.Pointer(cTopicInfo.publishers)) + uintptr(j)*unsafe.Sizeof(C.struct_C_PublisherInfo{})))
-											if cPublisher != nil && IsValidMemory(unsafe.Pointer(cPublisher)) {
-												publisherInfo := PublisherInfo{}
-												if cPublisher.publisherUserId != nil {
-													publisherInfo.UserId = FastSafeCGoString(cPublisher.publisherUserId)
-												}
-												if cPublisher.publisherMeta != nil {
-													publisherInfo.Meta = FastSafeCGoString(cPublisher.publisherMeta)
-												}
-												topicInfo.Publishers[j] = publisherInfo
-											}
-										}
-									}
-								} else {
-									topicInfo.Publishers = make([]PublisherInfo, 0)
-									//topicInfo.PublisherCount = 0
-								}
-							} else {
-								topicInfo.Publishers = make([]PublisherInfo, 0)
-								//topicInfo.PublisherCount = 0
-							}
-							this_.TopicInfos[i] = topicInfo
-						}
-					}
-				}
-			}
+	*this_ = TopicEvent{Type: int(cEvent._type), ChannelName: C.GoString(cEvent.channelName), Publisher: C.GoString(cEvent.publisher)}
+	infos := nativeSlice(cEvent.topicInfos, cEvent.topicInfoCount)
+	this_.TopicInfos = make([]*TopicInfo, len(infos))
+	this_.TopicInfoCount = uint(len(infos))
+	for i := range infos {
+		src := &infos[i]
+		publishers := nativeSlice(src.publishers, src.publisherCount)
+		info := &TopicInfo{Topic: C.GoString(src.topic), Publishers: make([]PublisherInfo, len(publishers))}
+		for j := range publishers {
+			info.Publishers[j] = PublisherInfo{UserId: C.GoString(publishers[j].publisherUserId), Meta: C.GoString(publishers[j].publisherMeta)}
 		}
-	} else {
-		this_.TopicInfos = make([]*TopicInfo, 0)
-		this_.TopicInfoCount = 0
+		this_.TopicInfos[i] = info
 	}
 }
 
@@ -503,46 +251,12 @@ func (this_ *LockEvent) fromC(cEvent *C.struct_C_LockEvent) {
 	if cEvent == nil {
 		return
 	}
-
-	if !IsValidMemory(unsafe.Pointer(cEvent)) {
-		return
-	}
-
-	this_.ChannelType = RtmChannelType(cEvent.channelType)
-	this_.EventType = int(cEvent.eventType)
-
-	if cEvent.channelName != nil {
-		this_.ChannelName = C.GoString(cEvent.channelName)
-	}
-
-	if cEvent.lockDetailList != nil && cEvent.count > 0 {
-		if IsValidMemory(unsafe.Pointer(cEvent.lockDetailList)) {
-			detailCount := int(cEvent.count)
-			if detailCount > 0 {
-				this_.LockDetailList = make([]*LockDetail, detailCount)
-				this_.Count = uint(detailCount)
-
-				for i := 0; i < detailCount; i++ {
-					cLockDetail := (*C.struct_C_LockDetail)(unsafe.Pointer(uintptr(unsafe.Pointer(cEvent.lockDetailList)) + uintptr(i)*unsafe.Sizeof(C.struct_C_LockDetail{})))
-					if cLockDetail != nil && IsValidMemory(unsafe.Pointer(cLockDetail)) {
-						lockDetail := NewLockDetail()
-						if lockDetail != nil {
-							if cLockDetail.lockName != nil {
-								lockDetail.LockName = (FastSafeCGoString(cLockDetail.lockName))
-							}
-							if cLockDetail.owner != nil {
-								lockDetail.Owner = (FastSafeCGoString(cLockDetail.owner))
-							}
-							lockDetail.Ttl = uint32(cLockDetail.ttl)
-							this_.LockDetailList[i] = lockDetail
-						}
-					}
-				}
-			}
-		}
-	} else {
-		this_.LockDetailList = make([]*LockDetail, 0)
-		this_.Count = 0
+	*this_ = LockEvent{ChannelType: RtmChannelType(cEvent.channelType), EventType: int(cEvent.eventType), ChannelName: C.GoString(cEvent.channelName)}
+	details := copyLockDetails(cEvent.lockDetailList, cEvent.count)
+	this_.LockDetailList = make([]*LockDetail, len(details))
+	this_.Count = uint(len(details))
+	for i := range details {
+		this_.LockDetailList[i] = &details[i]
 	}
 }
 
@@ -572,32 +286,18 @@ func (this_ *StorageEvent) fromC(cEvent *C.struct_C_StorageEvent) {
 	if cEvent == nil {
 		return
 	}
-
-	if !IsValidMemory(unsafe.Pointer(cEvent)) {
-		return
-	}
-
-	this_.ChannelType = RtmChannelType(cEvent.channelType)
-	this_.StorageType = RtmStorageType(cEvent.storageType)
-	this_.EventType = int(cEvent.eventType)
-
-	if cEvent.target != nil {
-		this_.Target = C.GoString(cEvent.target)
-	}
-
-	if cEvent.data != nil {
-		this_.Data = CMetadataToIMetadata(cEvent.data)
-	}
+	*this_ = StorageEvent{ChannelType: RtmChannelType(cEvent.channelType), StorageType: RtmStorageType(cEvent.storageType), EventType: int(cEvent.eventType), Target: C.GoString(cEvent.target), Data: CMetadataToIMetadata(cEvent.data)}
 }
 
 type IRtmClient struct {
-	rtmClient  unsafe.Pointer
-	handler     *RtmEventHandler
-	history    *IRtmHistory
-	presence   *IRtmPresence
-	lock       *IRtmLock
-	storage    *IRtmStorage
-	isLoggedIn bool
+	rtmClient     unsafe.Pointer
+	handler       *RtmEventHandler
+	history       *IRtmHistory
+	presence      *IRtmPresence
+	lock          *IRtmLock
+	storage       *IRtmStorage
+	releaseOnce   sync.Once
+	releaseResult int
 	cEventHandler *C.struct_C_IRtmEventHandler
 }
 
@@ -616,13 +316,19 @@ type IRtmClient struct {
  * @return Pointer of the rtm client object.
  */
 func NewRtmClient(config *RtmConfig) *IRtmClient {
+	client, _ := NewRtmClientWithError(config)
+	return client
+}
+
+// NewRtmClientWithError preserves the native initialization error for callers.
+func NewRtmClientWithError(config *RtmConfig) (*IRtmClient, int) {
 	if config == nil {
-		return nil
+		return nil, int(C.RTM_ERROR_INVALID_PARAMETER)
 	}
 
 	cConfig := C.C_RtmConfig_New()
 	if cConfig == nil {
-		return nil
+		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
 	defer C.C_RtmConfig_Delete(cConfig)
 
@@ -634,6 +340,7 @@ func NewRtmClient(config *RtmConfig) *IRtmClient {
 	cConfig.protocolType = config.ProtocolType
 	cConfig.presenceTimeout = C.uint32_t(config.PresenceTimeout)
 	cConfig.heartbeatInterval = C.uint32_t(config.HeartbeatInterval)
+	cConfig.reconnectTimeout = C.uint32_t(config.ReconnectTimeout)
 	cConfig.multipath = C.bool(config.Multipath)
 	cConfig.context = config.Context
 	cConfig.useStringUserId = C.bool(config.UseStringUserId)
@@ -665,6 +372,9 @@ func NewRtmClient(config *RtmConfig) *IRtmClient {
 		cProxyConfig = (*C.struct_C_RtmProxyConfig)(config.ProxyConfig.toC())
 		cConfig.proxyConfig.proxyType = cProxyConfig.proxyType
 		cConfig.proxyConfig.server = cProxyConfig.server
+		cConfig.proxyConfig.port = cProxyConfig.port
+		cConfig.proxyConfig.account = cProxyConfig.account
+		cConfig.proxyConfig.password = cProxyConfig.password
 	}
 	defer freeRtmProxyConfig(unsafe.Pointer(cProxyConfig))
 
@@ -678,74 +388,71 @@ func NewRtmClient(config *RtmConfig) *IRtmClient {
 	}
 	defer freeRtmPrivateConfig(unsafe.Pointer(cPrivateConfig))
 
-	
-	var cEventHandler *C.struct_C_IRtmEventHandler = nil
+	// The native SDK requires a handler even when callers do not want events.
+	client := &IRtmClient{handler: &RtmEventHandler{}}
 	if config.EventHandler != nil {
-		// allocate a c event handler, and keep it alive
-		//userData := unsafe.Pointer(config.EventHandlerConfig)
-		cEventHandler = CRtmEventHandler()
-		cConfig.eventHandler = cEventHandler
-	} else {
-		cConfig.eventHandler = nil
+		handler := *config.EventHandler // Immutable for the native client's lifetime.
+		client.handler = &handler
 	}
-
-	client := &IRtmClient{
-		rtmClient:  nil,
-		handler:    config.EventHandler,
-		cEventHandler: cEventHandler,
-		history:    nil,
-		presence:   nil,
-		lock:       nil,
-		storage:    nil,
-		isLoggedIn: false,
+	client.cEventHandler = CRtmEventHandler()
+	if client.cEventHandler == nil {
+		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
+	cConfig.eventHandler = client.cEventHandler
+	registerRtmClient(client)
 
-	cEventHandler.userData = unsafe.Pointer(client)
-
+	success := false
+	defer func() {
+		if !success {
+			client.Release()
+		}
+	}()
 
 	var errorCode C.int
 	rtmClient := C.agora_rtm_client_create(cConfig, &errorCode)
 
 	if rtmClient == nil {
-		return nil
+		if errorCode == 0 {
+			errorCode = C.RTM_ERROR_NOT_INITIALIZED
+		}
+		return nil, int(errorCode)
 	}
 
 	client.rtmClient = unsafe.Pointer(rtmClient)
-
-	//note : cEventHandler.userData will be equal to client!!
-	// assign userdata
-	
-
+	if errorCode != 0 {
+		return nil, int(errorCode)
+	}
 
 	// get storage
 	cStorage := C.agora_rtm_client_get_storage(client.rtmClient)
 	if cStorage == nil {
-		return nil
+		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
 	client.storage = &IRtmStorage{rtmStorage: unsafe.Pointer(cStorage)}
 
 	// get lock
 	cLock := C.agora_rtm_client_get_lock(client.rtmClient)
 	if cLock == nil {
-		return nil
+		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
 	client.lock = &IRtmLock{rtmLock: unsafe.Pointer(cLock)}
 
 	// get presence
 	cPresence := C.agora_rtm_client_get_presence(client.rtmClient)
 	if cPresence == nil {
-		return nil
+		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
 	client.presence = &IRtmPresence{rtmPresence: unsafe.Pointer(cPresence)}
 
 	// get history
 	cHistory := C.agora_rtm_client_get_history(client.rtmClient)
 	if cHistory == nil {
-		return nil
+		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
 	client.history = &IRtmHistory{rtmHistory: unsafe.Pointer(cHistory)}
 
-	return client
+	success = true
+	return client, 0
 }
 
 /**
@@ -755,28 +462,38 @@ func NewRtmClient(config *RtmConfig) *IRtmClient {
  * - 0: Success.
  * - < 0: Failure.
  */
+// Release stops accepting callbacks before destroying native resources. The caller must
+// serialize Release with SDK methods and must not call it from an SDK callback.
 func (this_ *IRtmClient) Release() int {
-	// validity check
-	if this_.rtmClient == nil {
-		return -10001
+	if this_ == nil {
+		return 0
 	}
-
-	// do really release
-	ret := int(C.agora_rtm_client_release(this_.rtmClient))
-
-	if this_.cEventHandler != nil {
-		C.C_IRtmEventHandler_Delete(this_.cEventHandler)
+	this_.releaseOnce.Do(func() {
+		unregisterRtmClient(this_)
+		if this_.rtmClient != nil {
+			this_.releaseResult = int(C.agora_rtm_client_release(this_.rtmClient))
+		}
+		if this_.cEventHandler != nil {
+			C.C_IRtmEventHandler_Delete(this_.cEventHandler)
+		}
+		this_.rtmClient = nil
 		this_.cEventHandler = nil
-	}
-	this_.rtmClient = nil
-	this_.history = nil
-	this_.presence = nil
-	this_.lock = nil
-	this_.storage = nil
-	this_.isLoggedIn = false
-	this_.handler = nil
-
-	return ret
+		if this_.history != nil {
+			this_.history.rtmHistory = nil
+		}
+		if this_.presence != nil {
+			this_.presence.rtmPresence = nil
+		}
+		if this_.lock != nil {
+			this_.lock.rtmLock = nil
+		}
+		if this_.storage != nil {
+			this_.storage.rtmStorage = nil
+		}
+		this_.history, this_.presence, this_.lock, this_.storage = nil, nil, nil, nil
+		// handler is immutable: callbacks already admitted retain a safe Go reference.
+	})
+	return this_.releaseResult
 }
 
 /**
@@ -789,12 +506,9 @@ func (this_ *IRtmClient) Release() int {
  */
 func (this_ *IRtmClient) Login(token string) (int, uint64) {
 
-	// check if already logged in
-	if this_.rtmClient == nil {
-		return -10002, 0
-	}
-	if this_.isLoggedIn {
-		return -10003, 0
+	// Native callbacks determine login state.
+	if this_ == nil || this_.rtmClient == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
 	}
 
 	// do really login
@@ -806,12 +520,6 @@ func (this_ *IRtmClient) Login(token string) (int, uint64) {
 		(*C.uint64_t)(unsafe.Pointer(&requestId)),
 	))
 
-	// update login status
-	if ret == 0 {
-		this_.isLoggedIn = true
-	} else {
-		this_.isLoggedIn = false
-	}
 	return int(ret), requestId
 }
 
@@ -823,22 +531,15 @@ func (this_ *IRtmClient) Login(token string) (int, uint64) {
  * - < 0: Failure.
  */
 func (this_ *IRtmClient) Logout() (int, uint64) {
-	// validity check, to avoid repeat logout
-	if this_.rtmClient == nil {
-		return -10004, 0
-	}
-	if !this_.isLoggedIn {
-		return -10005, 0
+	// Native callbacks determine login state.
+	if this_ == nil || this_.rtmClient == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
 	}
 	var requestId uint64
 	ret := int(C.agora_rtm_client_logout(this_.rtmClient,
 		(*C.uint64_t)(unsafe.Pointer(&requestId)),
 	))
 
-	// update login status
-	if ret == 0 {
-		this_.isLoggedIn = false
-	}
 	return ret, requestId
 }
 
@@ -850,7 +551,7 @@ func (this_ *IRtmClient) Logout() (int, uint64) {
  */
 func (this_ *IRtmClient) GetStorage() *IRtmStorage {
 	// validity check
-	if this_.storage == nil || this_.rtmClient == nil {
+	if this_ == nil || this_.storage == nil || this_.rtmClient == nil {
 		return nil
 	}
 	return this_.storage
@@ -864,7 +565,7 @@ func (this_ *IRtmClient) GetStorage() *IRtmStorage {
  */
 func (this_ *IRtmClient) GetLock() *IRtmLock {
 	// validity check
-	if this_.lock == nil || this_.rtmClient == nil {
+	if this_ == nil || this_.lock == nil || this_.rtmClient == nil {
 		return nil
 	}
 	return this_.lock
@@ -878,7 +579,7 @@ func (this_ *IRtmClient) GetLock() *IRtmLock {
  */
 func (this_ *IRtmClient) GetPresence() *IRtmPresence {
 	// validity check
-	if this_.presence == nil || this_.rtmClient == nil {
+	if this_ == nil || this_.presence == nil || this_.rtmClient == nil {
 		return nil
 	}
 	return this_.presence
@@ -892,7 +593,7 @@ func (this_ *IRtmClient) GetPresence() *IRtmPresence {
  */
 func (this_ *IRtmClient) GetHistory() *IRtmHistory {
 	// validity check
-	if this_.history == nil || this_.rtmClient == nil {
+	if this_ == nil || this_.history == nil || this_.rtmClient == nil {
 		return nil
 	}
 	return this_.history
@@ -908,8 +609,8 @@ func (this_ *IRtmClient) GetHistory() *IRtmHistory {
  */
 func (this_ *IRtmClient) RenewToken(token string) (int, uint64) {
 	// validity check
-	if this_.rtmClient == nil || !this_.isLoggedIn {
-		return -10006, 0
+	if this_ == nil || this_.rtmClient == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
 	}
 	// do really renew token
 	cToken := C.CString(token)
@@ -936,9 +637,9 @@ func (this_ *IRtmClient) RenewToken(token string) (int, uint64) {
  */
 func (this_ *IRtmClient) Publish(channelName string, message []byte, option *PublishOptions) (int, uint64) {
 
-	// validity check: only logged in can publish
-	if this_.rtmClient == nil || !this_.isLoggedIn || message == nil || len(message) == 0 {
-		return -10007, 0
+	// Reject released handles; native code validates login state.
+	if this_ == nil || this_.rtmClient == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
 	}
 
 	// do really publish
@@ -979,9 +680,9 @@ func (this_ *IRtmClient) Publish(channelName string, message []byte, option *Pub
  * - < 0: Failure.
  */
 func (this_ *IRtmClient) SendChannelMessage(channelName string, message []byte) (int, uint64) {
-	// validity check: only logged in can send channel message
-	if this_.rtmClient == nil || !this_.isLoggedIn || message == nil || len(message) == 0 {
-		return -10008, 0
+	// Reject released handles; native code validates login state.
+	if this_ == nil || this_.rtmClient == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
 	}
 
 	// do really send channel message
@@ -1020,9 +721,9 @@ func (this_ *IRtmClient) SendChannelMessage(channelName string, message []byte) 
  * - < 0: Failure.
  */
 func (this_ *IRtmClient) SendUserMessage(userId string, message []byte) (int, uint64) {
-	// validity check: only logged in can send user message
-	if this_.rtmClient == nil || !this_.isLoggedIn || message == nil || len(message) == 0 {
-		return -10009, 0
+	// Reject released handles; native code validates login state.
+	if this_ == nil || this_.rtmClient == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
 	}
 
 	// do really send user message
@@ -1059,9 +760,12 @@ func (this_ *IRtmClient) SendUserMessage(userId string, message []byte) (int, ui
  * - < 0: Failure.
  */
 func (this_ *IRtmClient) Subscribe(channelName string, option *SubscribeOptions) (int, uint64) {
-	// validity check: only logged in can subscribe
-	if this_.rtmClient == nil || !this_.isLoggedIn || option == nil {
-		return -10010, 0
+	// Reject released handles; native code validates login state.
+	if this_ == nil || this_.rtmClient == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
+	}
+	if option == nil {
+		option = NewSubscribeOptions()
 	}
 
 	// do really subscribe
@@ -1087,9 +791,9 @@ func (this_ *IRtmClient) Subscribe(channelName string, option *SubscribeOptions)
  * - < 0: Failure.
  */
 func (this_ *IRtmClient) Unsubscribe(channelName string) (int, uint64) {
-	// validity check: only logged in can unsubscribe
-	if this_.rtmClient == nil || !this_.isLoggedIn {
-		return -10011, 0
+	// Reject released handles; native code validates login state.
+	if this_ == nil || this_.rtmClient == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
 	}
 
 	// do really unsubscribe
@@ -1111,28 +815,30 @@ func (this_ *IRtmClient) Unsubscribe(channelName string) (int, uint64) {
  * - return NULL if error occurred
  */
 func (this_ *IRtmClient) CreateStreamChannel(channelName string) *IStreamChannel {
+	channel, _ := this_.CreateStreamChannelWithError(channelName)
+	return channel
+}
 
-	// validity check: can't create stream channel if rtm client is not created
-	if this_.rtmClient == nil {
-		return nil
+// CreateStreamChannelWithError preserves the native channel initialization error.
+func (this_ *IRtmClient) CreateStreamChannelWithError(channelName string) (*IStreamChannel, int) {
+	if this_ == nil || this_.rtmClient == nil {
+		return nil, int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
-
-	// do really create stream channel
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
-
 	var errorCode C.int
-	ret := C.agora_rtm_client_create_stream_channel(this_.rtmClient,
-		cChannelName,
-		&errorCode,
-	)
-
-	if ret == nil || errorCode != 0 {
-		return nil
+	ptr := C.agora_rtm_client_create_stream_channel(this_.rtmClient, cChannelName, &errorCode)
+	if ptr == nil {
+		if errorCode == 0 {
+			errorCode = C.RTM_ERROR_NOT_INITIALIZED
+		}
+		return nil, int(errorCode)
 	}
-
-	streamChannel := &IStreamChannel{streamChannel: unsafe.Pointer(ret)}
-	return streamChannel
+	if errorCode != 0 {
+		C.agora_rtm_stream_channel_release(ptr)
+		return nil, int(errorCode)
+	}
+	return &IStreamChannel{streamChannel: unsafe.Pointer(ptr)}, 0
 }
 
 /**
@@ -1146,8 +852,8 @@ func (this_ *IRtmClient) CreateStreamChannel(channelName string) *IStreamChannel
 func (this_ *IRtmClient) SetParameters(parameters string) int {
 
 	// validity check: can't set parameters if rtm client is not created
-	if this_.rtmClient == nil {
-		return -10012
+	if this_ == nil || this_.rtmClient == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
 	}
 
 	// do really set parameters

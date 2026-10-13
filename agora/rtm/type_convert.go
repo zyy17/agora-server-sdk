@@ -1,319 +1,212 @@
 package agorartm
 
 /*
-#include <sys/mman.h>
-#include <unistd.h>
-#include <errno.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <string.h>
-#include <stdint.h>
-
-int is_valid_memory(const void* ptr) {
-    if (ptr == NULL) return 0;
-
-    // get page size
-    long page_size = sysconf(_SC_PAGESIZE);
-    if (page_size <= 0) return 0;
-
-    // calculate the start address of the page where the pointer is located
-    void* page_start = (void*)((uintptr_t)ptr & ~(page_size - 1));
-
-    // check if the page is accessible
-    if (msync(page_start, page_size, MS_ASYNC) == -1) {
-        if (errno == ENOMEM) {
-            return 0; // page does not exist or is not accessible
-        }
-    }
-
-    return 1;
-}
-
-static jmp_buf segv_buf;
-
-void segv_handler(int sig) {
-    longjmp(segv_buf, 1);
-}
-
-int safe_strlen(const char* str) {
-    struct sigaction old_action, new_action;
-
-    // set the signal handler
-    new_action.sa_handler = segv_handler;
-    sigemptyset(&new_action.sa_mask);
-    new_action.sa_flags = 0;
-
-    sigaction(SIGSEGV, &new_action, &old_action);
-
-    int result = 0;
-    if (setjmp(segv_buf) == 0) {
-        result = strlen(str);
-    } else {
-        result = -1; // segment fault
-    }
-
-    // restore the original signal handler
-    sigaction(SIGSEGV, &old_action, NULL);
-
-    return result;
-}
+#include "C_IAgoraRtmClient.h"
+#include <stdlib.h>
 */
 import "C"
 import "unsafe"
 
-func IsValidMemory(ptr unsafe.Pointer) bool {
-	return C.is_valid_memory(ptr) != 0
-}
+// IsValidMemory is a nil check only. Native callback memory is borrowed for the
+// duration of the callback. Page probes cannot establish ownership or safety and
+// process-wide SIGSEGV handlers are incompatible with concurrent Go execution.
+func IsValidMemory(ptr unsafe.Pointer) bool { return ptr != nil }
+func FastSafeCGoString(cstr *C.char) string { return C.GoString(cstr) }
+func SafeCGoString(cstr *C.char) string     { return C.GoString(cstr) }
 
-// FastSafeCGoString - fast version, only do basic check
-func FastSafeCGoString(cstr *C.char) string {
-	if cstr == nil {
-		return ""
-	}
-
-	// only do simple memory page check, avoid signal processing overhead
-	if C.is_valid_memory(unsafe.Pointer(cstr)) == 0 {
-		return ""
-	}
-
-	return C.GoString(cstr)
-}
-
-// SafeCGoString - full security check version
-func SafeCGoString(cstr *C.char) string {
-	if cstr == nil {
-		return ""
-	}
-
-	// check if the memory is accessible
-	if C.is_valid_memory(unsafe.Pointer(cstr)) == 0 {
-		return ""
-	}
-
-	length := C.safe_strlen(cstr)
-	if length < 0 {
-		return ""
-	}
-
-	return C.GoString(cstr)
-}
-
-// C.struct_C_UserList to UserList
-func CUserListToUserList(cUserList *C.struct_C_UserList) *UserList {
-	if cUserList == nil || cUserList.users == nil || cUserList.userCount == 0 {
+// nativeSlice checks nil and length overflow before borrowing a native array.
+// Callers must deep-copy pointer-containing elements before the callback ends.
+func nativeSlice[T any](ptr *T, count C.size_t) []T {
+	if ptr == nil || count == 0 {
 		return nil
 	}
-
-	if !IsValidMemory(unsafe.Pointer(cUserList.users)) {
+	var element T
+	size := unsafe.Sizeof(element)
+	if size == 0 || uint64(count) > uint64(int(^uint(0)>>1))/uint64(size) {
 		return nil
 	}
+	return unsafe.Slice(ptr, int(count))
+}
 
-	userCount := int(cUserList.userCount)
-	users := make([]string, userCount)
+func copyStrings(ptr **C.char, count C.size_t) []string {
+	src := nativeSlice(ptr, count)
+	result := make([]string, len(src))
+	for i := range src {
+		result[i] = C.GoString(src[i])
+	}
+	return result
+}
 
-	// use unsafe.Slice to create a string pointer slice
-	cUsers := unsafe.Slice((**C.char)(unsafe.Pointer(cUserList.users)), userCount)
+func CUserListToUserList(src *C.struct_C_UserList) *UserList {
+	if src == nil {
+		return nil
+	}
+	return &UserList{Users: copyStrings(src.users, src.userCount)}
+}
 
-	for i := 0; i < userCount; i++ {
-		if cUsers[i] != nil {
-			users[i] = FastSafeCGoString(cUsers[i])
-		} else {
-			users[i] = ""
+func CMetadataToIMetadata(src *C.struct_C_Metadata) *IMetadata {
+	if src == nil {
+		return nil
+	}
+	items := nativeSlice(src.items, src.itemCount)
+	dst := &IMetadata{majorRevision: int64(src.majorRevision), items: make([]MetadataItem, len(items)), itemCount: uint(len(items))}
+	for i := range items {
+		item := &items[i]
+		dst.items[i] = MetadataItem{Key: C.GoString(item.key), Value: C.GoString(item.value), AuthorUserId: C.GoString(item.authorUserId), Revision: uint64(item.revision), UpdateTs: uint64(item.updateTs)}
+	}
+	return dst
+}
+
+func CLockDetailToLockDetail(src *C.struct_C_LockDetail) *LockDetail {
+	if src == nil {
+		return nil
+	}
+	return &LockDetail{LockName: C.GoString(src.lockName), Owner: C.GoString(src.owner), Ttl: uint32(src.ttl)}
+}
+
+func copyLockDetails(ptr *C.struct_C_LockDetail, count C.size_t) []LockDetail {
+	src := nativeSlice(ptr, count)
+	dst := make([]LockDetail, len(src))
+	for i := range src {
+		dst[i] = *CLockDetailToLockDetail(&src[i])
+	}
+	return dst
+}
+
+func copyStateItems(ptr *C.struct_C_StateItem, count C.size_t) []StateItem {
+	src := nativeSlice(ptr, count)
+	dst := make([]StateItem, len(src))
+	for i := range src {
+		dst[i] = StateItem{Key: C.GoString(src[i].key), Value: C.GoString(src[i].value)}
+	}
+	return dst
+}
+
+func CUserStateToUserState(src *C.struct_C_UserState) *UserState {
+	if src == nil {
+		return nil
+	}
+	return &UserState{UserId: C.GoString(src.userId), States: copyStateItems(src.states, src.statesCount)}
+}
+
+func copyUserStates(ptr *C.struct_C_UserState, count C.size_t) []UserState {
+	src := nativeSlice(ptr, count)
+	dst := make([]UserState, len(src))
+	for i := range src {
+		dst[i] = *CUserStateToUserState(&src[i])
+	}
+	return dst
+}
+
+func CChannelInfoToChannelInfo(src *C.struct_C_ChannelInfo) *ChannelInfo {
+	if src == nil {
+		return nil
+	}
+	return &ChannelInfo{ChannelName: C.GoString(src.channelName), ChannelType: RtmChannelType(src.channelType)}
+}
+
+func copyChannelInfos(ptr *C.struct_C_ChannelInfo, count C.size_t) []ChannelInfo {
+	src := nativeSlice(ptr, count)
+	dst := make([]ChannelInfo, len(src))
+	for i := range src {
+		dst[i] = *CChannelInfoToChannelInfo(&src[i])
+	}
+	return dst
+}
+
+func CLinkStateEventToLinkStateEvent(src *C.struct_C_LinkStateEvent) *LinkStateEvent {
+	if src == nil {
+		return nil
+	}
+	return &LinkStateEvent{CurrentState: int(src.currentState), PreviousState: int(src.previousState), ServiceType: RtmServiceType(src.serviceType), Operation: int(src.operation), ReasonCode: int(src.reasonCode), Reason: C.GoString(src.reason), AffectedChannels: copyStrings(src.affectedChannels, src.affectedChannelCount), UnrestoredChannels: copyStrings(src.unrestoredChannels, src.unrestoredChannelCount), IsResumed: bool(src.isResumed), Timestamp: uint64(src.timestamp)}
+}
+
+func copyMessageBytes(ptr *C.char, count C.size_t) []byte {
+	src := nativeSlice((*byte)(unsafe.Pointer(ptr)), count)
+	return append([]byte(nil), src...)
+}
+
+func CHistoryMessageToHistoryMessage(src *C.struct_C_HistoryMessage) *HistoryMessage {
+	if src == nil {
+		return nil
+	}
+	message := string(copyMessageBytes(src.message, src.messageLength))
+	return &HistoryMessage{MessageType: RtmMessageType(src.messageType), Message: message, MessageLength: uint(len(message)), Timestamp: uint64(src.timestamp), Publisher: C.GoString(src.publisher), CustomType: C.GoString(src.customType)}
+}
+
+func copyHistoryMessages(ptr *C.struct_C_HistoryMessage, count C.size_t) []HistoryMessage {
+	src := nativeSlice(ptr, count)
+	dst := make([]HistoryMessage, len(src))
+	for i := range src {
+		dst[i] = *CHistoryMessageToHistoryMessage(&src[i])
+	}
+	return dst
+}
+
+// newCStringArray allocates both the pointer array and strings in C memory.
+func newCStringArray(values []string) (**C.char, func()) {
+	if len(values) == 0 {
+		return nil, func() {}
+	}
+	ptr := (**C.char)(C.calloc(C.size_t(len(values)), C.size_t(unsafe.Sizeof(uintptr(0)))))
+	elems := unsafe.Slice(ptr, len(values))
+	for i, value := range values {
+		elems[i] = C.CString(value)
+	}
+	return ptr, func() {
+		for _, value := range elems {
+			C.free(unsafe.Pointer(value))
+		}
+		C.free(unsafe.Pointer(ptr))
+	}
+}
+
+// newCMetadata returns a contiguous C array with all nested strings C-owned.
+func newCMetadata(data *IMetadata) (*C.struct_C_Metadata, func()) {
+	if data == nil {
+		return nil, func() {}
+	}
+	ptr := C.C_Metadata_New()
+	ptr.majorRevision = C.int64_t(data.majorRevision)
+	ptr.itemCount = C.size_t(len(data.items))
+	var elems []C.struct_C_MetadataItem
+	if len(data.items) > 0 {
+		ptr.items = (*C.struct_C_MetadataItem)(C.calloc(ptr.itemCount, C.size_t(C.sizeof_struct_C_MetadataItem)))
+		elems = unsafe.Slice(ptr.items, len(data.items))
+		for i, item := range data.items {
+			elems[i].key = C.CString(item.Key)
+			elems[i].value = C.CString(item.Value)
+			elems[i].authorUserId = C.CString(item.AuthorUserId)
+			elems[i].revision = C.int64_t(item.Revision)
+			elems[i].updateTs = C.int64_t(item.UpdateTs)
 		}
 	}
-
-	return &UserList{
-		Users: users,
+	return ptr, func() {
+		for i := range elems {
+			C.free(unsafe.Pointer(elems[i].key))
+			C.free(unsafe.Pointer(elems[i].value))
+			C.free(unsafe.Pointer(elems[i].authorUserId))
+		}
+		C.free(unsafe.Pointer(ptr.items))
+		C.C_Metadata_Delete(ptr)
 	}
 }
 
-// C.struct_C_Metadata to IMetadata
-func CMetadataToIMetadata(cMetadata *C.struct_C_Metadata) *IMetadata {
-	if cMetadata == nil {
-		return nil
+func newCStateItems(items []*StateItem) (*C.struct_C_StateItem, func()) {
+	if len(items) == 0 {
+		return nil, func() {}
 	}
-
-	if !IsValidMemory(unsafe.Pointer(cMetadata)) {
-		return nil
+	ptr := (*C.struct_C_StateItem)(C.calloc(C.size_t(len(items)), C.size_t(C.sizeof_struct_C_StateItem)))
+	elems := unsafe.Slice(ptr, len(items))
+	for i, item := range items {
+		elems[i].key = C.CString(item.Key)
+		elems[i].value = C.CString(item.Value)
 	}
-
-	itemCount := uint32(cMetadata.itemCount)
-
-	var itemsPtr unsafe.Pointer
-	if cMetadata.items != nil {
-		itemsPtr = unsafe.Pointer(cMetadata.items)
-	}
-
-	majorRevision := int64(cMetadata.majorRevision)
-
-	if itemsPtr == nil || itemCount == 0 || !IsValidMemory(itemsPtr) {
-		return &IMetadata{
-			majorRevision: majorRevision,
-			items:         make([]MetadataItem, 0),
-			itemCount:     uint(itemCount),
+	return ptr, func() {
+		for i := range elems {
+			C.free(unsafe.Pointer(elems[i].key))
+			C.free(unsafe.Pointer(elems[i].value))
 		}
-	}
-
-	items := make([]MetadataItem, itemCount)
-
-	// use unsafe.Slice to create MetadataItem pointer slice
-	cItems := unsafe.Slice((**C.struct_C_MetadataItem)(itemsPtr), itemCount)
-
-	for i := 0; i < int(itemCount); i++ {
-		if cItems[i] != nil && IsValidMemory(unsafe.Pointer(cItems[i])) {
-			items[i] = MetadataItem{
-				Key:          FastSafeCGoString(cItems[i].key),
-				Value:        FastSafeCGoString(cItems[i].value),
-				AuthorUserId: FastSafeCGoString(cItems[i].authorUserId),
-				Revision:     uint64(cItems[i].revision),
-				UpdateTs:     uint64(cItems[i].updateTs),
-			}
-		}
-	}
-
-	return &IMetadata{
-		majorRevision: majorRevision,
-		items:         items,
-		itemCount:     uint(itemCount),
-	}
-}
-
-// C.struct_C_LockDetail to LockDetail
-func CLockDetailToLockDetail(cLockDetail *C.struct_C_LockDetail) *LockDetail {
-	if cLockDetail == nil {
-		return nil
-	}
-
-	if !IsValidMemory(unsafe.Pointer(cLockDetail)) {
-		return nil
-	}
-
-	return &LockDetail{
-		LockName: FastSafeCGoString(cLockDetail.lockName),
-		Owner:    FastSafeCGoString(cLockDetail.owner),
-		Ttl:      uint32(cLockDetail.ttl),
-	}
-}
-
-// C.struct_C_UserState to UserState
-func CUserStateToUserState(cUserState *C.struct_C_UserState) *UserState {
-	if cUserState == nil {
-		return nil
-	}
-
-	if !IsValidMemory(unsafe.Pointer(cUserState)) {
-		return nil
-	}
-
-	states := make([]StateItem, cUserState.statesCount)
-
-	if cUserState.states == nil || cUserState.statesCount == 0 || !IsValidMemory(unsafe.Pointer(cUserState.states)) {
-		return &UserState{
-			UserId: C.GoString(cUserState.userId),
-			States: make([]StateItem, 0),
-		}
-	}
-
-	// use unsafe.Slice to create StateItem pointer slice
-	cStates := unsafe.Slice((**C.struct_C_StateItem)(unsafe.Pointer(cUserState.states)), cUserState.statesCount)
-
-	for i := 0; i < int(cUserState.statesCount); i++ {
-		if cStates[i] != nil && IsValidMemory(unsafe.Pointer(cStates[i])) {
-			states[i] = StateItem{
-				Key:   FastSafeCGoString(cStates[i].key),
-				Value: FastSafeCGoString(cStates[i].value),
-			}
-		}
-	}
-
-	return &UserState{
-		UserId: FastSafeCGoString(cUserState.userId),
-		States: states,
-	}
-}
-
-// C.struct_C_ChannelInfo to ChannelInfo
-func CChannelInfoToChannelInfo(cChannelInfo *C.struct_C_ChannelInfo) *ChannelInfo {
-	if cChannelInfo == nil {
-		return nil
-	}
-
-	if !IsValidMemory(unsafe.Pointer(cChannelInfo)) {
-		return nil
-	}
-
-	return &ChannelInfo{
-		ChannelName: FastSafeCGoString(cChannelInfo.channelName),
-		ChannelType: RtmChannelType(cChannelInfo.channelType),
-	}
-}
-
-// C.struct_C_LinkStateEvent to LinkStateEvent
-func CLinkStateEventToLinkStateEvent(cLinkStateEvent *C.struct_C_LinkStateEvent) *LinkStateEvent {
-	if cLinkStateEvent == nil {
-		return nil
-	}
-
-	if !IsValidMemory(unsafe.Pointer(cLinkStateEvent)) {
-		return nil
-	}
-
-	affectedChannels := make([]string, cLinkStateEvent.affectedChannelCount)
-
-	// use unsafe.Slice to create string pointer slice
-	cAffectedChannels := unsafe.Slice((**C.char)(unsafe.Pointer(cLinkStateEvent.affectedChannels)), cLinkStateEvent.affectedChannelCount)
-
-	for i := 0; i < int(cLinkStateEvent.affectedChannelCount); i++ {
-		if cAffectedChannels[i] != nil {
-			affectedChannels[i] = FastSafeCGoString(cAffectedChannels[i])
-		} else {
-			affectedChannels[i] = ""
-		}
-	}
-
-	unrestoredChannels := make([]string, cLinkStateEvent.unrestoredChannelCount)
-
-	// use unsafe.Slice to create string pointer slice
-	cUnrestoredChannels := unsafe.Slice((**C.char)(unsafe.Pointer(cLinkStateEvent.unrestoredChannels)), cLinkStateEvent.unrestoredChannelCount)
-
-	for i := 0; i < int(cLinkStateEvent.unrestoredChannelCount); i++ {
-		if cUnrestoredChannels[i] != nil {
-			unrestoredChannels[i] = FastSafeCGoString(cUnrestoredChannels[i])
-		} else {
-			unrestoredChannels[i] = ""
-		}
-	}
-
-	return &LinkStateEvent{
-		CurrentState:       int(cLinkStateEvent.currentState),
-		PreviousState:      int(cLinkStateEvent.previousState),
-		ServiceType:        RtmServiceType(cLinkStateEvent.serviceType),
-		Operation:          int(cLinkStateEvent.operation),
-		ReasonCode:         int(cLinkStateEvent.reasonCode),
-		Reason:             FastSafeCGoString(cLinkStateEvent.reason),
-		AffectedChannels:   affectedChannels,
-		UnrestoredChannels: unrestoredChannels,
-		IsResumed:          bool(cLinkStateEvent.isResumed),
-		Timestamp:          uint64(cLinkStateEvent.timestamp),
-	}
-}
-
-// C.struct_C_HistoryMessage to HistoryMessage
-func CHistoryMessageToHistoryMessage(cHistoryMessage *C.struct_C_HistoryMessage) *HistoryMessage {
-	if cHistoryMessage == nil {
-		return nil
-	}
-
-	if !IsValidMemory(unsafe.Pointer(cHistoryMessage)) {
-		return nil
-	}
-
-	return &HistoryMessage{
-		MessageType:   RtmMessageType(cHistoryMessage.messageType),
-		Message:       FastSafeCGoString(cHistoryMessage.message),
-		MessageLength: uint(cHistoryMessage.messageLength),
-		Timestamp:     uint64(cHistoryMessage.timestamp),
-		Publisher:     FastSafeCGoString(cHistoryMessage.publisher),
-		CustomType:    FastSafeCGoString(cHistoryMessage.customType),
+		C.free(unsafe.Pointer(ptr))
 	}
 }

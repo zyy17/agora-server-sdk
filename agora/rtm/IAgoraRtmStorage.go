@@ -203,10 +203,26 @@ func (this_ *IMetadata) SetMetadataItem(item *MetadataItem) {
  * @param [out] size The size the metadataItem array.
  */
 func (this_ *IMetadata) GetMetadataItems(item **MetadataItem, size *uint) {
-	if len(this_.items) > 0 {
-		*item = &this_.items[0]
+	if item != nil {
+		*item = nil
+		if this_ != nil && len(this_.items) > 0 {
+			*item = &this_.items[0]
+		}
 	}
-	*size = this_.itemCount
+	if size != nil {
+		*size = 0
+		if this_ != nil {
+			*size = uint(len(this_.items))
+		}
+	}
+}
+
+// Items returns a detached copy of the metadata entries.
+func (this_ *IMetadata) Items() []MetadataItem {
+	if this_ == nil {
+		return nil
+	}
+	return append([]MetadataItem(nil), this_.items...)
 }
 
 // #endregion IMetadata
@@ -248,7 +264,20 @@ func (this_ *IRtmStorage) CreateMetadata() *IMetadata {
  * - 0: Success.
  * - < 0: Failure.
  */
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
 func (this_ *IRtmStorage) SetChannelMetadata(channelName string, channelType RtmChannelType, data *IMetadata, options *MetadataOptions, lockName string, requestId *uint64) int {
+	if data == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
+	if options == nil {
+		options = NewMetadataOptions()
+	}
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 	cLockName := C.CString(lockName)
@@ -262,29 +291,8 @@ func (this_ *IRtmStorage) SetChannelMetadata(channelName string, channelType Rtm
 		cOptions.recordUserId = C.bool(options.RecordUserId)
 	}
 
-	var cData *C.struct_C_Metadata
-	if data != nil {
-		cData = C.C_Metadata_New()
-		defer C.C_Metadata_Delete(cData)
-		cData.majorRevision = C.int64_t(data.majorRevision)
-		cData.itemCount = C.size_t(data.itemCount)
-		cItems := make([]*C.struct_C_MetadataItem, data.itemCount)
-		for i := 0; i < int(data.itemCount); i++ {
-			cItems[i] = C.C_MetadataItem_New()
-			defer C.C_MetadataItem_Delete(cItems[i])
-			cItems[i].key = C.CString(data.items[i].Key)
-			defer C.free(unsafe.Pointer(cItems[i].key))
-			cItems[i].value = C.CString(data.items[i].Value)
-			defer C.free(unsafe.Pointer(cItems[i].value))
-			cItems[i].authorUserId = C.CString(data.items[i].AuthorUserId)
-			defer C.free(unsafe.Pointer(cItems[i].authorUserId))
-			cItems[i].revision = C.int64_t(data.items[i].Revision)
-			cItems[i].updateTs = C.int64_t(data.items[i].UpdateTs)
-		}
-		if len(cItems) > 0 {
-			cData.items = cItems[0]
-		}
-	}
+	cData, freeData := newCMetadata(data)
+	defer freeData()
 
 	C.agora_rtm_storage_set_channel_metadata(this_.rtmStorage,
 		cChannelName,
@@ -311,7 +319,20 @@ func (this_ *IRtmStorage) SetChannelMetadata(channelName string, channelType Rtm
  * - 0: Success.
  * - < 0: Failure.
  */
-func (this_ *IRtmStorage) UpdateChannelMetadata(channelName string, channelType RtmChannelType, data *IMetadata, options *MetadataOptions, lockName string, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmStorage) UpdateChannelMetadata(channelName string, channelType RtmChannelType, data *IMetadata, options *MetadataOptions, lockName string, requestId *uint64) int {
+	if data == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
+	if options == nil {
+		options = NewMetadataOptions()
+	}
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 	cLockName := C.CString(lockName)
@@ -325,29 +346,8 @@ func (this_ *IRtmStorage) UpdateChannelMetadata(channelName string, channelType 
 		cOptions.recordUserId = C.bool(options.RecordUserId)
 	}
 
-	var cData *C.struct_C_Metadata
-	if data != nil {
-		cData = C.C_Metadata_New()
-		defer C.C_Metadata_Delete(cData)
-		cData.majorRevision = C.int64_t(data.majorRevision)
-		cData.itemCount = C.size_t(data.itemCount)
-		cItems := make([]*C.struct_C_MetadataItem, data.itemCount)
-		for i := 0; i < int(data.itemCount); i++ {
-			cItems[i] = C.C_MetadataItem_New()
-			defer C.C_MetadataItem_Delete(cItems[i])
-			cItems[i].key = C.CString(data.items[i].Key)
-			defer C.free(unsafe.Pointer(cItems[i].key))
-			cItems[i].value = C.CString(data.items[i].Value)
-			defer C.free(unsafe.Pointer(cItems[i].value))
-			cItems[i].authorUserId = C.CString(data.items[i].AuthorUserId)
-			defer C.free(unsafe.Pointer(cItems[i].authorUserId))
-			cItems[i].revision = C.int64_t(data.items[i].Revision)
-			cItems[i].updateTs = C.int64_t(data.items[i].UpdateTs)
-		}
-		if len(cItems) > 0 {
-			cData.items = cItems[0]
-		}
-	}
+	cData, freeData := newCMetadata(data)
+	defer freeData()
 
 	C.agora_rtm_storage_update_channel_metadata(this_.rtmStorage,
 		cChannelName,
@@ -357,6 +357,7 @@ func (this_ *IRtmStorage) UpdateChannelMetadata(channelName string, channelType 
 		cLockName,
 		(*C.uint64_t)(requestId),
 	)
+	return 0
 }
 
 /**
@@ -373,7 +374,20 @@ func (this_ *IRtmStorage) UpdateChannelMetadata(channelName string, channelType 
  * - 0: Success.
  * - < 0: Failure.
  */
-func (this_ *IRtmStorage) RemoveChannelMetadata(channelName string, channelType RtmChannelType, data *IMetadata, options *MetadataOptions, lockName string, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmStorage) RemoveChannelMetadata(channelName string, channelType RtmChannelType, data *IMetadata, options *MetadataOptions, lockName string, requestId *uint64) int {
+	if data == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
+	if options == nil {
+		options = NewMetadataOptions()
+	}
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 	cLockName := C.CString(lockName)
@@ -387,29 +401,8 @@ func (this_ *IRtmStorage) RemoveChannelMetadata(channelName string, channelType 
 		cOptions.recordUserId = C.bool(options.RecordUserId)
 	}
 
-	var cData *C.struct_C_Metadata
-	if data != nil {
-		cData = C.C_Metadata_New()
-		defer C.C_Metadata_Delete(cData)
-		cData.majorRevision = C.int64_t(data.majorRevision)
-		cData.itemCount = C.size_t(data.itemCount)
-		cItems := make([]*C.struct_C_MetadataItem, data.itemCount)
-		for i := 0; i < int(data.itemCount); i++ {
-			cItems[i] = C.C_MetadataItem_New()
-			defer C.C_MetadataItem_Delete(cItems[i])
-			cItems[i].key = C.CString(data.items[i].Key)
-			defer C.free(unsafe.Pointer(cItems[i].key))
-			cItems[i].value = C.CString(data.items[i].Value)
-			defer C.free(unsafe.Pointer(cItems[i].value))
-			cItems[i].authorUserId = C.CString(data.items[i].AuthorUserId)
-			defer C.free(unsafe.Pointer(cItems[i].authorUserId))
-			cItems[i].revision = C.int64_t(data.items[i].Revision)
-			cItems[i].updateTs = C.int64_t(data.items[i].UpdateTs)
-		}
-		if len(cItems) > 0 {
-			cData.items = cItems[0]
-		}
-	}
+	cData, freeData := newCMetadata(data)
+	defer freeData()
 
 	C.agora_rtm_storage_remove_channel_metadata(this_.rtmStorage,
 		cChannelName,
@@ -419,6 +412,7 @@ func (this_ *IRtmStorage) RemoveChannelMetadata(channelName string, channelType 
 		cLockName,
 		(*C.uint64_t)(requestId),
 	)
+	return 0
 }
 
 /**
@@ -432,7 +426,14 @@ func (this_ *IRtmStorage) RemoveChannelMetadata(channelName string, channelType 
  * - 0: Success.
  * - < 0: Failure.
  */
-func (this_ *IRtmStorage) GetChannelMetadata(channelName string, channelType RtmChannelType, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmStorage) GetChannelMetadata(channelName string, channelType RtmChannelType, requestId *uint64) int {
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 
@@ -441,6 +442,7 @@ func (this_ *IRtmStorage) GetChannelMetadata(channelName string, channelType Rtm
 		C.enum_C_RTM_CHANNEL_TYPE(channelType),
 		(*C.uint64_t)(requestId),
 	)
+	return 0
 }
 
 /**
@@ -455,7 +457,20 @@ func (this_ *IRtmStorage) GetChannelMetadata(channelName string, channelType Rtm
  * - 0: Success.
  * - < 0: Failure.
  */
-func (this_ *IRtmStorage) SetUserMetadata(userId string, data *IMetadata, options *MetadataOptions, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmStorage) SetUserMetadata(userId string, data *IMetadata, options *MetadataOptions, requestId *uint64) int {
+	if data == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
+	if options == nil {
+		options = NewMetadataOptions()
+	}
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cUserId := C.CString(userId)
 	defer C.free(unsafe.Pointer(cUserId))
 
@@ -467,29 +482,8 @@ func (this_ *IRtmStorage) SetUserMetadata(userId string, data *IMetadata, option
 		cOptions.recordUserId = C.bool(options.RecordUserId)
 	}
 
-	var cData *C.struct_C_Metadata
-	if data != nil {
-		cData = C.C_Metadata_New()
-		defer C.C_Metadata_Delete(cData)
-		cData.majorRevision = C.int64_t(data.majorRevision)
-		cData.itemCount = C.size_t(data.itemCount)
-		cItems := make([]*C.struct_C_MetadataItem, data.itemCount)
-		for i := 0; i < int(data.itemCount); i++ {
-			cItems[i] = C.C_MetadataItem_New()
-			defer C.C_MetadataItem_Delete(cItems[i])
-			cItems[i].key = C.CString(data.items[i].Key)
-			defer C.free(unsafe.Pointer(cItems[i].key))
-			cItems[i].value = C.CString(data.items[i].Value)
-			defer C.free(unsafe.Pointer(cItems[i].value))
-			cItems[i].authorUserId = C.CString(data.items[i].AuthorUserId)
-			defer C.free(unsafe.Pointer(cItems[i].authorUserId))
-			cItems[i].revision = C.int64_t(data.items[i].Revision)
-			cItems[i].updateTs = C.int64_t(data.items[i].UpdateTs)
-		}
-		if len(cItems) > 0 {
-			cData.items = cItems[0]
-		}
-	}
+	cData, freeData := newCMetadata(data)
+	defer freeData()
 
 	C.agora_rtm_storage_set_user_metadata(this_.rtmStorage,
 		cUserId,
@@ -497,6 +491,7 @@ func (this_ *IRtmStorage) SetUserMetadata(userId string, data *IMetadata, option
 		cOptions,
 		(*C.uint64_t)(requestId),
 	)
+	return 0
 }
 
 /**
@@ -511,7 +506,20 @@ func (this_ *IRtmStorage) SetUserMetadata(userId string, data *IMetadata, option
  * - 0: Success.
  * - < 0: Failure.
  */
-func (this_ *IRtmStorage) UpdateUserMetadata(userId string, data *IMetadata, options *MetadataOptions, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmStorage) UpdateUserMetadata(userId string, data *IMetadata, options *MetadataOptions, requestId *uint64) int {
+	if data == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
+	if options == nil {
+		options = NewMetadataOptions()
+	}
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cUserId := C.CString(userId)
 	defer C.free(unsafe.Pointer(cUserId))
 
@@ -523,29 +531,8 @@ func (this_ *IRtmStorage) UpdateUserMetadata(userId string, data *IMetadata, opt
 		cOptions.recordUserId = C.bool(options.RecordUserId)
 	}
 
-	var cData *C.struct_C_Metadata
-	if data != nil {
-		cData = C.C_Metadata_New()
-		defer C.C_Metadata_Delete(cData)
-		cData.majorRevision = C.int64_t(data.majorRevision)
-		cData.itemCount = C.size_t(data.itemCount)
-		cItems := make([]*C.struct_C_MetadataItem, data.itemCount)
-		for i := 0; i < int(data.itemCount); i++ {
-			cItems[i] = C.C_MetadataItem_New()
-			defer C.C_MetadataItem_Delete(cItems[i])
-			cItems[i].key = C.CString(data.items[i].Key)
-			defer C.free(unsafe.Pointer(cItems[i].key))
-			cItems[i].value = C.CString(data.items[i].Value)
-			defer C.free(unsafe.Pointer(cItems[i].value))
-			cItems[i].authorUserId = C.CString(data.items[i].AuthorUserId)
-			defer C.free(unsafe.Pointer(cItems[i].authorUserId))
-			cItems[i].revision = C.int64_t(data.items[i].Revision)
-			cItems[i].updateTs = C.int64_t(data.items[i].UpdateTs)
-		}
-		if len(cItems) > 0 {
-			cData.items = cItems[0]
-		}
-	}
+	cData, freeData := newCMetadata(data)
+	defer freeData()
 
 	C.agora_rtm_storage_update_user_metadata(this_.rtmStorage,
 		cUserId,
@@ -553,6 +540,7 @@ func (this_ *IRtmStorage) UpdateUserMetadata(userId string, data *IMetadata, opt
 		cOptions,
 		(*C.uint64_t)(requestId),
 	)
+	return 0
 }
 
 /**
@@ -567,7 +555,20 @@ func (this_ *IRtmStorage) UpdateUserMetadata(userId string, data *IMetadata, opt
  * - 0: Success.
  * - < 0: Failure.
  */
-func (this_ *IRtmStorage) RemoveUserMetadata(userId string, data *IMetadata, options *MetadataOptions, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmStorage) RemoveUserMetadata(userId string, data *IMetadata, options *MetadataOptions, requestId *uint64) int {
+	if data == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
+	if options == nil {
+		options = NewMetadataOptions()
+	}
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cUserId := C.CString(userId)
 	defer C.free(unsafe.Pointer(cUserId))
 
@@ -579,29 +580,8 @@ func (this_ *IRtmStorage) RemoveUserMetadata(userId string, data *IMetadata, opt
 		cOptions.recordUserId = C.bool(options.RecordUserId)
 	}
 
-	var cData *C.struct_C_Metadata
-	if data != nil {
-		cData = C.C_Metadata_New()
-		defer C.C_Metadata_Delete(cData)
-		cData.majorRevision = C.int64_t(data.majorRevision)
-		cData.itemCount = C.size_t(data.itemCount)
-		cItems := make([]*C.struct_C_MetadataItem, data.itemCount)
-		for i := 0; i < int(data.itemCount); i++ {
-			cItems[i] = C.C_MetadataItem_New()
-			defer C.C_MetadataItem_Delete(cItems[i])
-			cItems[i].key = C.CString(data.items[i].Key)
-			defer C.free(unsafe.Pointer(cItems[i].key))
-			cItems[i].value = C.CString(data.items[i].Value)
-			defer C.free(unsafe.Pointer(cItems[i].value))
-			cItems[i].authorUserId = C.CString(data.items[i].AuthorUserId)
-			defer C.free(unsafe.Pointer(cItems[i].authorUserId))
-			cItems[i].revision = C.int64_t(data.items[i].Revision)
-			cItems[i].updateTs = C.int64_t(data.items[i].UpdateTs)
-		}
-		if len(cItems) > 0 {
-			cData.items = cItems[0]
-		}
-	}
+	cData, freeData := newCMetadata(data)
+	defer freeData()
 
 	C.agora_rtm_storage_remove_user_metadata(this_.rtmStorage,
 		cUserId,
@@ -609,6 +589,7 @@ func (this_ *IRtmStorage) RemoveUserMetadata(userId string, data *IMetadata, opt
 		cOptions,
 		(*C.uint64_t)(requestId),
 	)
+	return 0
 }
 
 /**
@@ -621,7 +602,14 @@ func (this_ *IRtmStorage) RemoveUserMetadata(userId string, data *IMetadata, opt
  * - 0: Success.
  * - < 0: Failure.
  */
-func (this_ *IRtmStorage) GetUserMetadata(userId string, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmStorage) GetUserMetadata(userId string, requestId *uint64) int {
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cUserId := C.CString(userId)
 	defer C.free(unsafe.Pointer(cUserId))
 
@@ -629,6 +617,7 @@ func (this_ *IRtmStorage) GetUserMetadata(userId string, requestId *uint64) {
 		cUserId,
 		(*C.uint64_t)(requestId),
 	)
+	return 0
 }
 
 /**
@@ -640,7 +629,14 @@ func (this_ *IRtmStorage) GetUserMetadata(userId string, requestId *uint64) {
  * - 0: Success.
  * - < 0: Failure.
  */
-func (this_ *IRtmStorage) SubscribeUserMetadata(userId string, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmStorage) SubscribeUserMetadata(userId string, requestId *uint64) int {
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cUserId := C.CString(userId)
 	defer C.free(unsafe.Pointer(cUserId))
 
@@ -648,6 +644,7 @@ func (this_ *IRtmStorage) SubscribeUserMetadata(userId string, requestId *uint64
 		cUserId,
 		(*C.uint64_t)(requestId),
 	)
+	return 0
 }
 
 /**
@@ -659,7 +656,10 @@ func (this_ *IRtmStorage) SubscribeUserMetadata(userId string, requestId *uint64
  * - 0: Success.
  * - < 0: Failure.
  */
-func (this_ *IRtmStorage) UnsubscribeUserMetadata(userId string) {
+func (this_ *IRtmStorage) UnsubscribeUserMetadata(userId string) (int, uint64) {
+	if this_ == nil || this_.rtmStorage == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
+	}
 	cUserId := C.CString(userId)
 	defer C.free(unsafe.Pointer(cUserId))
 
@@ -668,6 +668,7 @@ func (this_ *IRtmStorage) UnsubscribeUserMetadata(userId string) {
 		cUserId,
 		(*C.uint64_t)(&requestId),
 	)
+	return 0, requestId
 }
 
 // #endregion IRtmStorage

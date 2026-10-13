@@ -99,6 +99,12 @@ func NewGetHistoryMessagesOptions() *GetHistoryMessagesOptions {
  * - < 0: Failure.
  */
 func (this_ *IRtmHistory) GetMessages(channelName string, channelType RtmChannelType, options *GetHistoryMessagesOptions, requestId *uint64) int {
+	if this_ == nil || this_.rtmHistory == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 

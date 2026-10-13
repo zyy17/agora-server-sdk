@@ -34,7 +34,14 @@ type IRtmLock struct {
  * @param [in] ttl The lock ttl.
  * @param [out] requestId The related request id of this operation.
  */
-func (this_ *IRtmLock) SetLock(channelName string, channelType RtmChannelType, lockName string, ttl uint32, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmLock) SetLock(channelName string, channelType RtmChannelType, lockName string, ttl uint32, requestId *uint64) int {
+	if this_ == nil || this_.rtmLock == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	defer C.free(unsafe.Pointer(cChannelName))
 	cLockName := C.CString(lockName)
@@ -47,6 +54,7 @@ func (this_ *IRtmLock) SetLock(channelName string, channelType RtmChannelType, l
 		C.uint32_t(ttl),
 		(*C.uint64_t)(requestId),
 	)
+	return 0
 }
 
 /**
@@ -56,7 +64,14 @@ func (this_ *IRtmLock) SetLock(channelName string, channelType RtmChannelType, l
  * @param [in] channelType The type of the channel.
  * @param [out] requestId The related request id of this operation.
  */
-func (this_ *IRtmLock) GetLocks(channelName string, channelType RtmChannelType, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmLock) GetLocks(channelName string, channelType RtmChannelType, requestId *uint64) int {
+	if this_ == nil || this_.rtmLock == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	C.agora_rtm_lock_get_locks(this_.rtmLock,
 		cChannelName,
@@ -64,6 +79,7 @@ func (this_ *IRtmLock) GetLocks(channelName string, channelType RtmChannelType, 
 		(*C.uint64_t)(requestId),
 	)
 	C.free(unsafe.Pointer(cChannelName))
+	return 0
 }
 
 /**
@@ -74,7 +90,14 @@ func (this_ *IRtmLock) GetLocks(channelName string, channelType RtmChannelType, 
  * @param [in] lockName The name of the lock.
  * @param [out] requestId The related request id of this operation.
  */
-func (this_ *IRtmLock) RemoveLock(channelName string, channelType RtmChannelType, lockName string, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmLock) RemoveLock(channelName string, channelType RtmChannelType, lockName string, requestId *uint64) int {
+	if this_ == nil || this_.rtmLock == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	cLockName := C.CString(lockName)
 	C.agora_rtm_lock_remove_lock(this_.rtmLock,
@@ -85,6 +108,7 @@ func (this_ *IRtmLock) RemoveLock(channelName string, channelType RtmChannelType
 	)
 	C.free(unsafe.Pointer(cChannelName))
 	C.free(unsafe.Pointer(cLockName))
+	return 0
 }
 
 /**
@@ -96,7 +120,14 @@ func (this_ *IRtmLock) RemoveLock(channelName string, channelType RtmChannelType
  * @param [in] retry Whether to automatically retry when acquires lock failed
  * @param [out] requestId The related request id of this operation.
  */
-func (this_ *IRtmLock) AcquireLock(channelName string, channelType RtmChannelType, lockName string, retry bool, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmLock) AcquireLock(channelName string, channelType RtmChannelType, lockName string, retry bool, requestId *uint64) int {
+	if this_ == nil || this_.rtmLock == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	cLockName := C.CString(lockName)
 	C.agora_rtm_lock_acquire_lock(this_.rtmLock,
@@ -108,6 +139,7 @@ func (this_ *IRtmLock) AcquireLock(channelName string, channelType RtmChannelTyp
 	)
 	C.free(unsafe.Pointer(cChannelName))
 	C.free(unsafe.Pointer(cLockName))
+	return 0
 }
 
 /**
@@ -118,7 +150,14 @@ func (this_ *IRtmLock) AcquireLock(channelName string, channelType RtmChannelTyp
  * @param [in] lockName The name of the lock.
  * @param [out] requestId The related request id of this operation.
  */
-func (this_ *IRtmLock) ReleaseLock(channelName string, channelType RtmChannelType, lockName string, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmLock) ReleaseLock(channelName string, channelType RtmChannelType, lockName string, requestId *uint64) int {
+	if this_ == nil || this_.rtmLock == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	cLockName := C.CString(lockName)
 	C.agora_rtm_lock_release_lock(this_.rtmLock,
@@ -129,6 +168,7 @@ func (this_ *IRtmLock) ReleaseLock(channelName string, channelType RtmChannelTyp
 	)
 	C.free(unsafe.Pointer(cChannelName))
 	C.free(unsafe.Pointer(cLockName))
+	return 0
 }
 
 /**
@@ -140,7 +180,14 @@ func (this_ *IRtmLock) ReleaseLock(channelName string, channelType RtmChannelTyp
  * @param [in] owner The lock owner.
  * @param [out] requestId The related request id of this operation.
  */
-func (this_ *IRtmLock) RevokeLock(channelName string, channelType RtmChannelType, lockName string, owner string, requestId *uint64) {
+// A zero return means the request was submitted. The asynchronous result callback reports SDK errors.
+func (this_ *IRtmLock) RevokeLock(channelName string, channelType RtmChannelType, lockName string, owner string, requestId *uint64) int {
+	if this_ == nil || this_.rtmLock == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cChannelName := C.CString(channelName)
 	cLockName := C.CString(lockName)
 	cOwner := C.CString(owner)
@@ -154,6 +201,7 @@ func (this_ *IRtmLock) RevokeLock(channelName string, channelType RtmChannelType
 	C.free(unsafe.Pointer(cChannelName))
 	C.free(unsafe.Pointer(cLockName))
 	C.free(unsafe.Pointer(cOwner))
+	return 0
 }
 
 // #endregion IRtmLock

@@ -300,7 +300,17 @@ type IStreamChannel struct {
 * - 0: Success.
 * - < 0: Failure.
  */
+// A zero return means submitted; completion is reported asynchronously.
 func (this_ *IStreamChannel) Join(options *JoinChannelOptions, requestId *uint64) int {
+	if this_ == nil || this_.streamChannel == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
+	if options == nil {
+		options = NewJoinChannelOptions()
+	}
 	cOptions := C.C_JoinChannelOptions_New()
 	defer C.C_JoinChannelOptions_Delete(cOptions)
 	cOptions.token = C.CString(options.Token)
@@ -324,7 +334,11 @@ func (this_ *IStreamChannel) Join(options *JoinChannelOptions, requestId *uint64
 * - 0: Success.
 * - < 0: Failure.
  */
-func (this_ *IStreamChannel) RenewToken(token string) int {
+// A zero return means submitted; completion is reported asynchronously.
+func (this_ *IStreamChannel) RenewToken(token string) (int, uint64) {
+	if this_ == nil || this_.streamChannel == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
+	}
 	cToken := C.CString(token)
 	defer C.free(unsafe.Pointer(cToken))
 	var requestId uint64
@@ -332,7 +346,7 @@ func (this_ *IStreamChannel) RenewToken(token string) int {
 		cToken,
 		(*C.uint64_t)(&requestId),
 	)
-	return 0
+	return 0, requestId
 }
 
 /**
@@ -342,7 +356,14 @@ func (this_ *IStreamChannel) RenewToken(token string) int {
 * - 0: Success.
 * - < 0: Failure.
  */
+// A zero return means submitted; completion is reported asynchronously.
 func (this_ *IStreamChannel) Leave(requestId *uint64) int {
+	if this_ == nil || this_.streamChannel == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	C.agora_rtm_stream_channel_leave(this_.streamChannel,
 		(*C.uint64_t)(requestId),
 	)
@@ -355,6 +376,9 @@ func (this_ *IStreamChannel) Leave(requestId *uint64) int {
 * @return The channel name.
  */
 func (this_ *IStreamChannel) GetChannelName() string {
+	if this_ == nil || this_.streamChannel == nil {
+		return ""
+	}
 	ret := C.GoString(C.agora_rtm_stream_channel_get_channel_name(this_.streamChannel))
 	return ret
 }
@@ -368,7 +392,14 @@ func (this_ *IStreamChannel) GetChannelName() string {
 * - 0: Success.
 * - < 0: Failure.
  */
+// A zero return means submitted; completion is reported asynchronously.
 func (this_ *IStreamChannel) JoinTopic(topic string, options *JoinTopicOptions, requestId *uint64) int {
+	if this_ == nil || this_.streamChannel == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cTopic := C.CString(topic)
 	defer C.free(unsafe.Pointer(cTopic))
 	cOptions := C.C_JoinTopicOptions_New()
@@ -404,7 +435,14 @@ func (this_ *IStreamChannel) JoinTopic(topic string, options *JoinTopicOptions, 
 * - 0: Success.
 * - < 0: Failure.
  */
-func (this_ *IStreamChannel) PublishTopicMessage(topic string, message string, length uint, option *TopicMessageOptions) int {
+// A zero return means submitted; completion is reported asynchronously.
+func (this_ *IStreamChannel) PublishTopicMessage(topic string, message string, length uint, option *TopicMessageOptions) (int, uint64) {
+	if this_ == nil || this_.streamChannel == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
+	}
+	if length > uint(len(message)) {
+		return int(C.RTM_ERROR_INVALID_PARAMETER), 0
+	}
 	cTopic := C.CString(topic)
 	defer C.free(unsafe.Pointer(cTopic))
 	cMessage := C.CString(message)
@@ -429,7 +467,7 @@ func (this_ *IStreamChannel) PublishTopicMessage(topic string, message string, l
 		cOption,
 		(*C.uint64_t)(&requestId),
 	)
-	return 0
+	return 0, requestId
 }
 
 /**
@@ -440,7 +478,14 @@ func (this_ *IStreamChannel) PublishTopicMessage(topic string, message string, l
 * - 0: Success.
 * - < 0: Failure.
  */
+// A zero return means submitted; completion is reported asynchronously.
 func (this_ *IStreamChannel) LeaveTopic(topic string, requestId *uint64) int {
+	if this_ == nil || this_.streamChannel == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cTopic := C.CString(topic)
 	defer C.free(unsafe.Pointer(cTopic))
 	C.agora_rtm_stream_channel_leave_topic(this_.streamChannel,
@@ -459,32 +504,26 @@ func (this_ *IStreamChannel) LeaveTopic(topic string, requestId *uint64) int {
 * - 0: Success.
 * - < 0: Failure.
  */
+// A zero return means submitted; completion is reported asynchronously.
 func (this_ *IStreamChannel) SubscribeTopic(topic string, options *TopicOptions, requestId *uint64) int {
+	if this_ == nil || this_.streamChannel == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED)
+	}
+	if requestId == nil {
+		return int(C.RTM_ERROR_INVALID_PARAMETER)
+	}
 	cTopic := C.CString(topic)
 	defer C.free(unsafe.Pointer(cTopic))
 	cOptions := C.C_TopicOptions_New()
 	defer C.C_TopicOptions_Delete(cOptions)
+	var users []string
 	if options != nil {
-		if len(options.users) > 0 {
-			users := make([]*C.char, len(options.users))
-			defer func() {
-				for _, user := range users {
-					C.free(unsafe.Pointer(user))
-				}
-			}()
-			for i, user := range options.users {
-				users[i] = C.CString(user)
-			}
-			cOptions.users = (**C.char)(unsafe.Pointer(&users[0]))
-			cOptions.userCount = C.size_t(len(options.users))
-		} else {
-			cOptions.users = nil
-			cOptions.userCount = 0
-		}
-	} else {
-		cOptions.users = nil
-		cOptions.userCount = 0
+		users = options.users
 	}
+	cUsers, freeUsers := newCStringArray(users)
+	defer freeUsers()
+	cOptions.users = cUsers
+	cOptions.userCount = C.size_t(len(users))
 	C.agora_rtm_stream_channel_subscribe_topic(this_.streamChannel,
 		cTopic,
 		cOptions,
@@ -501,39 +540,30 @@ func (this_ *IStreamChannel) SubscribeTopic(topic string, options *TopicOptions,
 * - 0: Success.
 * - < 0: Failure.
  */
-func (this_ *IStreamChannel) UnsubscribeTopic(topic string, options *TopicOptions) int {
+// A zero return means submitted; completion is reported asynchronously.
+func (this_ *IStreamChannel) UnsubscribeTopic(topic string, options *TopicOptions) (int, uint64) {
+	if this_ == nil || this_.streamChannel == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
+	}
 	cTopic := C.CString(topic)
 	defer C.free(unsafe.Pointer(cTopic))
 	cOptions := C.C_TopicOptions_New()
 	defer C.C_TopicOptions_Delete(cOptions)
+	var users []string
 	if options != nil {
-		if len(options.users) > 0 {
-			users := make([]*C.char, len(options.users))
-			defer func() {
-				for _, user := range users {
-					C.free(unsafe.Pointer(user))
-				}
-			}()
-			for i, user := range options.users {
-				users[i] = C.CString(user)
-			}
-			cOptions.users = (**C.char)(unsafe.Pointer(&users[0]))
-			cOptions.userCount = C.size_t(len(options.users))
-		} else {
-			cOptions.users = nil
-			cOptions.userCount = 0
-		}
-	} else {
-		cOptions.users = nil
-		cOptions.userCount = 0
+		users = options.users
 	}
+	cUsers, freeUsers := newCStringArray(users)
+	defer freeUsers()
+	cOptions.users = cUsers
+	cOptions.userCount = C.size_t(len(users))
 	var requestId uint64
 	C.agora_rtm_stream_channel_unsubscribe_topic(this_.streamChannel,
 		cTopic,
 		cOptions,
 		(*C.uint64_t)(&requestId),
 	)
-	return 0
+	return 0, requestId
 }
 
 /**
@@ -545,7 +575,11 @@ func (this_ *IStreamChannel) UnsubscribeTopic(topic string, options *TopicOption
 * - 0: Success.
 * - < 0: Failure.
  */
-func (this_ *IStreamChannel) GetSubscribedUserList(topic string) int {
+// A zero return means submitted; completion is reported asynchronously.
+func (this_ *IStreamChannel) GetSubscribedUserList(topic string) (int, uint64) {
+	if this_ == nil || this_.streamChannel == nil {
+		return int(C.RTM_ERROR_NOT_INITIALIZED), 0
+	}
 	cTopic := C.CString(topic)
 	defer C.free(unsafe.Pointer(cTopic))
 	var requestId uint64
@@ -553,7 +587,7 @@ func (this_ *IStreamChannel) GetSubscribedUserList(topic string) int {
 		cTopic,
 		(*C.uint64_t)(&requestId),
 	)
-	return 0
+	return 0, requestId
 }
 
 /**
@@ -564,8 +598,8 @@ func (this_ *IStreamChannel) GetSubscribedUserList(topic string) int {
 * - < 0: Failure.
  */
 func (this_ *IStreamChannel) Release() int {
-	if this_.streamChannel == nil {
-		return -1
+	if this_ == nil || this_.streamChannel == nil {
+		return 0
 	}
 	ret := C.agora_rtm_stream_channel_release(this_.streamChannel)
 	this_.streamChannel = nil
