@@ -4,6 +4,7 @@ package agoraservice
 // #include "agora_media_node_factory.h"
 import "C"
 import (
+	"math"
 	"sync"
 	"unsafe"
 )
@@ -70,7 +71,7 @@ func (sender *AudioEncodedFrameSender) Release() {
 
 func (sender *AudioEncodedFrameSender) SendEncodedAudioFrame(payload []byte, frameInfo *EncodedAudioFrameInfo) int {
 
-	if sender == nil || frameInfo == nil || len(payload) == 0 {
+	if sender == nil || frameInfo == nil || (len(payload) == 0 && !frameInfo.SendEvenIfEmpty) || uint64(len(payload)) > math.MaxUint32 {
 		return -1
 	}
 
@@ -83,7 +84,15 @@ func (sender *AudioEncodedFrameSender) SendEncodedAudioFrame(payload []byte, fra
 
 	cData, pinner := unsafeCBytes(payload)
 	defer pinner.Unpin()
-	cFrameInfo := &C.struct__encoded_audio_frame_info{
+	cFrameInfo := cEncodedAudioFrameInfo(frameInfo)
+
+	return int(C.agora_audio_encoded_frame_sender_send(
+		sender.cSender, (*C.uint8_t)(cData),
+		C.uint32_t(len(payload)), cFrameInfo))
+}
+
+func cEncodedAudioFrameInfo(frameInfo *EncodedAudioFrameInfo) *C.struct__encoded_audio_frame_info {
+	return &C.struct__encoded_audio_frame_info{
 		speech:              CIntFromBool(frameInfo.Speech),
 		codec:               C.int(frameInfo.Codec),
 		sample_rate_hz:      C.int(frameInfo.SampleRateHz),
@@ -92,8 +101,4 @@ func (sender *AudioEncodedFrameSender) SendEncodedAudioFrame(payload []byte, fra
 		number_of_channels:  C.int(frameInfo.NumberOfChannels),
 		capture_time_ms:     C.int64_t(frameInfo.CaptureTimeMs),
 	}
-
-	return int(C.agora_audio_encoded_frame_sender_send(
-		sender.cSender, (*C.uint8_t)(cData),
-		C.uint32_t(len(payload)), cFrameInfo))
 }

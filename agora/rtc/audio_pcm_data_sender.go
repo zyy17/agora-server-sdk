@@ -4,7 +4,6 @@ package agoraservice
 // #include "agora_media_node_factory.h"
 import "C"
 import (
-	"math"
 	"sync"
 	"unsafe"
 )
@@ -111,6 +110,7 @@ func (sender *AudioPcmDataSender) Release() {
 // SendAudioPcmData synchronously submits one nonempty PCM16 buffer without pacing.
 // Channels must be 1 or 2; sample count and rate must be positive uint32 values,
 // and Buffer length must exactly match SamplesPerChannel*Channels*2.
+// Type must be AudioFrameTypePCM16 and RenderTimeMs must fit uint32.
 // The caller must keep frame and its Buffer unchanged during the call.
 // The binding returns -1 for nil/closed/empty input and -2 for invalid layout;
 // otherwise it returns the native result code. A zero result does not acknowledge
@@ -125,11 +125,7 @@ func (sender *AudioPcmDataSender) SendAudioPcmData(frame *AudioFrame) int {
 	if sender.closed || sender.cSender == nil || frame == nil || len(frame.Buffer) == 0 {
 		return -1
 	}
-	if frame.BytesPerSample != 2 || frame.Channels < 1 || frame.Channels > 2 || frame.SamplesPerChannel <= 0 || uint64(frame.SamplesPerChannel) > math.MaxUint32 || frame.SamplesPerSec <= 0 || uint64(frame.SamplesPerSec) > math.MaxUint32 {
-		return -2
-	}
-	bytesPerSample := frame.BytesPerSample * frame.Channels
-	if len(frame.Buffer)%bytesPerSample != 0 || frame.SamplesPerChannel != len(frame.Buffer)/bytesPerSample {
+	if frame.ValidatePCM() != nil {
 		return -2
 	}
 	cData, pinner := unsafeCBytes(frame.Buffer)
