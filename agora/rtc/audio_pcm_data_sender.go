@@ -9,38 +9,71 @@ import (
 	"unsafe"
 )
 
+// AudioFrame describes native PCM samples and optional observer telemetry.
+// Buffer uses interleaved channels. Keep input fields and bytes unchanged during
+// synchronous native sending; observer-generated buffers are copied into Go memory.
+// Do not assume raw VAD processors always copy their input or output.
 type AudioFrame struct {
-	Type              AudioFrameType
-	SamplesPerChannel int    // The number of samples per channel in this frame.
-	BytesPerSample    int    // The number of bytes per sample: Two for PCM 16.
-	Channels          int    // The number of channels (data is interleaved, if stereo).
-	SamplesPerSec     int    // The Sample rate.
-	Buffer            []byte // The pointer to the data buffer.
-	RenderTimeMs      int64  // The timestamp to render the audio data. Use this member to synchronize the audio renderer while rendering the audio streams.
-	PresentTimeMs     int64  // The timestamp to present the audio data. Use this member to synchronize the audio renderer while rendering the audio streams.
-	AvsyncType        int
-
-	// these field below are only used for audio observer.
+	// Type identifies the sample representation; PCM16 uses AudioFrameTypePCM16.
+	Type AudioFrameType
+	// SamplesPerChannel counts samples in each channel, not all channels combined.
+	SamplesPerChannel int
+	// BytesPerSample is the size of one sample in bytes; PCM16 requires 2.
+	BytesPerSample int
+	// Channels is 1 for mono or 2 for interleaved stereo on the PCM sender.
+	Channels int
+	// SamplesPerSec is the sampling frequency in Hz.
+	SamplesPerSec int
+	// Buffer contains the PCM bytes and must match sample count, channel count,
+	// and sample width. Its lifetime depends on the API using this frame.
+	Buffer []byte
+	// RenderTimeMs is the native render timestamp in milliseconds.
+	// The PCM sender converts it to the native unsigned timestamp field.
+	RenderTimeMs int64
+	// PresentTimeMs is forwarded as a signed presentation value without rewriting.
+	// Some applications use it as an opaque tag; it is not necessarily Unix time.
+	PresentTimeMs int64
+	// AvsyncType preserves the native synchronization indicator.
+	AvsyncType int
+	// FarFieldFlag is observer telemetry from the selected native audio path.
 	FarFieldFlag int
-	Rms          int
-	VoiceProb    int
-	MusicProb    int
-	Pitch        int
+	// Rms is native observer RMS telemetry.
+	Rms int
+	// VoiceProb is native voice telemetry. Its interpretation is version/path-specific;
+	// the current AudioVadV2 segmenter treats a value of 1 as active.
+	VoiceProb int
+	// MusicProb is native music telemetry and is not normalized by this binding.
+	MusicProb int
+	// Pitch is native pitch telemetry and is not normalized by this binding.
+	Pitch int
 }
 
+// AudioPcmDataSender owns a native PCM sender created by MediaNodeFactory.
+// Release is coordinated with in-flight sends, but callers should serialize
+// native operations according to the SDK's threading contract.
+// Release it after dependent tracks and before the process-wide service.
 type AudioPcmDataSender struct {
 	cSender       unsafe.Pointer
 	mu            sync.RWMutex
 	closed        bool
 	audioScenario AudioScenario
 }
+
+// AudioVolumeInfo is copied native per-user volume telemetry.
 type AudioVolumeInfo struct {
-	UserId     string
-	Volume     uint32
-	VAD        uint32
+	// UserId identifies the user reported by the native callback.
+	UserId string
+	// Volume is the native volume level.
+	Volume uint32
+	// VAD is the native voice-activity indicator.
+	VAD uint32
+	// VoicePitch is native voice-pitch telemetry; support depends on the audio path.
 	VoicePitch float64
 }
 
+// NewAudioPcmDataSender allocates a sender owned by the caller.
+// The factory and process-wide service must be alive. A nil/invalid factory or
+// native allocation failure returns nil. Release the sender when no track uses it.
 func (mediaNodeFactory *MediaNodeFactory) NewAudioPcmDataSender() *AudioPcmDataSender {
 	if mediaNodeFactory == nil || mediaNodeFactory.cFactory == nil {
 		return nil
@@ -56,6 +89,8 @@ func (mediaNodeFactory *MediaNodeFactory) NewAudioPcmDataSender() *AudioPcmDataS
 	}
 }
 
+// Release destroys the sender after in-flight sends finish.
+// It is idempotent and accepts nil. Dependent tracks must no longer use the sender.
 func (sender *AudioPcmDataSender) Release() {
 	if sender == nil {
 		return
@@ -73,6 +108,14 @@ func (sender *AudioPcmDataSender) Release() {
 	sender.cSender = nil
 }
 
+// SendAudioPcmData synchronously submits one nonempty PCM16 buffer without pacing.
+// Channels must be 1 or 2; sample count and rate must be positive uint32 values,
+// and Buffer length must exactly match SamplesPerChannel*Channels*2.
+// The caller must keep frame and its Buffer unchanged during the call.
+// The binding returns -1 for nil/closed/empty input and -2 for invalid layout;
+// otherwise it returns the native result code. A zero result does not acknowledge
+// remote playback. This low-level method does not enforce the high-level wrapper's
+// supported-rate or integral-millisecond restrictions.
 func (sender *AudioPcmDataSender) SendAudioPcmData(frame *AudioFrame) int {
 	if sender == nil || frame == nil {
 		return -1

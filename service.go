@@ -14,8 +14,11 @@ var runtimeOwner struct {
 	active bool
 }
 
-// Service owns the native runtime and every Session joined through it.
-// Close is idempotent, closes all sessions, and then releases the runtime.
+// Service owns the process-wide native RTC runtime, its Sessions, and its
+// AudioProcessors. Construct it with NewService; the zero value is not usable.
+// Service methods serialize lifecycle changes, but callers must synchronize
+// their own buffers and configuration values. Do not mix this ownership model
+// with direct rtc.Initialize or rtc.Release calls.
 type Service struct {
 	mu              sync.Mutex
 	closed          bool
@@ -64,6 +67,11 @@ func serviceConfig(cfg Config) (*rtc.AgoraServiceConfig, error) {
 	return native, nil
 }
 
+// NewService initializes the native RTC runtime with cfg.
+// It returns ErrServiceActive if another high-level Service owns the runtime,
+// an error wrapping ErrInvalidConfig for invalid settings, the configuration
+// hook's error, or an *Error for native initialization failure.
+// A successful caller must call Service.Close, even if no channel is joined.
 func NewService(cfg Config) (*Service, error) {
 	native, err := serviceConfig(cfg)
 	if err != nil {
@@ -89,9 +97,16 @@ func NewService(cfg Config) (*Service, error) {
 	}}, nil
 }
 
-// Join waits for connection success, failure, timeout, or context cancellation.
-// The returned session stays open until Close; cancellation after Join returns
-// does not silently disconnect it. An empty token is valid for unsecured projects.
+// Join creates a session and waits for connection success, failure, the earlier
+// of ctx's deadline and ChannelConfig.JoinTimeout, or context cancellation.
+// ctx must not be nil. Failed joins release the partially created session;
+// the returned error may join the connection and cleanup errors.
+//
+// A successfully returned Session remains open until Session.Close or
+// Service.Close; subsequent cancellation of ctx does not disconnect it.
+// Empty tokens are valid only for projects that do not require authentication.
+// IdentityMode, channel, user identity, token privileges, and peer configuration
+// must agree. Native connection success does not prove media interoperability.
 func (s *Service) Join(ctx context.Context, cfg ChannelConfig) (*Session, error) {
 	if ctx == nil {
 		return nil, invalid("context", "must not be nil")
@@ -131,6 +146,11 @@ func (s *Service) Join(ctx context.Context, cfg ChannelConfig) (*Session, error)
 	return session, nil
 }
 
+// Close closes all owned processors and sessions, then releases the native runtime.
+// It is safe to call repeatedly or concurrently; every call returns the same
+// combined cleanup error. Release failure may leave process ownership reserved,
+// so do not assume a new Service can be created after a failed Close.
+// Close waits for native cleanup and is not bounded by a context.
 func (s *Service) Close() error {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
@@ -159,9 +179,12 @@ func (s *Service) Close() error {
 
 func (s *Service) remove(c *Session) { s.mu.Lock(); delete(s.sessions, c); s.mu.Unlock() }
 
-// SetParameters applies a native process-level JSON parameter object while the
-// Service owns the runtime. Call before Join for parameters that affect new
-// connections. Supported keys and timing requirements belong to the native SDK.
+// SetParameters applies a native process-level JSON object under the service
+// lifecycle lock. Call it before Join for keys that affect new connections.
+// The wrapper validates JSON object syntax only; supported keys and timing
+// requirements belong to the pinned native SDK. It returns ErrClosed after
+// Close, ErrUnsupported when the parameter interface is unavailable, or *Error
+// for a nonzero native result.
 func (s *Service) SetParameters(parameters string) error {
 	if err := validateParameters(parameters); err != nil {
 		return err

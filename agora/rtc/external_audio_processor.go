@@ -33,31 +33,50 @@ func goOnSinkAudioFrame(sink unsafe.Pointer, frame unsafe.Pointer) C.int {
 
 var audioSinkProcessors sync.Map
 
-// date: 2025-11-25 to add external audio processor observer
+// ExternalAudioProcessorObserver receives native processed PCM callbacks.
+// Callbacks run on the native callback path; return promptly and dispatch lifecycle
+// changes elsewhere. Do not release or reconfigure the processor synchronously
+// inside a callback.
 type ExternalAudioProcessorObserver struct {
+	// OnProcessedAudioFrame receives copied processed samples, optional VAD state,
+	// and selected speech. It must be non-nil when an observer is supplied.
+	// The speech frame may alias the processed frame; copy before independent mutation.
 	OnProcessedAudioFrame func(processor *ExternalAudioProcessor, frame *AudioFrame, vadResultStat VadState, vadResultFrame *AudioFrame)
 }
 
-/*
-audio sink related:
-*/
+// AudioSink is an opaque native sink owned by ExternalAudioProcessor.
+// Applications do not construct or release it independently.
 type AudioSink struct {
 	cSinkCallback *C.audio_sink
 	cSink         unsafe.Pointer
 }
 
+// ExternalAudioProcessor owns a raw PCM sender, processing track, sink, and
+// optional Go-side AudioVadV2 segmenter. It is independent of RTC publication.
+// Construct it after native service initialization and release it before the
+// service. Serialize initialization, sending, and Release externally.
+// Prefer the root package's owned AudioProcessor for application use.
 type ExternalAudioProcessor struct {
-	callbacks           callbackGate
-	pcmSender           *AudioPcmDataSender
-	audioTrack          *LocalAudioTrack
-	audioSinks          *AudioSink
-	initialized         bool
-	vadInstance         *AudioVadV2
-	observer            *ExternalAudioProcessorObserver
-	InStreamInMs        atomic.Int64
+	callbacks   callbackGate
+	pcmSender   *AudioPcmDataSender
+	audioTrack  *LocalAudioTrack
+	audioSinks  *AudioSink
+	initialized bool
+	vadInstance *AudioVadV2
+	observer    *ExternalAudioProcessorObserver
+	// InStreamInMs counts submitted input duration in milliseconds after each
+	// sender call, including a call whose native result is nonzero. It is telemetry,
+	// not a reliable outstanding-input or successful-processing counter.
+	InStreamInMs atomic.Int64
+	// ProcessedStreamInMs advances by 10 for each native processed-frame callback.
+	// It is callback-duration telemetry, not a remote-playback acknowledgement.
 	ProcessedStreamInMs atomic.Int64
 }
 
+// NewExternalAudioProcessor allocates native processing resources from the
+// process-global media factory. The service must already be initialized.
+// Allocation failure returns nil and releases partial resources.
+// Call Initialize before use and Release when finished, including after failed initialization.
 func NewExternalAudioProcessor() *ExternalAudioProcessor {
 	processor := &ExternalAudioProcessor{
 		pcmSender:           nil,
@@ -90,11 +109,16 @@ func NewExternalAudioProcessor() *ExternalAudioProcessor {
 	return processor
 }
 
-// Initialize sets up the ExternalAudioProcessor by configuring the underlying audio sink and its filter properties,
-// setting audio track parameters, and enabling the audio track for publishing.
-// outputSampleRate: the desired output sample rate in Hz.
-// outputChannels:   the number of output audio channels.
-// Returns 0 on success, or a non-zero error code on failure.
+// Initialize configures the processing track, sink, APM extensions, optional
+// Go-side VAD, and observer. outputSampleRate is in Hz and outputChannels is the
+// requested output channel count. The native service's APM mode must support
+// external processing, and apmConfig and vadConfig cannot both be nil.
+// A non-nil observer must provide OnProcessedAudioFrame.
+//
+// A nonzero return is a binding or native failure; release the object on failure.
+// Requested extension libraries and models must be present in the installed SDK.
+// The method can print diagnostic settings/errors to stdout. It is not safe to
+// reinitialize a running processor or race with sending or Release.
 func (p *ExternalAudioProcessor) Initialize(apmConfig *APMConfig, outputSampleRate int, outputChannels int, vadConfig *AudioVadConfigV2, observer *ExternalAudioProcessorObserver) int {
 	var ret int = 0
 
@@ -149,6 +173,15 @@ func (p *ExternalAudioProcessor) Initialize(apmConfig *APMConfig, outputSampleRa
 	return 0
 }
 
+// PushAudioPcmData submits nonempty interleaved PCM16 input in complete 10 ms
+// multiples. sampleRate is in Hz, must be 8000–48000 and divisible by 100;
+// channels must be 1 or 2. startPtsInMs is forwarded as the signed presentation
+// value. Keep data unchanged until the synchronous call returns.
+//
+// The call does not pace input or wait for output. It returns -2000 for missing
+// resources, -2001 for invalid layout/rate/channels, otherwise the native sender
+// result. Submission counters advance even for nonzero native results.
+// Serialize this call with other raw lifecycle operations.
 func (p *ExternalAudioProcessor) PushAudioPcmData(data []byte, sampleRate int, channels int, startPtsInMs int64) int {
 	if p == nil || p.audioTrack == nil || p.pcmSender == nil {
 		return -2000
@@ -185,6 +218,10 @@ func (p *ExternalAudioProcessor) PushAudioPcmData(data []byte, sampleRate int, c
 	return ret
 }
 
+// Release stops callbacks and releases the processor's sink, track, sender,
+// and VAD buffers. It accepts nil and is safe to repeat sequentially.
+// Do not invoke it synchronously from a processed-frame callback or race it
+// with Initialize or PushAudioPcmData. Pending input need not produce output.
 func (p *ExternalAudioProcessor) Release() {
 	if p == nil {
 		return

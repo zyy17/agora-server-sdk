@@ -11,39 +11,87 @@ import (
 	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
-// AudioFrame is interleaved signed 16-bit little-endian PCM owned by the reader.
+// AudioFrame is copied, interleaved signed PCM16 little-endian audio.
+// Data and Speech are Go-owned and remain valid after callbacks and Close.
+// Only AudioBeforeMixing frames identify an individual remote UserID.
+// Telemetry fields are native values; availability and interpretation depend
+// on the installed SDK and selected processing path.
 type AudioFrame struct {
-	Position                                       AudioPosition
-	Channel, UserID                                string
-	Data                                           []byte
-	SampleRate, Channels                           int
-	SamplesPerChannel, BytesPerSample              int
-	AVSyncType, FarField                           int
-	TimestampMillis, PresentationMillis            int64
+	// Position identifies the PCM observation point; processor output leaves it zero.
+	Position AudioPosition
+	// Channel and UserID identify the source when available. Mixed, local, and
+	// processor frames may have empty values; do not infer an individual speaker.
+	Channel, UserID string
+	// Data contains the complete copied PCM frame, including silence.
+	Data []byte
+	// SampleRate is in Hz; Channels is the number of interleaved channels.
+	SampleRate, Channels int
+	// SamplesPerChannel counts samples in each channel, not across all channels.
+	// BytesPerSample is the byte width of one sample; PCM16 uses 2.
+	SamplesPerChannel, BytesPerSample int
+	// AVSyncType and FarField preserve native synchronization and far-field indicators.
+	AVSyncType, FarField int
+	// TimestampMillis is the native render timestamp in milliseconds.
+	// PresentationMillis preserves the native presentation value, which may be an
+	// opaque application tag. Neither is guaranteed to be Unix time.
+	TimestampMillis, PresentationMillis int64
+	// VoiceProbability, MusicProbability, RMS, and Pitch preserve native audio
+	// telemetry without normalization; do not assume a probability or pitch scale
+	// that the selected native SDK does not document.
 	VoiceProbability, MusicProbability, RMS, Pitch int
-	VAD                                            rtc.VadState
-	Speech                                         []byte
+	// VAD is the SDK VAD v2 state when enabled at AudioBeforeMixing, or processor
+	// VAD state when configured. It does not invoke the standalone rtc.AudioVad.
+	VAD rtc.VadState
+	// Speech is the optional copied VAD-selected PCM. It may contain pre-roll at
+	// speech onset and subsequent speech frames; it is not solely a start event.
+	// Forward either Data or Speech to a recognizer, not both as duplicate audio.
+	Speech []byte
 }
+
+// AudioCodec identifies a native encoded-audio codec.
+// Opus and AAC are named conveniences. Additional native codec values can be
+// converted from rtc.AudioCodecType, but transport and peer support vary.
 type AudioCodec int
 
 const (
+	// Opus identifies the native Opus codec.
 	Opus AudioCodec = AudioCodec(rtc.AudioCodecOpus)
-	AAC  AudioCodec = AudioCodec(rtc.AudioCodecAacLc)
+	// AAC identifies AAC-LC, not an ADTS file or other AAC profiles.
+	AAC AudioCodec = AudioCodec(rtc.AudioCodecAacLc)
 )
 
-// EncodedAudioFrame contains one encoded packet and its timing/format.
+// EncodedAudioFrame contains one encoded packet and its format metadata.
+// The wrapper checks metadata bounds but does not decode the packet or prove
+// that its contents match the declared codec, rate, channels, or sample count.
 type EncodedAudioFrame struct {
-	Data                                    []byte
-	Codec                                   AudioCodec
+	// Data contains one nonempty encoded packet. Keep it unchanged during the send call.
+	Data []byte
+	// Codec selects the native codec for Data; peer support must be verified.
+	Codec AudioCodec
+	// SampleRate is in Hz; accepted values are 7350, 8000, 11025, 12000, 16000,
+	// 22050, 24000, 32000, 44100, 48000, 64000, 88200, and 96000.
+	// Channels must be 1 or 2. SamplesPerChannel is nonnegative and is passed
+	// through to the native SDK, including zero.
 	SampleRate, Channels, SamplesPerChannel int
-	TimestampMillis                         int64
-	Speech                                  bool
+	// TimestampMillis is the native capture timestamp in milliseconds, not necessarily Unix time.
+	TimestampMillis int64
+	// Speech sets the native encoded-frame speech indicator.
+	Speech bool
 }
+
+// ReceivedEncodedAudio is a copied native encoded-audio packet.
+// Its callback does not supply a sample rate, channel count, or decoded duration;
+// obtain that information from the codec or application protocol.
 type ReceivedEncodedAudio struct {
+	// Channel and UserID identify the remote sender.
 	Channel, UserID string
-	Data            []byte
-	Codec           AudioCodec
-	SentAtMillis    int64
+	// Data owns the received encoded packet bytes.
+	Data []byte
+	// Codec is the native-reported codec; it may be a value without a named convenience constant.
+	Codec AudioCodec
+	// SentAtMillis is the native-reported send timestamp in milliseconds.
+	// Do not assume it shares a wall-clock origin with local time.
+	SentAtMillis int64
 }
 
 func (s *Session) audioObserver() *rtc.AudioFrameObserver {
@@ -121,13 +169,20 @@ func validateProcessorPCM(data []byte, rate, channels int) error {
 	return nil
 }
 
-// SendPCM publishes on first use. Data must contain complete PCM16 samples with
-// an integral millisecond duration (10 ms at 44100 Hz) in Audio.Send format.
-// Calls are not paced or buffered by the wrapper; use PlayPCM for paced files.
+// SendPCM publishes on first use and submits PCM with presentation value zero.
+// Data must contain complete nonempty PCM16 samples in AudioConfig.Send format,
+// with an integral-millisecond duration (multiples of 10 ms at 44100 Hz) and at
+// most uint32 samples per channel. Calls are not paced by the wrapper.
+//
+// The caller must keep data unchanged until the call returns. Use PlayPCM for
+// paced readers and a single application writer per track to preserve ordering.
+// Success means local native acceptance, not remote delivery or playback.
+// Wrong publication modes or Audience return ErrNotPublishing.
 func (s *Session) SendPCM(data []byte) error { return s.SendPCMAt(data, 0) }
 
-// SendPCMAt forwards presentationMillis unchanged, including opaque application
-// tags. It never increments or replaces the supplied value.
+// SendPCMAt has the format, lifetime, and unpaced-send contract of SendPCM.
+// It forwards presentationMillis unchanged, including zero or opaque application
+// tags; it never increments or replaces the supplied value.
 func (s *Session) SendPCMAt(data []byte, presentationMillis int64) error {
 	if err := validatePCM(data, s.cfg.Audio.Send.SampleRate, s.cfg.Audio.Send.Channels); err != nil {
 		return err
@@ -146,14 +201,25 @@ func (s *Session) SendPCMAt(data []byte, presentationMillis int64) error {
 	return check("send PCM", s.transport.PushAudioPcmData(data, s.cfg.Audio.Send.SampleRate, s.cfg.Audio.Send.Channels, presentationMillis))
 }
 
-// PlayPCM reads and paces PCM16 using a single 10 ms buffer. Reader must return
-// promptly; a blocked Reader cannot be interrupted by context cancellation.
-// A partial final frame is zero-padded. Cancellation stops future sends.
+// PlayPCM reads and paces PCM16 in 10 ms frames with presentation value zero.
+// It uses one reusable frame buffer and publishes on first send. A final partial
+// frame containing complete samples is zero-padded; an incomplete PCM sample
+// returns an error wrapping ErrInvalidConfig. Reader errors are propagated.
+//
+// ctx and reader must not be nil. A blocked Read cannot be interrupted by ctx;
+// use a reader that unblocks on application cancellation. Cancellation stops
+// future sends but does not flush previously queued native or remote audio.
+// The fixed pacing schedule can catch up after a stalled reader; applications
+// streaming live sources may need their own underrun policy.
+// The reader remains owned by the caller and is not closed by this method.
 func (s *Session) PlayPCM(ctx context.Context, reader io.Reader) error {
 	return s.PlayPCMAt(ctx, reader, 0)
 }
 
-// PlayPCMAt paces PCM with an explicit initial presentation timestamp in milliseconds.
+// PlayPCMAt has the reader, pacing, ownership, and cancellation contract of PlayPCM.
+// A nonzero presentationMillis is advanced by 10 for each frame; zero remains
+// zero throughout playback. Do not use this method to preserve an opaque tag
+// unchanged across every frame; use SendPCMAt for that behavior.
 func (s *Session) PlayPCMAt(ctx context.Context, reader io.Reader, presentationMillis int64) error {
 	return playPCM(ctx, reader, s.cfg.Audio.Send.SampleRate, s.cfg.Audio.Send.Channels, presentationMillis, s.SendPCMAt)
 }
@@ -205,6 +271,11 @@ func playPCM(ctx context.Context, reader io.Reader, rate, channels int, presenta
 	}
 }
 
+// SendEncodedAudio validates packet metadata and publishes the configured encoded
+// audio track on first use. It requires Broadcaster and AudioConfig.Mode
+// EncodedAudio, otherwise ErrNotPublishing is returned. It does not pace,
+// transcode, or parse the payload. Keep frame.Data unchanged during the call.
+// A nil result is local native acceptance, not a remote decode acknowledgement.
 func (s *Session) SendEncodedAudio(frame EncodedAudioFrame) error {
 	if len(frame.Data) == 0 {
 		return invalid("encoded audio", "must not be empty")
@@ -233,12 +304,23 @@ func (s *Session) SendEncodedAudio(frame EncodedAudioFrame) error {
 	return check("send encoded audio", s.native.PushAudioEncodedData(frame.Data, &info))
 }
 
+// InterruptAudio asks the native connection to interrupt queued audio.
+// The AI-server path unpublishes and republishes the track; other scenarios
+// clear its sender buffer. This does not cancel application producers or remove
+// audio already delivered to peers. Stop producers and discard application
+// queues before calling it to prevent stale audio from being enqueued afterward.
+// The binding does not propagate each internal unpublish, publish, or clear
+// failure individually, so a nil result is not a remote-silence guarantee.
 func (s *Session) InterruptAudio() error {
 	return s.withNative("interrupt audio", func(c *rtc.RtcConnection) int { return c.InterruptAudio() })
 }
 
-// WaitPCM estimates when sent PCM has played out using the upstream duration
-// clock plus its fixed margin. It is not a native queue or remote-playback acknowledgment.
+// WaitPCM polls the native duration-based PCM completion estimate every 10 ms.
+// The estimate includes a fixed native margin (180 ms in the pinned binding);
+// it is not a native queue or remote-playback acknowledgement.
+// It requires PCM mode and a non-nil context, and returns ErrUnsupported for
+// other modes, ErrClosed after Close, or ctx.Err on cancellation.
+// It does not stop producers; sending more PCM can extend the wait.
 func (s *Session) WaitPCM(ctx context.Context) error {
 	if s.cfg.Audio.Mode != PCM {
 		return ErrUnsupported
@@ -272,6 +354,12 @@ func (s *Session) WaitPCM(ctx context.Context) error {
 	}
 }
 
+// SendAudioMetadata submits metadata for the native audio path.
+// The wrapper accepts 1–1024 bytes, but the pinned upstream release notes
+// document a 64-byte native allowance. Keep payloads at most 64 bytes unless
+// the deployed native version has been independently verified.
+// Keep data unchanged during the call. Incoming values appear as AudioMetadata
+// events with copied []byte Data; native publishing and peer requirements apply.
 func (s *Session) SendAudioMetadata(data []byte) error {
 	if len(data) == 0 || len(data) > 1024 {
 		return invalid("audio metadata", "must contain 1–1024 bytes")
@@ -279,6 +367,12 @@ func (s *Session) SendAudioMetadata(data []byte) error {
 	return s.withNative("send audio metadata", func(c *rtc.RtcConnection) int { return c.SendAudioMetaData(data) })
 }
 
+// SetVolumeIndication configures native volume events.
+// interval must be between zero and one hour and is truncated to whole
+// milliseconds; zero requests the native disabled setting. smoothing must be
+// 0–10. reportVAD requests the native voice-activity indicator.
+// Results arrive as AudioVolume events with []Volume Data and total volume in
+// Event.State; the native SDK determines supported reporting behavior.
 func (s *Session) SetVolumeIndication(interval time.Duration, smoothing int, reportVAD bool) error {
 	if interval < 0 || interval > time.Hour || smoothing < 0 || smoothing > 10 {
 		return invalid("volume indication", "requires nonnegative interval and smoothing 0–10")
@@ -288,8 +382,11 @@ func (s *Session) SetVolumeIndication(interval time.Duration, smoothing int, rep
 	})
 }
 
-// SetAudioScenario changes processing outside the native callback thread. Handle
-// CapabilityFallback events here if your application chooses to accept a fallback.
+// SetAudioScenario selects native processing outside the callback thread.
+// Handle CapabilityFallback events and call this method if the application
+// chooses a supported fallback; the wrapper does not accept one automatically.
+// Changing the scenario does not change configured send/receive PCM formats.
+// A native rejection is returned as *Error.
 func (s *Session) SetAudioScenario(scenario AudioScenario) error {
 	if scenario > ScenarioAIClient {
 		return invalid("audio scenario", "is unknown")

@@ -18,8 +18,14 @@ type sessionTransport interface {
 	PushAudioPcmData([]byte, int, int, int64) int
 }
 
-// Session owns a connected RTC channel and its media streams. Use Close, not
-// native Release. Methods may run concurrently; native operations are serialized.
+// Session owns one RTC connection and its receive streams. Obtain it through
+// Service.Join; its zero value is not usable. Close it explicitly when finished.
+//
+// Native operations are serialized against each other and Close. Stream readers
+// may run concurrently, but compete for items rather than receiving broadcasts.
+// The wrapper does not serialize whole PlayPCM calls: concurrent producers can
+// interleave audio, so applications should use one producer per track.
+// Callers remain responsible for synchronization of their own buffers.
 type Session struct {
 	service                        *Service
 	cfg                            ChannelConfig
@@ -42,11 +48,16 @@ type Session struct {
 	messages                       *Stream[Message]
 }
 
-// ConnectionInfo is a copied snapshot, safe to retain across callbacks and Close.
+// ConnectionInfo is a copied connection snapshot, safe to retain across callbacks
+// and Close. Native state and reason values are passed through unchanged.
 type ConnectionInfo struct {
+	// Channel and UserID identify the current native connection.
+	// UserID reflects an allocated numeric UID after a successful join with "0".
 	Channel, UserID string
-	State, Reason   int
-	ConnectionID    uint
+	// State and Reason are the latest native connection state and reason codes.
+	State, Reason int
+	// ConnectionID is the native connection identifier, not the remote user identity.
+	ConnectionID uint
 }
 
 func emptySession(service *Service, cfg ChannelConfig) *Session {
@@ -205,20 +216,33 @@ func (s *Session) connect(ctx context.Context) error {
 
 func (s *Session) signalReady(err error) { s.readyOnce.Do(func() { s.ready <- err }) }
 
+// Events returns the session's bounded asynchronous event queue.
+// Consume it promptly for token renewal and failures; overflow drops oldest
+// events. Native callbacks never wait for consumers.
 func (s *Session) Events() *Stream[Event] { return s.events }
 
+// Audio returns copied PCM frames from the observation points enabled by Receive.
+// Filter AudioFrame.Position and UserID when processing individual speakers.
 func (s *Session) Audio() *Stream[AudioFrame] { return s.audio }
 
+// Video returns copied decoded video frames when Receive.Video is enabled.
 func (s *Session) Video() *Stream[ReceivedVideoFrame] { return s.video }
 
+// EncodedAudio returns copied encoded packets when Receive.EncodedAudio is enabled.
 func (s *Session) EncodedAudio() *Stream[ReceivedEncodedAudio] { return s.encodedAudio }
 
+// EncodedVideo returns copied encoded frames when Receive.EncodedVideo is enabled.
 func (s *Session) EncodedVideo() *Stream[ReceivedEncodedVideo] { return s.encodedVideo }
 
+// Messages returns received RTC data-stream messages. This is distinct from RTM.
 func (s *Session) Messages() *Stream[Message] { return s.messages }
 
+// Done returns a channel closed when Close begins. It does not signal completion
+// of native cleanup; call Close and inspect its result to wait for cleanup.
 func (s *Session) Done() <-chan struct{} { return s.done }
 
+// Info returns a point-in-time copy of the latest connection information.
+// It remains readable after Close and does not require access to native handles.
 func (s *Session) Info() ConnectionInfo { return *s.info.Load() }
 
 func (s *Session) closeStreams() {
@@ -230,6 +254,13 @@ func (s *Session) closeStreams() {
 	s.messages.close()
 }
 
+// Close disconnects and releases the native connection, closes all receive
+// streams, and removes the session from its Service. It is idempotent and safe
+// for concurrent calls. Every call returns the same disconnect error, if any.
+//
+// Done closes before cleanup finishes. Buffered receive values remain available
+// through Stream.Next with a live context until io.EOF. Close is not a remote
+// playback acknowledgement and does not guarantee pending sends were delivered.
 func (s *Session) Close() error {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
@@ -260,9 +291,14 @@ func (s *Session) withNative(op string, f func(*rtc.RtcConnection) int) error {
 	return check(op, f(s.native))
 }
 
-// WithNative provides serialized advanced access. Do not retain native handles,
-// invoke Session methods inside fn, destroy resources, or replace owned observers.
-// Raw APIs use native codes and do not have high-level validation/ownership guarantees.
+// WithNative calls fn while holding the session's native-operation lock.
+// fn must not be nil. The borrowed connection and its child handles must not
+// escape fn. Do not reenter Session methods, release resources, or replace
+// observers owned by the wrapper; these actions can deadlock or break ownership.
+//
+// fn's error is returned unchanged; a closed session returns ErrClosed.
+// Raw operations retain their native validation, result-code, and lifetime
+// contracts, without additional high-level safety guarantees.
 func (s *Session) WithNative(fn func(*rtc.RtcConnection) error) error {
 	if fn == nil {
 		return invalid("native function", "must not be nil")
@@ -275,6 +311,11 @@ func (s *Session) WithNative(fn func(*rtc.RtcConnection) error) error {
 	return fn(s.native)
 }
 
+// RenewToken submits a nonempty replacement RTC token for this session's project,
+// channel, identity namespace, and privileges. It does not generate tokens or
+// renew RTM credentials. Consume TokenExpiring and TokenExpired events and obtain
+// replacement credentials from a trusted server. Native acceptance is not proof
+// that the token will authorize every later operation.
 func (s *Session) RenewToken(token string) error {
 	if token == "" {
 		return invalid("token", "must not be empty")
@@ -282,7 +323,10 @@ func (s *Session) RenewToken(token string) error {
 	return s.withNative("renew token", func(c *rtc.RtcConnection) int { return c.RenewToken(token) })
 }
 
-// SetParameters passes an official native JSON parameter object.
+// SetParameters submits an official native JSON parameter object for this
+// connection. Only JSON object syntax is validated; supported keys and timing
+// are native-version-specific. It returns ErrClosed after Close or *Error for
+// a nonzero native result.
 func (s *Session) SetParameters(parameters string) error {
 	if err := validateParameters(parameters); err != nil {
 		return err
@@ -318,6 +362,9 @@ func (s *Session) publishVideoLocked() error {
 	return nil
 }
 
+// PublishAudio explicitly publishes the configured audio track.
+// It is idempotent while published; SendPCM and SendEncodedAudio also publish
+// on first use. Audience and NoAudio configurations return ErrNotPublishing.
 func (s *Session) PublishAudio() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -327,6 +374,9 @@ func (s *Session) PublishAudio() error {
 	return s.publishAudioLocked()
 }
 
+// PublishVideo explicitly publishes the configured video track.
+// It is idempotent while published; video sends also publish on first use.
+// Audience and NoVideo configurations return ErrNotPublishing.
 func (s *Session) PublishVideo() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -336,6 +386,8 @@ func (s *Session) PublishVideo() error {
 	return s.publishVideoLocked()
 }
 
+// UnpublishAudio stops publishing the audio track. It is a no-op if already
+// unpublished. A later send can publish the track again.
 func (s *Session) UnpublishAudio() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -352,6 +404,8 @@ func (s *Session) UnpublishAudio() error {
 	return nil
 }
 
+// UnpublishVideo stops publishing the video track. It is a no-op if already
+// unpublished. A later send can publish the track again.
 func (s *Session) UnpublishVideo() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -8,26 +8,41 @@ import (
 	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
-// Config owns process-wide settings. One Service may be open at a time.
-// Authentication is per channel; an App Certificate is never needed to join.
+// Config configures the process-wide RTC runtime. Only one Service may be open
+// at a time. Authentication is configured per channel; joining does not require
+// an App Certificate. The zero Config is invalid because AppID is required.
 type Config struct {
-	AppID        string
+	// AppID identifies the Agora project and must contain exactly 32 bytes without NUL.
+	AppID string
+	// IdentityMode selects the identity namespace for every session. Its zero value
+	// uses string accounts; a numeric-looking string is still a string account.
 	IdentityMode IdentityMode
-	Video        bool
-	// AudioProcessing enables native APM extensions for external processors.
-	AudioProcessing             bool
+	// Video enables the native video subsystem. Set it before creating sessions
+	// that send or receive either raw or encoded video.
+	Video bool
+	// AudioProcessing enables native APM support for NewAudioProcessor.
+	// The installed native package must include the requested extensions.
+	AudioProcessing bool
+	// LogPath, ConfigDir, and DataDir are native SDK filesystem paths.
+	// Empty values leave path selection to the native SDK.
 	LogPath, ConfigDir, DataDir string
-	// ConfigureNative runs before initialization. Do not retain the pointer.
+	// ConfigureNative optionally adjusts native settings before initialization.
+	// It runs synchronously; return an error to abort creation. Do not retain its
+	// pointer. UseStringUid must agree with IdentityMode and IdleMode must remain
+	// false so Service.Close can deterministically release the runtime.
 	ConfigureNative func(*rtc.AgoraServiceConfig) error
 }
 
-// IdentityMode selects the native identity namespace for every session in a Service.
+// IdentityMode selects the native identity namespace for all sessions of a Service.
+// Tokens and remote user IDs must use the same namespace.
 type IdentityMode uint8
 
 const (
 	// StringIdentity uses string user accounts, including all-digit accounts.
+	// It is the default; it is not interchangeable with NumericIdentity.
 	StringIdentity IdentityMode = iota
-	// NumericIdentity uses canonical decimal uint32 UIDs, never string accounts.
+	// NumericIdentity uses canonical base-10 uint32 UIDs, without leading zeroes.
+	// UserID "0" requests allocation when joining; remote user IDs must be nonzero.
 	NumericIdentity
 )
 
@@ -47,47 +62,71 @@ func (m IdentityMode) validateUserID(uid string, allowAuto bool) error {
 	return nil
 }
 
+// Role controls whether a session may publish media. The zero value is Broadcaster.
 type Role uint8
 
 const (
+	// Broadcaster permits publication of the configured media types.
 	Broadcaster Role = iota
+	// Audience receives media but cannot publish audio or video.
 	Audience
 )
 
+// ChannelMode selects a native RTC channel type. The zero value is Standard.
 type ChannelMode uint8
 
 const (
+	// Standard supports automatic subscriptions and subscribe-all operations.
 	Standard ChannelMode = iota
+	// LargeScale requires ReceiveConfig.ManualSubscriptions and explicit per-user subscriptions.
 	LargeScale
 )
 
+// AudioMode selects the audio publication path, independently of reception.
 type AudioMode uint8
 
 const (
+	// PCM publishes signed interleaved PCM16 little-endian audio. It is the default.
 	PCM AudioMode = iota
+	// EncodedAudio publishes encoded packets through Session.SendEncodedAudio.
 	EncodedAudio
+	// NoAudio disables audio publication without disabling received audio.
 	NoAudio
 )
 
+// VideoMode selects the video publication path, independently of reception.
 type VideoMode uint8
 
 const (
+	// NoVideo disables video publication. It is the default.
 	NoVideo VideoMode = iota
+	// RawVideo publishes tightly packed CPU pixels through Session.SendVideo.
 	RawVideo
+	// EncodedVideo publishes H.264 or H.265 packets through Session.SendEncodedVideo.
 	EncodedVideo
 )
 
-// AudioScenario selects native audio processing. Auto uses the upstream AI-server default.
+// AudioScenario selects native audio processing behavior. ScenarioAuto maps to
+// the upstream AI-server scenario. Peer compatibility and processing support
+// depend on the installed SDK; handle CapabilityFallback events explicitly.
 type AudioScenario uint8
 
 const (
+	// ScenarioAuto selects ScenarioAIServer; it does not negotiate a fallback automatically.
 	ScenarioAuto AudioScenario = iota
+	// ScenarioDefault selects the native default audio scenario.
 	ScenarioDefault
+	// ScenarioGameStreaming selects native game-streaming audio processing.
 	ScenarioGameStreaming
+	// ScenarioChatRoom selects native chat-room audio processing.
 	ScenarioChatRoom
+	// ScenarioChorus selects native chorus audio processing.
 	ScenarioChorus
+	// ScenarioMeeting selects native meeting audio processing.
 	ScenarioMeeting
+	// ScenarioAIServer selects the AI-server path, which requires compatible peers.
 	ScenarioAIServer
+	// ScenarioAIClient selects the corresponding native AI-client path.
 	ScenarioAIClient
 )
 
@@ -96,8 +135,16 @@ func (s AudioScenario) native() rtc.AudioScenario {
 }
 
 // PCMFormat describes signed interleaved little-endian PCM16.
-// Zero fields select 16 kHz mono independently for each direction.
-type PCMFormat struct{ SampleRate, Channels int }
+// SampleRate is in Hz and must be 8000, 16000, 32000, 44100, or 48000;
+// Channels must be 1 or 2. Zero fields select 16000 Hz and mono independently.
+// Sending and receiving use separate formats; no implicit resampling is performed
+// by the Go wrapper.
+type PCMFormat struct {
+	// SampleRate is the sampling frequency in Hz; zero selects 16000.
+	SampleRate int
+	// Channels is 1 for mono or 2 for interleaved stereo; zero selects mono.
+	Channels int
+}
 
 func (f PCMFormat) normalized() (PCMFormat, error) {
 	if f.SampleRate == 0 {
@@ -109,64 +156,113 @@ func (f PCMFormat) normalized() (PCMFormat, error) {
 	return f, validatePCMFormat(f.SampleRate, f.Channels)
 }
 
-// AudioConfig configures independent send/receive PCM16 formats, or encoded audio.
-// Zero values select 16 kHz mono PCM with the upstream AI-server scenario.
+// AudioConfig configures publication and independent send/receive PCM formats.
+// Its zero value selects PCM, 16 kHz mono in both directions, and ScenarioAuto.
 type AudioConfig struct {
-	Mode          AudioMode
+	// Mode selects the publication path; it does not disable receive observers.
+	Mode AudioMode
+	// Send and Receive describe outgoing and incoming PCM respectively.
+	// Each zero field uses the defaults described by PCMFormat.
 	Send, Receive PCMFormat
-	Scenario      AudioScenario
-	Profile       rtc.AudioProfile
-	// VAD enables upstream VAD v2 on 16 kHz mono received PCM.
-	VAD       bool
+	// Scenario selects native processing and peer compatibility behavior.
+	Scenario AudioScenario
+	// Profile is the native audio encoding profile, passed through unchanged.
+	Profile rtc.AudioProfile
+	// VAD enables the SDK's Go VAD v2 segmenter for received 16 kHz mono PCM at
+	// AudioBeforeMixing. It requires enabled PCM reception. This is distinct from
+	// the standalone native rtc.AudioVad detector.
+	VAD bool
+	// VADConfig optionally overrides the SDK VAD v2 settings; nil uses its defaults.
+	// Join copies the value. Frame counts are validated in 0–10000, probabilities
+	// in 0–1, voice thresholds in 0–100, and RMS thresholds in -127–0 dB.
+	// A non-nil zero configuration is not identical to nil; consult rtc.AudioVadConfigV2.
 	VADConfig *rtc.AudioVadConfigV2
 }
 
-// VideoConfig selects a publish format. Receiving is configured separately.
+// VideoConfig selects the video publication format. Receiving is configured
+// separately by ReceiveConfig. All video paths require Config.Video.
 type VideoConfig struct {
-	Mode          VideoMode
-	Encoder       *rtc.VideoEncoderConfiguration
+	// Mode selects no video, raw pixels, or encoded packets.
+	Mode VideoMode
+	// Encoder optionally configures the native video encoder. Join copies the value.
+	Encoder *rtc.VideoEncoderConfiguration
+	// EncodedSender optionally configures the encoded-video sender. Join copies the value.
 	EncodedSender *rtc.VideoEncodedImageSenderOptions
 }
 
-// ReceiveConfig selects copied media streams. Audio defaults to enabled unless
-// Disabled is true. Video and encoded reception are opt-in.
+// AudioPosition is a bitmask of native PCM observation points.
+// Combine values with bitwise OR. ReceiveConfig defaults to AudioBeforeMixing.
 type AudioPosition uint32
 
 const (
-	AudioPlayback      AudioPosition = 1
-	AudioRecord        AudioPosition = 2
-	AudioMixed         AudioPosition = 4
-	AudioBeforeMixing  AudioPosition = 8
+	// AudioPlayback observes playback PCM after remote users have been mixed.
+	AudioPlayback AudioPosition = 1
+	// AudioRecord observes the native recording path, when available.
+	AudioRecord AudioPosition = 2
+	// AudioMixed observes the native mixed recording/playback path, when available.
+	AudioMixed AudioPosition = 4
+	// AudioBeforeMixing observes each remote user separately and supports SDK VAD.
+	AudioBeforeMixing AudioPosition = 8
+	// AudioEarMonitoring observes the native ear-monitoring path, when available.
 	AudioEarMonitoring AudioPosition = 16
 )
 
+// ReceiveConfig selects receive observers and subscription behavior.
+// The zero value enables PCM audio before mixing with automatic audio subscriptions.
+// Video and encoded-audio observers are opt-in. Native feature availability still
+// depends on the media path, platform, and peer SDK.
 type ReceiveConfig struct {
-	// AudioPositions selects observation points; zero means per-user before mixing.
-	AudioPositions                    AudioPosition
-	Disabled                          bool
-	ManualSubscriptions               bool
+	// AudioPositions selects PCM observation points; zero means AudioBeforeMixing.
+	// Only the five declared bit flags are accepted.
+	AudioPositions AudioPosition
+	// Disabled disables PCM observation and automatic audio subscription.
+	// An explicitly enabled encoded-audio observer still exists, but requires a
+	// subscription established by the application when automatic subscription is off.
+	Disabled bool
+	// ManualSubscriptions disables automatic audio and video subscriptions.
+	// Subscribe to each desired user explicitly. LargeScale requires this option.
+	ManualSubscriptions bool
+	// Video, EncodedAudio, and EncodedVideo enable the corresponding receive queues.
+	// Video flags also enable automatic video subscription unless ManualSubscriptions is set.
 	Video, EncodedAudio, EncodedVideo bool
 }
 
-// ChannelConfig is independent for each join, including identity and token.
+// ChannelConfig describes one independently owned RTC session.
+// Join validates and copies supported native option values. The caller must not
+// mutate configuration data concurrently with Join.
 type ChannelConfig struct {
+	// Channel is a nonblank channel name of at most 64 bytes without NUL.
+	// Token is the matching RTC credential; an empty token is allowed for unsecured
+	// projects. The wrapper does not mint or automatically renew tokens.
 	Channel, Token string
-	// UserID is a string account in StringIdentity mode or a canonical decimal
-	// uint32 in NumericIdentity mode. Numeric "0" requests native UID allocation.
+	// UserID is a nonblank string account of at most 255 bytes without NUL in
+	// StringIdentity mode, or a canonical decimal uint32 in NumericIdentity mode.
+	// Numeric "0" requests native allocation; Session.Info reports the assigned UID.
 	UserID string
-	// Info is the native connection info payload, normally empty.
-	Info    string
-	Role    Role
-	Mode    ChannelMode
-	Audio   AudioConfig
-	Video   VideoConfig
+	// Info is the optional native connection-information payload. It must not contain NUL.
+	Info string
+	// Role selects publication permission. Zero is Broadcaster.
+	Role Role
+	// Mode selects Standard or LargeScale. LargeScale requires manual subscriptions.
+	Mode ChannelMode
+	// Audio controls outgoing media and send/receive PCM formats.
+	Audio AudioConfig
+	// Video controls outgoing video and requires Config.Video when enabled.
+	Video VideoConfig
+	// Receive selects incoming observers and subscription policy.
 	Receive ReceiveConfig
-	// QueueCapacity bounds each receive stream. Default: 64 items.
+	// QueueCapacity bounds each independent receive queue in items, not bytes.
+	// Zero uses 64; valid explicit values are 1–65536. Overflow drops the oldest item.
 	QueueCapacity int
-	// JoinTimeout applies in addition to the caller's context. Default: 30 s.
+	// JoinTimeout bounds connection establishment in addition to the caller's context.
+	// Zero uses 30 seconds; negative values are invalid. It does not limit session lifetime.
 	JoinTimeout time.Duration
-	Encryption  *rtc.EncryptionConfig
-	// ConfigureNative is the advanced configuration escape hatch, before allocation.
+	// Encryption optionally enables native media encryption during setup.
+	// Join copies the configuration and salt; project and peer settings must match.
+	Encryption *rtc.EncryptionConfig
+	// ConfigureNative optionally adjusts native connection and publication settings
+	// before allocation. Return an error to abort Join. Do not retain the pointers
+	// or change ownership assumptions; LargeScale cannot enable auto-subscription.
 	ConfigureNative func(*rtc.RtcConnectionConfig, *rtc.RtcConnectionPublishConfig) error
 }
 

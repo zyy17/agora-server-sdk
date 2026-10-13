@@ -6,59 +6,120 @@ import (
 	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
+// EventKind identifies a native callback translated into the session event queue.
+// Events can be dropped under backpressure; consume Session.Events promptly
+// and inspect Stream.Stats rather than treating it as a durable state log.
 type EventKind string
 
 const (
-	Connected           EventKind = "connected"
-	Disconnected        EventKind = "disconnected"
-	Connecting          EventKind = "connecting"
-	Reconnecting        EventKind = "reconnecting"
-	Reconnected         EventKind = "reconnected"
-	ConnectionLost      EventKind = "connection_lost"
-	ConnectionFailed    EventKind = "connection_failed"
-	UserJoined          EventKind = "user_joined"
-	UserLeft            EventKind = "user_left"
-	TokenExpiring       EventKind = "token_expiring"
-	TokenExpired        EventKind = "token_expired"
-	SDKError            EventKind = "error"
-	StreamError         EventKind = "stream_error"
-	EncryptionError     EventKind = "encryption_error"
-	AudioMetadata       EventKind = "audio_metadata"
-	AudioVolume         EventKind = "audio_volume"
-	AudioPublished      EventKind = "audio_published"
-	VideoPublished      EventKind = "video_published"
-	AudioUnpublished    EventKind = "audio_unpublished"
-	VideoUnpublished    EventKind = "video_unpublished"
-	AudioSubscribed     EventKind = "audio_subscribed"
-	VideoSubscribed     EventKind = "video_subscribed"
-	AudioStateChanged   EventKind = "audio_state_changed"
-	VideoStateChanged   EventKind = "video_state_changed"
+	// Connected reports initial native connection success.
+	Connected EventKind = "connected"
+	// Disconnected reports a native disconnection; it does not itself call Session.Close.
+	Disconnected EventKind = "disconnected"
+	// Connecting reports that the native connection is being established.
+	Connecting EventKind = "connecting"
+	// Reconnecting reports that the native SDK is trying to restore a connection.
+	Reconnecting EventKind = "reconnecting"
+	// Reconnected reports native reconnection success.
+	Reconnected EventKind = "reconnected"
+	// ConnectionLost reports that the native SDK lost the connection.
+	ConnectionLost EventKind = "connection_lost"
+	// ConnectionFailed reports a native connection failure, with its reason code.
+	ConnectionFailed EventKind = "connection_failed"
+	// UserJoined reports a remote user's arrival in UserID.
+	UserJoined EventKind = "user_joined"
+	// UserLeft reports a remote user's departure in UserID, with a native Reason.
+	UserLeft EventKind = "user_left"
+	// TokenExpiring requests timely RTC token renewal; the event never includes the token.
+	TokenExpiring EventKind = "token_expiring"
+	// TokenExpired reports expired RTC privileges; obtain and submit a matching replacement token.
+	TokenExpired EventKind = "token_expired"
+	// SDKError carries a native error Code and diagnostic Message.
+	SDKError EventKind = "error"
+	// StreamError carries a data-stream failure Code and StreamFailure in Data.
+	StreamError EventKind = "stream_error"
+	// EncryptionError carries a native media-encryption error Code.
+	EncryptionError EventKind = "encryption_error"
+	// AudioMetadata carries copied audio metadata as []byte in Data.
+	AudioMetadata EventKind = "audio_metadata"
+	// AudioVolume carries []Volume in Data and native total volume in State.
+	AudioVolume EventKind = "audio_volume"
+	// AudioPublished reports native audio-track publication success.
+	AudioPublished EventKind = "audio_published"
+	// VideoPublished reports native video-track publication success.
+	VideoPublished EventKind = "video_published"
+	// AudioUnpublished reports that the native audio track was unpublished.
+	AudioUnpublished EventKind = "audio_unpublished"
+	// VideoUnpublished reports that the native video track was unpublished.
+	VideoUnpublished EventKind = "video_unpublished"
+	// AudioSubscribed reports native subscription to a remote audio track.
+	AudioSubscribed EventKind = "audio_subscribed"
+	// VideoSubscribed reports native subscription to a remote video track.
+	VideoSubscribed EventKind = "video_subscribed"
+	// AudioStateChanged carries native remote-audio State and Reason.
+	AudioStateChanged EventKind = "audio_state_changed"
+	// VideoStateChanged carries native remote-video State and Reason.
+	VideoStateChanged EventKind = "video_state_changed"
+	// PublishStateChanged carries the new native audio publication State and old state in Reason.
 	PublishStateChanged EventKind = "publish_state_changed"
-	UserInfoUpdated     EventKind = "user_info_updated"
-	Statistics          EventKind = "statistics"
-	KeyFrameRequested   EventKind = "keyframe_requested"
-	CapabilityFallback  EventKind = "capability_fallback"
+	// UserInfoUpdated carries native media-type information in Reason and its value in State.
+	UserInfoUpdated EventKind = "user_info_updated"
+	// Statistics carries a copied native statistics struct; Message identifies its kind.
+	Statistics EventKind = "statistics"
+	// KeyFrameRequested asks an encoded-video publisher to provide an intra frame.
+	KeyFrameRequested EventKind = "keyframe_requested"
+	// CapabilityFallback reports a missing AI-QoS capability and native fallback Reason.
+	// The wrapper rejects the synchronous fallback callback; choose a scenario
+	// explicitly with Session.SetAudioScenario if appropriate.
+	CapabilityFallback EventKind = "capability_fallback"
 )
 
-// Event contains only Go-owned data. Data is a copied native statistics value,
-// []Volume, []byte (metadata), or nil. Tokens and native handles are never exposed.
+// Event contains Go-owned callback data without native handles or tokens.
+// Interpret State, Reason, Code, Message, and Data according to Kind; fields
+// not supplied by that callback retain their zero values.
 type Event struct {
-	Kind                EventKind
-	Channel, UserID     string
-	Reason, State, Code int
-	Message             string
-	Data                any
-}
-type Volume struct {
-	UserID     string
-	Level, VAD uint32
-	Pitch      float64
-}
-type Message struct {
+	// Kind identifies the callback represented by this event.
+	Kind EventKind
+	// Channel is the session's channel unless a callback supplies another value.
+	// UserID identifies a remote user when the callback includes one.
 	Channel, UserID string
-	StreamID        int
-	Data            []byte
-	SentAtMillis    int64
+	// Reason, State, and Code preserve native values. Their meaning depends on
+	// Kind; for PublishStateChanged, Reason holds the previous state.
+	Reason, State, Code int
+	// Message is a native error message or a statistics discriminator.
+	// Statistics uses "local_audio", "remote_audio", "local_video", or "remote_video".
+	Message string
+	// Data is nil, []Volume for AudioVolume, []byte for AudioMetadata,
+	// StreamFailure for StreamError, or a copied rtc.LocalAudioTrackStats,
+	// rtc.RemoteAudioTrackStats, rtc.LocalVideoTrackStats, or
+	// rtc.RemoteVideoTrackStats value for Statistics. Use a checked type assertion.
+	Data any
+}
+
+// Volume is a copied native per-user audio-volume indication.
+// The native SDK determines reporting cadence and telemetry scales.
+type Volume struct {
+	// UserID identifies the user reported by the native volume callback.
+	UserID string
+	// Level is the native volume level and VAD is its native voice-activity indicator.
+	Level, VAD uint32
+	// Pitch is the native-reported voice pitch; support depends on the processing path.
+	Pitch float64
+}
+
+// Message is a copied received RTC data-stream payload, independent of RTM.
+// The session's data stream is unordered and unreliable; successful sends and
+// local queueing do not guarantee application processing by the recipient.
+type Message struct {
+	// Channel and UserID identify the remote message source.
+	Channel, UserID string
+	// StreamID is the native data-stream identifier.
+	StreamID int
+	// Data owns the copied message bytes and remains valid after Session.Close.
+	Data []byte
+	// SentAtMillis preserves the native send timestamp in milliseconds.
+	// Its clock origin is not guaranteed to match the local wall clock.
+	SentAtMillis int64
 }
 
 func (s *Session) event(e Event) {
@@ -120,7 +181,16 @@ func (s *Session) connectionObserver() *rtc.RtcConnectionObserver {
 	}
 }
 
-type StreamFailure struct{ StreamID, Missed, Cached int }
+// StreamFailure supplies native counters accompanying a StreamError event.
+// It does not provide missing message payloads or an automatic retransmission mechanism.
+type StreamFailure struct {
+	// StreamID identifies the native data stream that reported a failure.
+	StreamID int
+	// Missed is the native count of missing stream messages.
+	Missed int
+	// Cached is the native count of cached stream messages.
+	Cached int
+}
 
 func (s *Session) localObserver() *rtc.LocalUserObserver {
 	return &rtc.LocalUserObserver{
