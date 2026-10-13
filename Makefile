@@ -50,8 +50,8 @@ build-examples: ## Build all examples from the root module.
 		$(WITH_AGORA) $(GO) build -o "$(OUTPUT_BIN_PATH)/$${package##*/}" "$$package" || exit $$?; \
 	done
 
-test-callbacks: ## Exercise registered C callbacks with synthetic data, race and cgo checks.
-	GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -tags agora_test -count=1 -run '^TestNativeCallback' ./agora/rtc
+test-callbacks: ## Exercise native callback/media ABI and lifecycle fixtures with race and cgo checks.
+	AGORA_NATIVE_SMOKE=1 GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -tags agora_test -count=1 -run '^TestNative' ./agora/rtc
 
 native-smoke: ## Check credential-free native lifecycle with strict cgo pointer checks.
 	AGORA_NATIVE_SMOKE=1 GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -count=1 -run '^TestNative' ./...
