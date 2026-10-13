@@ -82,8 +82,8 @@ AGORA_API_C_VOID agora_media_ctrl_packet_receiver_destroy(AGORA_HANDLE agora_med
  * @ANNOTATION:TYPE:OBSERVER
  */
 typedef struct _video_encoded_image_receiver {
-  int (*on_encoded_video_image_received)(AGORA_HANDLE agora_video_encoded_image_receiver, const uint8_t* image_buffer, uint32_t length,
-                                         const encoded_video_frame_info* info);
+  int (*on_encoded_video_image_received)(AGORA_HANDLE agora_video_encoded_frame_observer, const char* channel_id, const char* uid, const uint8_t* image_buffer, size_t length,
+                                const encoded_video_frame_info* video_encoded_frame_info);
 } video_encoded_image_receiver;
 
 /**
@@ -261,7 +261,7 @@ typedef struct _beauty_options {
      * red saturation level.
      */
     float redness_level;
-    /** 
+    /**
      * The sharpness level. The value ranges between 0 (original) and 1.
      */
     float sharpness_level;

@@ -24,7 +24,7 @@ typedef struct _rtmp_streaming_observer
                                            int err_code);
     void (*on_rtmp_streaming_event)(AGORA_HANDLE agora_rtmp_streaming_service, const char* url, int event_code);
     void (*on_stream_published)(AGORA_HANDLE agora_rtmp_streaming_service, const char* url, int error);
-  
+
     void (*on_stream_unpublished)(AGORA_HANDLE agora_rtmp_streaming_service, const char* url);
     void (*on_transcoding_updated)(AGORA_HANDLE agora_rtmp_streaming_service);
 
@@ -35,7 +35,7 @@ typedef struct _rtmp_streaming_observer
  * @ANNOTATION:GROUP:agora_rtmp_streaming_service
  */
 AGORA_API_C_INT agora_rtmp_streaming_service_add_publish_stream_url(AGORA_HANDLE agora_rtmp_streaming_service, const char* url, int transcoding_enabled);
- 
+
 /**
  * @ANNOTATION:GROUP:agora_rtmp_streaming_service
  */
@@ -70,7 +70,7 @@ AGORA_API_C_INT agora_rtmp_streaming_service_stop_rtmp_stream(AGORA_HANDLE agora
  * @ANNOTATION:GROUP:agora_rtmp_streaming_service
  */
 AGORA_API_C_INT agora_rtmp_streaming_service_register_observer(AGORA_HANDLE agora_rtmp_streaming_service, rtmp_streaming_observer* observer);
- 
+
 
 /**
  * @ANNOTATION:GROUP:agora_rtmp_streaming_service

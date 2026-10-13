@@ -24,6 +24,8 @@ class IMediaStreamingSourceObserver;
 /**
  * @brief The error code of streaming source
  *
+ * @deprecated Since version 4.6.0, this feature has been turned off by default.
+ *
  */
 enum STREAMING_SRC_ERR {
   STREAMING_SRC_ERR_NONE = 0,               ///< no error
@@ -55,6 +57,8 @@ enum STREAMING_SRC_ERR {
 /**
  * @brief The state machine of Streaming Source
  *
+ * @deprecated Since version 4.6.0, this feature has been turned off by default.
+ *
  */
 enum STREAMING_SRC_STATE {
   STREAMING_SRC_STATE_CLOSED   = 0,  ///< streaming source still closed, can do nothing
@@ -70,6 +74,8 @@ enum STREAMING_SRC_STATE {
 /**
  * @brief The input SEI data
  *
+ * @deprecated Since version 4.6.0, this feature has been turned off by default.
+ *
  */
 struct InputSeiData {
   int32_t         type;           ///< SEI type
@@ -82,9 +88,11 @@ struct InputSeiData {
 
 
 /**
- * @brief The IMediaStreamingSource class provides access to a media streaming source demuxer. 
+ * @brief The IMediaStreamingSource class provides access to a media streaming source demuxer.
  *        To playout multiple stream sources simultaneously,
  *        create multiple media stream source objects.
+ *
+ * @deprecated Since version 4.6.0, this feature has been turned off by default.
  */
 class IMediaStreamingSource : public RefCountInterface {
 public:
@@ -114,7 +122,7 @@ public:
    * @brief Gets the unique source ID of the streaming source.
    * @return
    * - ≧ 0: The source ID of this media player source.
-   * - < 0: Failure. 
+   * - < 0: Failure.
    */
   virtual int getSourceId() const = 0;
 
@@ -224,7 +232,7 @@ public:
    * @param type  SEI type
    * @param timestamp the video frame timestamp which attached to
    * @param frame_index the video frame timestamp which attached to
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure. See {@link STREAMINGSRC_ERR}.
@@ -260,7 +268,7 @@ public:
    * - 0: Success.
    * - < 0: Failure
    */
-   virtual int parseMediaInfo(const char* url, 
+   virtual int parseMediaInfo(const char* url,
                               media::base::PlayerStreamInfo& video_info,
                               media::base::PlayerStreamInfo& audio_info) = 0;
 
@@ -270,6 +278,8 @@ public:
 
 /**
   * @brief  This observer interface of media streaming source
+  *
+  * @deprecated Since version 4.6.0, this feature has been turned off by default.
   */
 class IMediaStreamingSourceObserver {
   public:
@@ -278,8 +288,8 @@ class IMediaStreamingSourceObserver {
 
     /**
      * @brief Reports the playback state change.
-     *     When the state of the playback changes, 
-     *     the SDK triggers this callback to report the new playback state 
+     *     When the state of the playback changes,
+     *     the SDK triggers this callback to report the new playback state
      *     and the reason or error for the change.
      * @param state The new playback state after change. See {@link STREAMING_SRC_STATE}.
      * @param ec The player's error code. See {@link STREAMINGSRC_ERR}.
@@ -309,7 +319,7 @@ class IMediaStreamingSourceObserver {
 
     /**
      * @brief Reports current playback progress.
-     *        The callback triggered once every one second during the playing status 
+     *        The callback triggered once every one second during the playing status
      * @param position_ms Current playback progress (millisecond).
      */
     virtual void onProgress(int64_t position_ms) = 0;

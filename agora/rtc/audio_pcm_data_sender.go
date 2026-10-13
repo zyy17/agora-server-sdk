@@ -56,11 +56,14 @@ func (mediaNodeFactory *MediaNodeFactory) NewAudioPcmDataSender() *AudioPcmDataS
 }
 
 func (sender *AudioPcmDataSender) Release() {
-	if sender.closed {
+	if sender == nil {
 		return
 	}
 	sender.mu.Lock()
 	defer sender.mu.Unlock()
+	if sender.closed || sender.cSender == nil {
+		return
+	}
 	sender.closed = true
 	if sender.cSender == nil {
 		return
@@ -70,13 +73,20 @@ func (sender *AudioPcmDataSender) Release() {
 }
 
 func (sender *AudioPcmDataSender) SendAudioPcmData(frame *AudioFrame) int {
-	if sender.closed || sender.cSender == nil || frame == nil {
+	if sender == nil || frame == nil {
 		return -1
 	}
 	sender.mu.RLock()
 	defer sender.mu.RUnlock()
 	if sender.closed || sender.cSender == nil || frame == nil || len(frame.Buffer) == 0 {
 		return -1
+	}
+	if frame.BytesPerSample != 2 || frame.Channels < 1 || frame.Channels > 2 || frame.SamplesPerChannel <= 0 || frame.SamplesPerSec <= 0 {
+		return -2
+	}
+	bytesPerSample := frame.BytesPerSample * frame.Channels
+	if len(frame.Buffer)%bytesPerSample != 0 || frame.SamplesPerChannel != len(frame.Buffer)/bytesPerSample {
+		return -2
 	}
 	cData, pinner := unsafeCBytes(frame.Buffer)
 	defer pinner.Unpin()

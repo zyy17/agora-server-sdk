@@ -65,6 +65,9 @@ func NewVideoEncoderConfiguration() *VideoEncoderConfiguration {
 }
 
 func NewCustomVideoTrackFrame(videoSender *VideoFrameSender) *LocalVideoTrack {
+	if videoSender == nil || videoSender.cSender == nil || agoraService.service == nil {
+		return nil
+	}
 	cTrack := C.agora_service_create_custom_video_track_frame(agoraService.service, videoSender.cSender)
 	if cTrack == nil {
 		return nil
@@ -75,6 +78,9 @@ func NewCustomVideoTrackFrame(videoSender *VideoFrameSender) *LocalVideoTrack {
 }
 
 func NewCustomVideoTrackEncoded(videoSender *VideoEncodedImageSender, senderOptions *VideoEncodedImageSenderOptions) *LocalVideoTrack {
+	if videoSender == nil || videoSender.cSender == nil || senderOptions == nil || agoraService.service == nil {
+		return nil
+	}
 	cSenderOptions := C.sender_options{}
 	cptrSenderOptions := &cSenderOptions
 	if senderOptions != nil {

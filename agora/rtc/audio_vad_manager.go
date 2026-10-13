@@ -17,6 +17,7 @@ import (
 */
 
 type AudioVadManager struct {
+	mu            sync.Mutex
 	vadInstance   sync.Map // only access inside
 	isInitialized bool     // only access inside
 	vadConfigure  *AudioVadConfigV2
@@ -30,9 +31,17 @@ func NewAudioVadManager(config *AudioVadConfigV2) *AudioVadManager {
 	}
 }
 func (m *AudioVadManager) makeKey(channel string, uid string) string {
-	return channel + uid
+	return channel + "\x00" + uid
 }
 func (m *AudioVadManager) Process(channel string, uid string, frame *AudioFrame) (*AudioFrame, VadState) {
+	if m == nil {
+		return nil, VadStateInvalid
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.isInitialized || frame == nil {
+		return nil, VadStateInvalid
+	}
 
 	// 1. make key
 	key := m.makeKey(channel, uid)
@@ -50,6 +59,11 @@ func (m *AudioVadManager) Process(channel string, uid string, frame *AudioFrame)
 	return vad.(*AudioVadV2).Process(frame)
 }
 func (m *AudioVadManager) Release() {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	if !m.isInitialized {
 		return

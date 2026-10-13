@@ -17,17 +17,35 @@ type LocalAudioTrack struct {
 // add audioScenario_of_connection param, to set the audio scenario for the audio track
 // recommend to use the same audio scenario for the connection and related audio track
 func NewCustomAudioTrackPcm(pcmSender *AudioPcmDataSender, audioScenario_of_connection AudioScenario, isSendExternalAudioForAI bool) *LocalAudioTrack {
-	if agoraService == nil || agoraService.service == nil {
+	if pcmSender == nil || pcmSender.cSender == nil || agoraService == nil || agoraService.service == nil {
 		return nil
 	}
 	var cTrack unsafe.Pointer = nil
 	audioScenario := audioScenario_of_connection
 
 	fmt.Printf("NewCustomAudioTrackPcm, audioScenario: %d, pcmSender.audioScenario: %d\n", audioScenario, pcmSender.audioScenario)
-	if audioScenario == AudioScenarioAiServer && isSendExternalAudioForAI == false {
-		cTrack = C.agora_service_create_direct_custom_audio_track_pcm(agoraService.service, pcmSender.cSender)
+	// date: 20260618, add local audio track with apm support, default to false
+	if agoraService.serviceConfig.EnableLocalAudioTrackWithAPM {
+		var enable_aec int = 0
+		var enable_ans int = 0
+		var enable_agc int = 0
+		if agoraService.serviceConfig.LocalAudioTrackAPMConfig.AiAecConfig.Enabled {
+			enable_aec = 1
+		}
+		if agoraService.serviceConfig.LocalAudioTrackAPMConfig.AiNsConfig.NsEnabled {
+			enable_ans = 1
+		}
+		if agoraService.serviceConfig.LocalAudioTrackAPMConfig.AgcConfig.Enabled {
+			enable_agc = 1
+		}
+		cTrack = C.agora_service_create_direct_custom_audio_track_pcm_with_apm(agoraService.service, pcmSender.cSender, C.int(enable_aec), C.int(enable_ans), C.int(enable_agc))
+		fmt.Printf("*******create direct custom audio track pcm with apm, enable_aec: %d, enable_ans: %d, enable_agc: %d\n", enable_aec, enable_ans, enable_agc)
 	} else {
-		cTrack = C.agora_service_create_custom_audio_track_pcm(agoraService.service, pcmSender.cSender)
+		if audioScenario == AudioScenarioAiServer && isSendExternalAudioForAI == false {
+			cTrack = C.agora_service_create_direct_custom_audio_track_pcm(agoraService.service, pcmSender.cSender)
+		} else {
+			cTrack = C.agora_service_create_custom_audio_track_pcm(agoraService.service, pcmSender.cSender)
+		}
 	}
 
 	if cTrack == nil {
@@ -53,6 +71,9 @@ func NewCustomAudioTrackPcm(pcmSender *AudioPcmDataSender, audioScenario_of_conn
 }
 
 func NewCustomAudioTrackEncoded(encodedAudioSender *AudioEncodedFrameSender, mixMode AudioTrackMixingState) *LocalAudioTrack {
+	if encodedAudioSender == nil || encodedAudioSender.cSender == nil || agoraService.service == nil {
+		return nil
+	}
 	cTrack := C.agora_service_create_custom_audio_track_encoded(agoraService.service, encodedAudioSender.cSender, C.int(mixMode))
 	if cTrack == nil {
 		return nil
@@ -117,6 +138,9 @@ func (track *LocalAudioTrack) SetSendDelayMs(delayMs int) int {
 // to create direct audio track,no need to set send delay ms
 // its will push all data to sd-rtn. and it will encode possible more data to sd-rtn.
 func NewDirectCustomAudioTrackPcm(pcmSender *AudioPcmDataSender) *LocalAudioTrack {
+	if pcmSender == nil || pcmSender.cSender == nil || agoraService.service == nil {
+		return nil
+	}
 
 	cTrack := C.agora_service_create_direct_custom_audio_track_pcm(agoraService.service, pcmSender.cSender)
 	if cTrack == nil {

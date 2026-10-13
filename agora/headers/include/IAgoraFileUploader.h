@@ -36,7 +36,7 @@ struct ImagePayloadData {
  * The IFileUploadService class, which enables upload file service.
  */
 class IFileUploaderService : public RefCountInterface {
- public: 
+ public:
   virtual ~IFileUploaderService() {}
   virtual int startImageUpload(const ImagePayloadData* imgData, aosl_ref_t ares = AOSL_REF_INVALID)  = 0;
   virtual int stopImageUpload(aosl_ref_t ares = AOSL_REF_INVALID) = 0;

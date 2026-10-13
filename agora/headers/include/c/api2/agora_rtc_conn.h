@@ -116,7 +116,15 @@ typedef struct _rtc_conn_config {
    */
   int client_role_type;
 
+  /**
+   * The channel profile: #CHANNEL_PROFILE_TYPE.
+   */
   int channel_profile;
+
+   /**
+   * Indicates the connection type. 0: CHANNEL_TYPE_STANDARD, 1: CHANNEL_TYPE_LARGE_SCALE
+   */
+  int channel_type;
 
   /**
    * Determines whether to receive audio media packet or not.
@@ -152,7 +160,7 @@ typedef struct _rtc_conn_observer {
   void (*on_token_privilege_will_expire)(AGORA_HANDLE agora_rtc_conn, const char* token);
   void (*on_token_privilege_did_expire)(AGORA_HANDLE agora_rtc_conn);
   void (*on_connection_license_validation_failure)(AGORA_HANDLE agora_rtc_conn, int reason);
-  void (*on_connection_failure)(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason); 
+  void (*on_connection_failure)(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason);
   void (*on_user_joined)(AGORA_HANDLE agora_rtc_conn, user_id_t user_id);
   void (*on_user_left)(AGORA_HANDLE agora_rtc_conn, user_id_t user_id, int reason);
   void (*on_transport_stats)(AGORA_HANDLE agora_rtc_conn, const rtc_stats* stats);
@@ -198,7 +206,7 @@ AGORA_API_C_VOID agora_rtc_conn_destroy(AGORA_HANDLE agora_rtc_conn);
 /**
  * @ANNOTATION:GROUP:agora_rtc_conn
  */
-AGORA_API_C_INT agora_rtc_conn_connect(AGORA_HANDLE agora_rtc_conn, const char* token, const char* chan_id, user_id_t user_id);
+AGORA_API_C_INT agora_rtc_conn_connect(AGORA_HANDLE agora_rtc_conn, const char* token, const char* chan_id, const char* info, user_id_t user_id);
 
 /**
  * @ANNOTATION:GROUP:agora_rtc_conn
@@ -327,6 +335,11 @@ AGORA_API_C_HDL agora_rtc_conn_get_user_info_by_uid(AGORA_HANDLE agora_rtc_conn,
  * @ANNOTATION:GROUP:agora_rtc_conn
  */
 AGORA_API_C_HDL agora_rtc_conn_get_ntp_time(AGORA_HANDLE agora_rtc_conn);
+
+/**
+ * @ANNOTATION:GROUP:agora_rtc_conn
+ */
+AGORA_API_C_LITERAL agora_rtc_conn_get_sid(AGORA_HANDLE agora_rtc_conn);
 
 
 #ifdef __cplusplus

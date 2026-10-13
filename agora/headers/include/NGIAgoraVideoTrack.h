@@ -1,4 +1,3 @@
-
 // Copyright (c) 2019 Agora.io. All rights reserved
 
 // This program is confidential and proprietary to Agora.io.
@@ -67,23 +66,28 @@ struct StreamLayerConfigInternal {
 
 struct SimulcastConfigInternal {
    StreamLayerConfigInternal simulcastlayerConfigs[STREAM_LAYER_COUNT_MAX];
-  
+
+  bool publish_fallback_enable;
+  bool publish_on_demand;
+
   void reset() {
     for (int i = STREAM_LAYER_1; i < STREAM_LAYER_COUNT_MAX; i++) {
       simulcastlayerConfigs[i].reset();
     }
   }
-  
+
   bool operator==(const SimulcastConfigInternal& rhs) const {
     for (int i = 0; i < STREAM_LAYER_COUNT_MAX; i++) {
       if (simulcastlayerConfigs[i] == rhs.simulcastlayerConfigs[i]) {
         continue;
-      } else {
-        return false;
       }
+      return false;
     }
-    return true;
+    return publish_fallback_enable == rhs.publish_fallback_enable &&
+           publish_on_demand == rhs.publish_on_demand;
   }
+
+  SimulcastConfigInternal(): publish_fallback_enable(false), publish_on_demand(true) {}
 };
 
 enum VideoTrackType {
@@ -229,6 +233,26 @@ class IVideoTrack : public RefCountInterface {
 
   virtual int enableAndUpdateVideoWatermarks(WatermarkConfig* watermark_configs, int length, bool visible_in_preview) { return -ERR_NOT_SUPPORTED; }
   virtual int disableVideoWatermarks() { return -ERR_NOT_SUPPORTED; }
+  /**
+   * Registers an \ref agora::rtc::IVideoMetadataObserver "IVideoMetadataObserver" object.
+   * @param metadataObserver The pointer to the `IVideoMetadataObserver` object.
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual int registerVideoMetadataObserver(IMetadataObserver* metadataObserver, aosl_ref_t ares = AOSL_REF_INVALID) {
+    return 0;
+  }
+  /**
+   * Unregisters an \ref agora::rtc::IVideoMetadataObserver "IVideoMetadataObserver" object.
+   * @param metadataObserver The pointer to the `IVideoMetadataObserver` object.
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual int unregisterVideoMetadataObserver(IMetadataObserver* metadataObserver) {
+     return 0;
+  }
 
  protected:
   ~IVideoTrack() {}
@@ -326,6 +350,7 @@ struct LocalVideoTrackStats {
   int height;
   uint32_t encoder_type;
   uint32_t hw_encoder_accelerating;
+  uint32_t encoder_frame_depth;
   /*
    * encoder vender id, VideoCodecVenderId
   */
@@ -346,7 +371,7 @@ struct LocalVideoTrackStats {
   /** The brightness level of the video image captured by the local camera. See #CAPTURE_BRIGHTNESS_LEVEL_TYPE.
    */
   CAPTURE_BRIGHTNESS_LEVEL_TYPE capture_brightness_level;
-  
+
   SimulcastStreamProfile simulcast_stream_profile[STREAM_LAYER_COUNT_MAX];
 
   LocalVideoTrackStats() : number_of_streams(0),
@@ -371,6 +396,7 @@ struct LocalVideoTrackStats {
                            height(0),
                            encoder_type(0),
                            hw_encoder_accelerating(0),
+                           encoder_frame_depth(8),
                            encoder_vender_id(0),
                            uplink_cost_time_ms(0),
                            quality_adapt_indication(ADAPT_NONE),
@@ -449,26 +475,6 @@ class ILocalVideoTrack : public IVideoTrack {
   virtual bool getStatistics(LocalVideoTrackStats& stats) = 0;
 
   virtual VideoTrackType getType() OPTIONAL_OVERRIDE { return LOCAL_VIDEO_TRACK; }
-    /**
-   * Registers an \ref agora::rtc::IVideoMetadataObserver "IVideoMetadataObserver" object.
-   * @param metadataObserver The pointer to the `IVideoMetadataObserver` object.
-   * @return
-   * - 0: Success.
-   * - < 0: Failure.
-   */
-  virtual int registerVideoMetadataObserver(IMetadataObserver* metadataObserver, aosl_ref_t ares = AOSL_REF_INVALID) {
-    return 0;
-  }
-  /**
-   * Unregisters an \ref agora::rtc::IVideoMetadataObserver "IVideoMetadataObserver" object.
-   * @param metadataObserver The pointer to the `IVideoMetadataObserver` object.
-   * @return
-   * - 0: Success.
-   * - < 0: Failure.
-   */
-  virtual int unregisterVideoMetadataObserver(IMetadataObserver* metadataObserver) {
-     return 0;
-  }
 
  protected:
   ~ILocalVideoTrack() {}

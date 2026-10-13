@@ -32,11 +32,18 @@
 #endif
 
 #if (__cplusplus >= 201103) || (defined (_MSC_VER) && _MSC_VER >= 1800)
-#include <memory>
 #include <type_traits>
 #include <utility>
 #endif
 
+/**
+ * C++ wrapper around aosl_ref_t with lambda helpers for hold/read/write,
+ * MPQ dispatch, prepare/resume, and destroy semantics.
+ * Remarks:
+ *      The class keeps the same core lifetime model as aosl_ref_t:
+ *      hold/read/write are normal ref users, while unsafe is the advanced path
+ *      used when destroy must not wait in the same manner.
+ **/
 class aosl_ref_class {
 public:
 	class aosl_ref_t_oop {
@@ -50,7 +57,7 @@ public:
 	public:
 		static aosl_ref_t_oop *create (void *arg = NULL, aosl_ref_dtor_t dtor = NULL, bool destroy_wait = true)
 		{
-			return (aosl_ref_t_oop *)aosl_ref_create (arg, dtor, (int)destroy_wait);
+			return (aosl_ref_t_oop *)aosl_ref_create_flags (AOSL_REF_NEWID, arg, dtor, (int)destroy_wait);
 		}
 
 		static aosl_ref_t_oop *from_aosl_ref_t (aosl_ref_t ref)
@@ -695,7 +702,6 @@ public:
 		 *  - error C2672: XXX: no matching overloaded function found
 		 *  - error C2783: XXX(YYY): could not deduce template argument for '__formal'
 		 * So, we use the return type style SFINAE here instead.
-		 * -- Lionfore Hao Apr 15th, 2025
 		 **/
 		typename std::enable_if<std::is_void<decltype(std::declval<__mpq_0arg_lambda_t>()())>::value, int>::type
 		queue (aosl_mpq_t tq, const char *f_name, __mpq_0arg_lambda_t&& task)
@@ -716,7 +722,6 @@ public:
 		 *  - error C2672: XXX: no matching overloaded function found
 		 *  - error C2783: XXX(YYY): could not deduce template argument for '__formal'
 		 * So, we use the return type style SFINAE here instead.
-		 * -- Lionfore Hao Apr 15th, 2025
 		 **/
 		typename std::enable_if<std::is_void<decltype(std::declval<__mpq_0arg_lambda_t>()())>::value, int>::type
 		call (aosl_mpq_t q, const char *f_name, __mpq_0arg_lambda_t&& task, void *task_result = NULL)
@@ -737,7 +742,6 @@ public:
 		 *  - error C2672: XXX: no matching overloaded function found
 		 *  - error C2783: XXX(YYY): could not deduce template argument for '__formal'
 		 * So, we use the return type style SFINAE here instead.
-		 * -- Lionfore Hao Apr 15th, 2025
 		 **/
 		typename std::enable_if<std::is_void<decltype(std::declval<__mpq_0arg_lambda_t>()())>::value, int>::type
 		run (aosl_mpq_t q, const char *f_name, __mpq_0arg_lambda_t&& task)
@@ -758,7 +762,6 @@ public:
 		 *  - error C2672: XXX: no matching overloaded function found
 		 *  - error C2783: XXX(YYY): could not deduce template argument for '__formal'
 		 * So, we use the return type style SFINAE here instead.
-		 * -- Lionfore Hao Apr 15th, 2025
 		 **/
 		typename std::enable_if<std::is_void<decltype(std::declval<__mpq_0arg_lambda_t>()())>::value, int>::type
 		exec (aosl_mpq_t q, const char *f_name, __mpq_0arg_lambda_t&& task)
@@ -1094,7 +1097,6 @@ public:
 				 * done mpq id, due to the task object would be still in use if
 				 * the function has a done mpq id when queuing back to the done
 				 * mpq.
-				 * -- Lionfore Hao Nov 19th, 2018
 				 **/
 				delete task_obj;
 			}
@@ -1114,7 +1116,6 @@ public:
 				 * done mpq id, due to the task object would be still in use if
 				 * the function has a done mpq id when queuing back to the done
 				 * mpq.
-				 * -- Lionfore Hao Nov 19th, 2018
 				 **/
 				delete task_obj;
 			}
@@ -1197,7 +1198,42 @@ public:
 		 * Do not know why this function needs to be changed to the return type style SFINAE, the lambda has one argument, but
 		 * the buggy MSVC compiler version 14.25.28610 also reports the error C2672: XXX: no matching overloaded function found
 		 * really, so change it anyway for now.
-		 * -- Lionfore Hao Apr 15th, 2025
+		 **/
+		typename std::enable_if<std::is_void<decltype(std::declval<__async_resume_lambda_t>()(std::declval<int>()))>::value, int>::type
+		await (aosl_await_t awt, const char *f_name, __async_resume_lambda_t&& task, int flags = 0)
+		{
+			__async_resume_lambda_t *resume_f = new __async_resume_lambda_t (std::move (task));
+			int err = aosl_async_await (awt, flags, ref (), f_name, ____async_resume_f<typename std::remove_reference<__async_resume_lambda_t>::type>, 1, resume_f);
+			if (err < 0)
+				delete resume_f;
+
+			return err;
+		}
+
+		/* __async_resume_lambda_t: void (int free_only) */
+		template <typename __async_resume_lambda_t>
+		/**
+		 * Do not know why this function needs to be changed to the return type style SFINAE, the lambda has one argument, but
+		 * the buggy MSVC compiler version 14.25.28610 also reports the error C2672: XXX: no matching overloaded function found
+		 * really, so change it anyway for now.
+		 **/
+		static typename std::enable_if<std::is_void<decltype(std::declval<__async_resume_lambda_t>()(std::declval<int>()))>::value, int>::type
+		await (aosl_await_t awt, aosl_ref_t ref, const char *f_name, __async_resume_lambda_t&& task, int flags = 0)
+		{
+			__async_resume_lambda_t *resume_f = new __async_resume_lambda_t (std::move (task));
+			int err = aosl_async_await (awt, flags, ref, f_name, ____async_resume_f<typename std::remove_reference<__async_resume_lambda_t>::type>, 1, resume_f);
+			if (err < 0)
+				delete resume_f;
+
+			return err;
+		}
+
+		/* __async_resume_lambda_t: void (int free_only) */
+		template <typename __async_resume_lambda_t>
+		/**
+		 * Do not know why this function needs to be changed to the return type style SFINAE, the lambda has one argument, but
+		 * the buggy MSVC compiler version 14.25.28610 also reports the error C2672: XXX: no matching overloaded function found
+		 * really, so change it anyway for now.
 		 **/
 		typename std::enable_if<std::is_void<decltype(std::declval<__async_resume_lambda_t>()(std::declval<int>()))>::value, int>::type
 		resume (aosl_stack_id_t stack_id, const char *f_name, __async_resume_lambda_t&& task)
@@ -1216,7 +1252,6 @@ public:
 		 * Do not know why this function needs to be changed to the return type style SFINAE, the lambda has one argument, but
 		 * the buggy MSVC compiler version 14.25.28610 also reports the error C2672: XXX: no matching overloaded function found
 		 * really, so change it anyway for now.
-		 * -- Lionfore Hao Apr 15th, 2025
 		 **/
 		static typename std::enable_if<std::is_void<decltype(std::declval<__async_resume_lambda_t>()(std::declval<int>()))>::value, int>::type
 		resume (aosl_stack_id_t stack_id, aosl_ref_t ref, const char *f_name, __async_resume_lambda_t&& task)
@@ -1236,7 +1271,6 @@ public:
 		 * Do not know why this function needs to be changed to the return type style SFINAE, the lambda has one argument, but
 		 * the buggy MSVC compiler version 14.25.28610 also reports the error C2672: XXX: no matching overloaded function found
 		 * really, so change it anyway for now.
-		 * -- Lionfore Hao Apr 15th, 2025
 		 **/
 		static typename std::enable_if<std::is_void<decltype(std::declval<__async_resume_lambda_t>()(std::declval<int>()))>::value, void>::type
 		____async_resume_f (int free_only, uintptr_t argc, uintptr_t argv [])
@@ -1278,6 +1312,9 @@ public:
 
 	aosl_ref_class (aosl_ref_t_oop *obj)
 	{
+		if (aosl_ref_invalid (obj))
+			abort ();
+
 		refoop = obj;
 		if (aosl_ref_magic (obj->ref (), &refmagic) < 0)
 			refmagic = AOSL_REF_MAGIC_INVALID;
@@ -1285,6 +1322,9 @@ public:
 
 	aosl_ref_class (aosl_ref_t ref)
 	{
+		if (aosl_ref_invalid (ref))
+			abort ();
+
 		refoop = aosl_ref_t_oop::from_aosl_ref_t (ref);
 		if (aosl_ref_magic (ref, &refmagic) < 0)
 			refmagic = AOSL_REF_MAGIC_INVALID;
@@ -1302,7 +1342,7 @@ public:
 
 	aosl_ref_magic_t magic () const
 	{
-		return refoop->magic ();
+		return refmagic;
 	}
 
 	int hold (aosl_ref_func_t f, uintptr_t argc, ...)
@@ -1603,28 +1643,6 @@ public:
 		return refoop->set_scope (scope_ref);
 	}
 
-	int destroy (bool do_delete = true)
-	{
-		if (!aosl_ref_invalid (refoop->ref ())) {
-			/**
-			 * if the ref is valid, then just call the destroy
-			 * function and do not delete this object directly
-			 * even the return value indicates failure.
-			 **/
-			return refoop->destroy (do_delete);
-		}
-
-		if (do_delete) {
-			/**
-			 * delete this object directly only when the ref
-			 * is invalid and the do_delete argument is true.
-			 **/
-			::delete this;
-		}
-
-		return 0;
-	}
-
 #if (__cplusplus >= 201103) || (defined (_MSC_VER) && _MSC_VER >= 1800)
 	/* __ref_destroy_exec_lambda_t: void (int err) */
 	template <typename __ref_destroy_exec_lambda_t,
@@ -1636,6 +1654,12 @@ public:
 #endif
 
 public:
+	/**
+	 * Defining the operator delete for this class is useless, because
+	 * the destructor will be called automatically before the delete,
+	 * but this is not the expected behavior obviously.
+	 **/
+
 	class deleter {
 	public:
 		void operator () (aosl_ref_class *obj_ptr) const
@@ -1646,9 +1670,16 @@ public:
 	};
 
 protected:
-	/* We do not allow delete this object directly. */
+	/* We do not allow define an object of this class directly. */
 	virtual ~aosl_ref_class ()
 	{
+		/**
+		 * We make sure the ref object has been destroyed and can not be accessed anymore
+		 * before the destructor via the 'unsafe' function:
+		 * 1. the ref object has been destroyed already, then unsafe would fail to get it;
+		 * 2. the ref object is still alive, then unsafe would get it and abort it;
+		 **/
+		refoop->unsafe (____ref_abort_f, 0);
 	}
 
 private:
@@ -1657,6 +1688,26 @@ private:
 		aosl_ref_class *__this = (aosl_ref_class *)arg;
 		::delete __this;
 	}
+
+	static void ____ref_abort_f (void *arg, uintptr_t argc, uintptr_t argv [])
+	{
+		abort ();
+	}
+
+	int destroy (bool do_delete = true)
+	{
+		if (!aosl_ref_invalid (refoop->ref ())) {
+			/**
+			 * if the ref is valid, then just call the destroy
+			 * function and do not delete this object directly
+			 * even the return value indicates failure.
+			 **/
+			return refoop->destroy (do_delete);
+		}
+
+		return 0;
+	}
+	template<typename T> friend class aosl_ref_unique_ptr;
 
 #ifdef __AOSL_MPQ_H__
 	/* MPQ relative encapsulations */
@@ -2035,6 +2086,30 @@ public:
 		return refoop->exec (q, f_name, std::move (task));
 	}
 
+#if (__cplusplus >= 202002) || (defined (_MSVC_LANG) && _MSVC_LANG >= 202002)
+	/**
+	 * Execute a zero-argument callable through this object's ref and return a
+	 * typed C++20 awaiter. The callable's return value becomes the value of
+	 * co_await; a void callable produces an allocation-free void awaiter.
+	 *
+	 * This has the same MPQ and coroutine ordering semantics as exec(): execution
+	 * is immediate when q is the current MPQ and otherwise resumes the awaiting
+	 * coroutine after the queued exec operation finishes. Arguments should be
+	 * carried explicitly by the callable, normally through lambda captures.
+	 *
+	 * The callable executes only in the normal exec phase. If this ref enters the
+	 * free-only path before execution, a non-void callable produces no value and
+	 * its await_resume() aborts; that path cannot be converted into a value by the
+	 * callable because the callable is skipped. Errors detected during normal
+	 * execution can instead be represented by returning an error-bearing value
+	 * type. The void specialization carries no value and therefore does not
+	 * distinguish normal execution from free-only cleanup. Include
+	 * aosl_async_class.h to use this C++20 API.
+	 */
+	template <typename __mpq_co_exec_lambda_t>
+	auto co_exec (aosl_mpq_t q, const char *f_name, __mpq_co_exec_lambda_t&& task);
+#endif /* C++20 */
+
 #ifdef __AOSL_MPQP_H__
 	/* MPQP encapsulations */
 	/* __mpq_lambda_t: void (const aosl_ts_t &queued_ts, aosl_refobj_t robj) */
@@ -2172,6 +2247,19 @@ public:
 		return aosl_ref_t_oop::exec (q, ref, f_name, std::move (task));
 	}
 
+#if (__cplusplus >= 202002) || (defined (_MSVC_LANG) && _MSVC_LANG >= 202002)
+	/**
+	 * Static form of co_exec() for an explicitly supplied ref. AOSL_REF_INVALID
+	 * disables ref-based free-only protection; otherwise destruction of ref before
+	 * normal execution skips the zero-argument callable. Result, suspension,
+	 * failure and ownership semantics are identical to the member co_exec().
+	 * Include aosl_async_class.h to use this C++20 API.
+	 */
+	template <typename __mpq_co_exec_lambda_t>
+	static auto co_exec (aosl_mpq_t q, aosl_ref_t ref, const char *f_name,
+						 __mpq_co_exec_lambda_t&& task);
+#endif /* C++20 */
+
 #ifdef __AOSL_MPQP_H__
 	/* MPQP with specified ref encapsulations */
 	/* __mpq_lambda_t: void (const aosl_ts_t &queued_ts, aosl_refobj_t robj) */
@@ -2263,7 +2351,32 @@ public:
 	 * Do not know why this function needs to be changed to the return type style SFINAE, the lambda has one argument, but
 	 * the buggy MSVC compiler version 14.25.28610 also reports the error C2672: XXX: no matching overloaded function found
 	 * really, so change it anyway for now.
-	 * -- Lionfore Hao Apr 15th, 2025
+	 **/
+	typename std::enable_if<std::is_void<decltype(std::declval<__async_resume_lambda_t>()(std::declval<int>()))>::value, int>::type
+	await (aosl_await_t awt, const char *f_name, __async_resume_lambda_t&& task, int flags = 0)
+	{
+		return refoop->await (awt, f_name, std::move (task), flags);
+	}
+
+	/* __async_resume_lambda_t: void (int free_only) */
+	template <typename __async_resume_lambda_t>
+	/**
+	 * Do not know why this function needs to be changed to the return type style SFINAE, the lambda has one argument, but
+	 * the buggy MSVC compiler version 14.25.28610 also reports the error C2672: XXX: no matching overloaded function found
+	 * really, so change it anyway for now.
+	 **/
+	static typename std::enable_if<std::is_void<decltype(std::declval<__async_resume_lambda_t>()(std::declval<int>()))>::value, int>::type
+	await (aosl_await_t awt, aosl_ref_t ref, const char *f_name, __async_resume_lambda_t&& task, int flags = 0)
+	{
+		return aosl_ref_t_oop::await (awt, ref, f_name, std::move (task), flags);
+	}
+
+	/* __async_resume_lambda_t: void (int free_only) */
+	template <typename __async_resume_lambda_t>
+	/**
+	 * Do not know why this function needs to be changed to the return type style SFINAE, the lambda has one argument, but
+	 * the buggy MSVC compiler version 14.25.28610 also reports the error C2672: XXX: no matching overloaded function found
+	 * really, so change it anyway for now.
 	 **/
 	typename std::enable_if<std::is_void<decltype(std::declval<__async_resume_lambda_t>()(std::declval<int>()))>::value, int>::type
 	resume (aosl_stack_id_t stack_id, const char *f_name, __async_resume_lambda_t&& task)
@@ -2277,7 +2390,6 @@ public:
 	 * Do not know why this function needs to be changed to the return type style SFINAE, the lambda has one argument, but
 	 * the buggy MSVC compiler version 14.25.28610 also reports the error C2672: XXX: no matching overloaded function found
 	 * really, so change it anyway for now.
-	 * -- Lionfore Hao Apr 15th, 2025
 	 **/
 	static typename std::enable_if<std::is_void<decltype(std::declval<__async_resume_lambda_t>()(std::declval<int>()))>::value, int>::type
 	resume (aosl_stack_id_t stack_id, aosl_ref_t ref, const char *f_name, __async_resume_lambda_t&& task)
@@ -2300,7 +2412,6 @@ private:
 #endif /* C++11 */
 };
 
-
 /**
  * The T_ref_cls argument of this template must be
  * aosl_ref_class or its derivatives.
@@ -2312,10 +2423,18 @@ private:
 
 public:
 	aosl_ref_unique_ptr (): _ptr (NULL) {}
-	aosl_ref_unique_ptr (T_ref_cls *p): _ptr (p) {}
+	aosl_ref_unique_ptr (T_ref_cls *p): _ptr (p)
+	{
+#if (__cplusplus >= 201103) || (defined (_MSC_VER) && _MSC_VER >= 1800)
+		static_assert (std::is_base_of<aosl_ref_class, T_ref_cls>::value, "T_ref_cls must derive from aosl_ref_class.");
+#endif
+	}
 
 	aosl_ref_unique_ptr &operator = (T_ref_cls *p)
 	{
+#if (__cplusplus >= 201103) || (defined (_MSC_VER) && _MSC_VER >= 1800)
+		static_assert (std::is_base_of<aosl_ref_class, T_ref_cls>::value, "T_ref_cls must derive from aosl_ref_class.");
+#endif
 		reset ();
 		_ptr = p;
 		return *this;
@@ -2345,6 +2464,9 @@ public:
 
 	void reset (T_ref_cls *p = NULL)
 	{
+#if (__cplusplus >= 201103) || (defined (_MSC_VER) && _MSC_VER >= 1800)
+		static_assert (std::is_base_of<aosl_ref_class, T_ref_cls>::value, "T_ref_cls must derive from aosl_ref_class.");
+#endif
 		if (_ptr != p) {
 			if (_ptr != NULL) {
 	/* C++11 lambda encapsulations */

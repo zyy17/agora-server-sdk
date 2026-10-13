@@ -45,7 +45,7 @@ struct AudioSinkWants {
                      channels(0) {}
   AudioSinkWants(int sampleRate, size_t chs) : samplesPerSec(sampleRate),
                                                channels(chs) {}
-  AudioSinkWants(int sampleRate, size_t chs, int trackNum) : samplesPerSec(sampleRate), channels(chs) {}                                            
+  AudioSinkWants(int sampleRate, size_t chs, int trackNum) : samplesPerSec(sampleRate), channels(chs) {}
 };
 
 enum AudioTrackType {
@@ -390,7 +390,7 @@ class ILocalAudioTrack : public IAudioTrack {
    * - < 0: Failure.
    */
   virtual int enableLocalPlayback(bool enable, bool sync = true, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
-  
+
   /**
    * Enables in-ear monitoring (for Android and iOS only).
    *
@@ -422,9 +422,9 @@ class ILocalAudioTrack : public IAudioTrack {
    */
   virtual int unregisterTrackObserver(ILocalAudioTrackObserver* observer) = 0;
 
-  /** set Max buffered audio frame number 
+  /** set Max buffered audio frame number
    *
-   * @param number : the buffer number set，unit is 10ms 
+   * @param number : the buffer number set，unit is 10ms
    *
    */
   virtual void setMaxBufferedAudioFrameNumber(int number, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
@@ -444,6 +444,16 @@ class ILocalAudioTrack : public IAudioTrack {
   virtual AudioTrackType getType() OPTIONAL_OVERRIDE { return LOCAL_AUDIO_TRACK; }
 
 
+  /**
+   * Sets the send delay for audio frames.
+   *
+   * Use this method to introduce a deliberate delay before audio frames are
+   * pushed into the send pipeline. This can be used to compensate for
+   * upstream jitter or to synchronize audio with other media streams.
+   *
+   * @param delay_ms The send delay in milliseconds. A value of 0 disables
+   *                 the delay. Negative values are treated as 0.
+   */
   virtual void setAudioFrameSendDelayMs(int32_t delay_ms) = 0;
 
  protected:
@@ -580,6 +590,15 @@ struct RemoteAudioTrackStats {
    *  The time of 200 ms frozen in 2 seconds
    */
   uint16_t frozen_time_200_ms;
+
+  /**
+   *  The count of frozen in 2 seconds
+   */
+  uint16_t frozen_count_by_custom;
+  /**
+   *  The time of frozen in 2 seconds
+   */
+  uint16_t frozen_time_ms_by_custom;
   /**
    *  The full time of 80 ms frozen in 2 seconds
    */
@@ -624,6 +643,11 @@ struct RemoteAudioTrackStats {
   uint64_t publish_duration;
 
   int32_t e2e_delay_ms;
+
+  /**
+   * e2e_delay_ calculated by the new algorithm
+   */
+  int32_t new_e2e_delay_ms;
   /**
    * Quality of experience (QoE) of the local user when receiving a remote audio stream. See #EXPERIENCE_QUALITY_TYPE.
    */
@@ -672,6 +696,8 @@ struct RemoteAudioTrackStats {
     frozen_time_200_ms(0),
     full_frozen_time_80_ms(0),
     full_frozen_time_200_ms(0),
+    frozen_count_by_custom(0),
+    frozen_time_ms_by_custom(0),
     delay_estimate_ms(0),
     mos_value(0),
     frozen_rate_by_custom_plc_count(0),
@@ -681,16 +707,19 @@ struct RemoteAudioTrackStats {
     total_active_time(0),
     publish_duration(0),
     e2e_delay_ms(0),
+    new_e2e_delay_ms(0),
     qoe_quality(0),
     quality_changed_reason(0),
     downlink_effect_type(0) {}
 };
+
 
 /**
  * Properties of receive parameters for IAudioEncodedFrameReceiver
  *
  */
 struct AudioEncFrameRecvParams {
+
   /**
    * The callback mode of IAudioEncodedFrameReceiver
    */
@@ -703,17 +732,17 @@ struct AudioEncFrameRecvParams {
     /**
      * IAudioEncodedFrameReceiver whill callback the original down-link audio packet while
      * the codec of down-link packet is same as target_codec.
-     * 
+     *
      * Othewise convert down-link audio packet to new target packet which parameter contain
      * the combination of (target_codec, target_sample_rate, target_sample_rate).
      */
     MATCHED_CODEC = 1,
 
     /**
-     * IAudioEncodedFrameReceiver whill callback the original down-link audio packet while 
+     * IAudioEncodedFrameReceiver whill callback the original down-link audio packet while
      * the combination of (codec, sampling rate, channels) of down-link packet is same as
      * the combination of (target_codec, target_sample_rate, target_sample_rate).
-     * 
+     *
      * Othewise convert down-link audio packet to new target packet which parameter contain
      * the combination of (target_codec, target_sample_rate, target_sample_rate).
      */
@@ -726,15 +755,15 @@ struct AudioEncFrameRecvParams {
   ReceiveMode receive_mode;
 
   /**
-   * The audio codec of target audio packet, Now we only support AACLC
+   * The audio codec of target audio packet
    */
-  AUDIO_CODEC_TYPE target_codec;  
-  
+  AUDIO_CODEC_TYPE target_codec;
+
   /**
    * The sample rate HZ of target audio packet
    */
   int32_t target_sample_rate;
-  
+
   /**
    * The channel numbers of target audio packet
    */
@@ -745,14 +774,14 @@ struct AudioEncFrameRecvParams {
     receive_mode(ORIGINAL),
     target_codec(AUDIO_CODEC_AACLC),
     target_sample_rate(0),
-    target_num_channels(0) {}  
+    target_num_channels(0) {}
 
   AudioEncFrameRecvParams(const AudioEncFrameRecvParams& src_params) {
     receive_mode = src_params.receive_mode;
     target_codec = src_params.target_codec;
     target_sample_rate = src_params.target_sample_rate;
-    target_num_channels = src_params.target_num_channels;    
-  }  
+    target_num_channels = src_params.target_num_channels;
+  }
 };
 
 /**
@@ -806,7 +835,7 @@ class IRemoteAudioTrack : public IAudioTrack {
    * audio packet.
    *
    * @param packetReceiver The pointer to the `IAudioEncodedFrameReceiver` object.
-   * @param recvParams The parameter of receive encoded frame
+   * @param recvParams The parameter
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -814,7 +843,6 @@ class IRemoteAudioTrack : public IAudioTrack {
   virtual int registerAudioEncodedFrameReceiver(IAudioEncodedFrameReceiver* packetReceiver,
                                                 const AudioEncFrameRecvParams& recvParams,
                                                 aosl_ref_t ares = AOSL_REF_INVALID) = 0;
-
   /**
    * Releases the `IAudioEncodedFrameReceiver` object.
    * @param packetReceiver The pointer to the `IAudioEncodedFrameReceiver` object.
@@ -852,7 +880,7 @@ class IRemoteAudioTrack : public IAudioTrack {
   virtual int adjustDecodedAudioVolume(int decoded_index, int volume, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /** mute remote stream from timestamp
-   
+
    @note
    - unmuteRemoteFromTimestamp should be called after muteRemoteFromTimestamp, othewise this stream will be muted all time
 
@@ -862,9 +890,9 @@ class IRemoteAudioTrack : public IAudioTrack {
    - < 0: Failure.
    */
   virtual int muteRemoteFromTimestamp(uint32_t timestamp) = 0;
-  
+
   /** unmute remote stream from timestamp
-   
+
    @note
    - unmuteRemoteFromTimestamp should be called after muteRemoteFromTimestamp, othewise this stream will be muted all time
 
@@ -874,9 +902,9 @@ class IRemoteAudioTrack : public IAudioTrack {
    - < 0: Failure.
    */
   virtual int unmuteRemoteFromTimestamp(uint32_t timestamp) = 0;
-  
+
   /** set percentage of audio acceleration during poor network
-   
+
    @note
    - The relationship between this percentage and the degree of audio acceleration is non-linear and varies with different audio material.
 
@@ -891,7 +919,7 @@ class IRemoteAudioTrack : public IAudioTrack {
   virtual int adjustAudioAcceleration(int percentage, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /** set percentage of audio deceleration during poor network
-   
+
    @note
    - The relationship between this percentage and the degree of audio deceleration is non-linear and varies with different audio material.
 
@@ -903,10 +931,19 @@ class IRemoteAudioTrack : public IAudioTrack {
    - 0: Success.
    - < 0: Failure.
    */
-  virtual int adjustAudioDeceleration(int percentage, aosl_ref_t ares = AOSL_REF_INVALID) = 0;  
+  virtual int adjustAudioDeceleration(int percentage, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
+
+  /** enable audio fast acceleration during audio packets burst arrival.
+
+   @param enable Whether to enable audio burst acceleration.
+   @return
+   - 0: Success.
+   - < 0: Failure.
+   */
+  virtual int enableAudioBurstAccelerate(bool enable, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /** enable spatial audio
-   
+
    @param enabled enable/disable spatial audio:
    - true: enable spatial audio.
    - false: disable spatial audio.
@@ -917,9 +954,9 @@ class IRemoteAudioTrack : public IAudioTrack {
   virtual int enableSpatialAudio(bool enabled, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /** Sets remote user parameters for spatial audio
-   
+
    @param params spatial audio parameters
-   
+
    @return
    - 0: Success.
    - < 0: Failure.
@@ -927,7 +964,7 @@ class IRemoteAudioTrack : public IAudioTrack {
   virtual int setRemoteUserSpatialAudioParams(const agora::SpatialAudioParams& params, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   virtual AudioTrackType getType() OPTIONAL_OVERRIDE { return REMOTE_AUDIO_TRACK; }
-  
+
 };
 
 }  // namespace rtc

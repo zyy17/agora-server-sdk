@@ -329,7 +329,7 @@ class IRtmpConnection : public RefCountInterface {
    * STATE_CONNECTED(3) or STATE_FAILED(5). You will also be notified with the either
    * onConnected() or onDisconnected().
    *
-   * @param url The CDN streaming URL in the RTMP format. The maximum length of this parameter is 1024 
+   * @param url The CDN streaming URL in the RTMP format. The maximum length of this parameter is 1024
    * bytes. The URL address must not contain special characters, such as Chinese language characters.
    * @return
    * - 0: Success.

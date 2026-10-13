@@ -62,7 +62,7 @@ class RefCounter {
 
 /**
  * Agora sample code for wrapping a class that needs to inherit from RefCountInterface in order
- * to be held by agora::agora_refptr 
+ * to be held by agora::agora_refptr
  * Usage:
  *  agora::agora_refptr<TypeName> ptr = new RefCountedObject<TypeName>(Arg1, Arg2, ...);
  */

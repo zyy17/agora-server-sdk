@@ -11,24 +11,27 @@ package agoraservice
 import "C"
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 )
 
 //export goOnSinkAudioFrame
 func goOnSinkAudioFrame(sink unsafe.Pointer, frame unsafe.Pointer) C.int {
-
-	goFrame := GoSinkAudioFrame((*C.struct__audio_pcm_frame)(frame))
-	// restore external audio processor instance from user data
-	processor := (*ExternalAudioProcessor)(unsafe.Pointer(sink))
-	if processor == nil {
-		fmt.Printf("[ExternalAudioProcessor] failed to restore external audio processor instance from user data\n")
+	value, ok := audioSinkProcessors.Load(sink)
+	if !ok || frame == nil {
 		return -1
 	}
-	// call to external audio processor instance to process the audio frame
-	result := processor.doResultFrame(goFrame)
-	return C.int(result)
+	processor := value.(*ExternalAudioProcessor)
+	if !processor.callbacks.begin() {
+		return -1
+	}
+	defer processor.callbacks.end()
+	goFrame := GoSinkAudioFrame((*C.struct__audio_pcm_frame)(frame))
+	return C.int(processor.doResultFrame(goFrame))
 }
+
+var audioSinkProcessors sync.Map
 
 // date: 2025-11-25 to add external audio processor observer
 type ExternalAudioProcessorObserver struct {
@@ -44,6 +47,7 @@ type AudioSink struct {
 }
 
 type ExternalAudioProcessor struct {
+	callbacks           callbackGate
 	pcmSender           *AudioPcmDataSender
 	audioTrack          *LocalAudioTrack
 	audioSinks          *AudioSink
@@ -69,8 +73,19 @@ func NewExternalAudioProcessor() *ExternalAudioProcessor {
 	//and initialize the pcmSender and audioTrack
 	factory := agoraService.mediaFactory
 	processor.pcmSender = factory.NewAudioPcmDataSender()
+	if processor.pcmSender == nil {
+		return nil
+	}
 	processor.audioTrack = NewCustomAudioTrackPcm(processor.pcmSender, AudioScenarioDefault, false)
+	if processor.audioTrack == nil {
+		processor.Release()
+		return nil
+	}
 	processor.audioSinks = newAudioSink(processor)
+	if processor.audioSinks == nil {
+		processor.Release()
+		return nil
+	}
 	processor.initialized = false
 	return processor
 }
@@ -138,14 +153,17 @@ func (p *ExternalAudioProcessor) PushAudioPcmData(data []byte, sampleRate int, c
 	if p == nil || p.audioTrack == nil || p.pcmSender == nil {
 		return -2000
 	}
-	readLen := len(data)
-	bytesPerFrameInMs := (sampleRate / 1000) * 2 * channels // 1ms , channels and 16bit
-	// validity check: only accepts data with lengths that are integer multiples of 10ms​​
-	if readLen%bytesPerFrameInMs != 0 {
-		fmt.Printf("PushAudioPcmData data length is not integer multiples of 10ms, readLen: %d, bytesPerFrame: %d\n", readLen, bytesPerFrameInMs)
+	if len(data) == 0 || sampleRate < 8000 || sampleRate > 48000 || sampleRate%100 != 0 || channels < 1 || channels > 2 {
 		return -2001
 	}
-	packnumInMs := readLen / bytesPerFrameInMs
+	readLen := len(data)
+	bytesPer10ms := (sampleRate / 100) * 2 * channels
+	// validity check: only accepts data with lengths that are integer multiples of 10ms​​
+	if readLen%bytesPer10ms != 0 {
+		fmt.Printf("PushAudioPcmData data length is not integer multiples of 10ms, readLen: %d, bytesPerFrame: %d\n", readLen, bytesPer10ms)
+		return -2001
+	}
+	packnumInMs := (readLen / bytesPer10ms) * 10
 
 	frame := &AudioFrame{
 		Buffer:            nil,
@@ -159,7 +177,7 @@ func (p *ExternalAudioProcessor) PushAudioPcmData(data []byte, sampleRate int, c
 	}
 
 	frame.Buffer = data
-	frame.SamplesPerChannel = (sampleRate / 1000) * packnumInMs
+	frame.SamplesPerChannel = sampleRate * packnumInMs / 1000
 
 	ret := p.pcmSender.SendAudioPcmData(frame)
 	p.InStreamInMs.Add(int64(packnumInMs))
@@ -168,6 +186,10 @@ func (p *ExternalAudioProcessor) PushAudioPcmData(data []byte, sampleRate int, c
 }
 
 func (p *ExternalAudioProcessor) Release() {
+	if p == nil {
+		return
+	}
+	p.callbacks.pause()
 
 	// release track
 	// release pcmSender
@@ -259,25 +281,37 @@ func newAudioSink(processor *ExternalAudioProcessor) *AudioSink {
 	}
 	// allocate audio_sink	 structure
 	csink_callback := (*C.audio_sink)(C.malloc(C.sizeof_audio_sink))
-	//C.memset(unsafe.Pointer(csink_callback), 0, C.sizeof_audio_sink)
+	if csink_callback == nil {
+		return nil
+	}
+	C.memset(unsafe.Pointer(csink_callback), 0, C.sizeof_audio_sink)
 
 	// set callback function pointer - using C wrapper function
 	csink_callback.on_audio_frame = (*[0]byte)(C.cgo_onSinkAudioFrameCallback)
-	csink_callback.user_data = unsafe.Pointer(processor)
+	csink_callback.user_data = unsafe.Pointer(csink_callback)
+	audioSinkProcessors.Store(unsafe.Pointer(csink_callback), processor)
 
 	// create audio sink
 	sink.cSink = C.agora_audio_sink_create(csink_callback)
 	sink.cSinkCallback = csink_callback
+	if sink.cSink == nil {
+		sink.release()
+		return nil
+	}
 	return sink
 }
 func (s *AudioSink) release() {
-	if s.cSinkCallback != nil {
-		C.free(unsafe.Pointer(s.cSinkCallback))
-		s.cSinkCallback = nil
+	if s == nil {
+		return
 	}
 	if s.cSink != nil {
 		C.agora_audio_sink_destroy(s.cSink)
 		s.cSink = nil
+	}
+	if s.cSinkCallback != nil {
+		audioSinkProcessors.Delete(unsafe.Pointer(s.cSinkCallback))
+		C.free(unsafe.Pointer(s.cSinkCallback))
+		s.cSinkCallback = nil
 	}
 }
 

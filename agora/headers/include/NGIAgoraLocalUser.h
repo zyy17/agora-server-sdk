@@ -169,7 +169,7 @@ class ILocalUser {
      */
     agora::Optional<int32_t> delay_ms;
   };
-    
+
   /**
    * The detailed statistics of the local audio.
    */
@@ -246,7 +246,7 @@ class ILocalUser {
       memset(codec_name, 0, sizeof(codec_name));
     }
   };
-    
+
   enum NS_MODE {
       ElderNsStatistical = 0,    /* Elder Statistical Noise Suppression.*/
       NsNGStatistical = 1,  /* Next Generation Statistical Noise Suppression.*/
@@ -328,7 +328,7 @@ class ILocalUser {
    *  You can call this method to set the expected video scenario.
    * The SDK will optimize the video experience for each scenario you set.
    *
-   * @param  scenarioType The video application scenario. 
+   * @param  scenarioType The video application scenario.
    *
    * @return
    * - 0: Success.
@@ -537,9 +537,9 @@ class ILocalUser {
    - < 0: Failure.
    */
   virtual int setRemoteVoicePosition(user_id_t userId, double pan, double gain, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
-  
+
   /** enable spatial audio
-   
+
    @param enabled enable/disable spatial audio:
    - true: enable spatial audio.
    - false: disable spatial audio.
@@ -550,10 +550,10 @@ class ILocalUser {
   virtual int enableSpatialAudio(bool enabled, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /** Sets remote user parameters for spatial audio
-   
+
    @param userId The ID of the remote user.
    @param param spatial audio parameters
-   
+
    @return
    - 0: Success.
    - < 0: Failure.
@@ -738,7 +738,7 @@ class ILocalUser {
    * You need to implement the `IVideoEncodedFrameObserver` class in this method. Once you successfully register
    * the local encoded frame observer, the SDK triggers the \ref agora::media::IVideoEncodedFrameObserver::onEncodedVideoFrameReceived
    * "onEncodedVideoFrameReceived" callback when it receives the encoded video image.
-   * 
+   *
    * @param observer The pointer to the `IVideoEncodedFrameObserver` object.
    * @return
    * - 0: Success.
@@ -807,7 +807,7 @@ class ILocalUser {
 
   virtual int setVideoSubscriptionOptions(user_id_t userId,
                                           const VideoSubscriptionOptions& options, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
-  
+
   virtual int setHighPriorityUserList(uid_t* vipList, int uidNum, int option, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   virtual int getHighPriorityUserList(std::vector<uid_t>& vipList, int& option) = 0;
@@ -1072,7 +1072,7 @@ class ILocalUser {
  virtual int getRemoteAudioTrackFilterProperty(user_id_t userId, const char* id, const char* key, char* jsonValue, size_t bufSize) = 0;
   /**
    * Publishes a local data channel to the channel.
-   *  
+   *
    * @param channel The data stream to be published.
    * @return
    * - 0: Success.
@@ -1146,13 +1146,11 @@ class ILocalUser {
    *
    * @param track The special mixed audio track.
    * @param enalble Action of start mixing this user's audio.
-   * @param MixLocal Mix publish stream.
-   * @param MixRemote Mix remote stream.
    * @return
    * - 0: success
    * - <0: failure
   */
-  virtual int EnableLocalMixedAudioTrack(agora_refptr<ILocalAudioTrack>& track, bool enable, bool MixLocal, bool MixRemote, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
+  virtual int RegisterLocalMixedAudioTrack(agora_refptr<ILocalAudioTrack>& track, bool enable, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Trigger data channel update callback with all data channel infos.
    *
@@ -1169,9 +1167,19 @@ class ILocalUser {
    * @return
    * - 0: success
    * - <0: failure
-   * @technical preview 
+   * @technical preview
   */
   virtual int sendAudioMetadata(const char* metadata, size_t length, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
+  /**
+   * set remote render target fps
+   *
+   * @param target_fps The target fps
+   * @return
+   * - 0: success
+   * - <0: failure
+   * @technical preview
+  */
+  virtual int setRemoteRenderTargetFps(int targetFps) = 0;
 };
 
 /**
@@ -1206,6 +1214,18 @@ struct AudioVolumeInformation {
  */
 class ILocalUserObserver {
  public:
+  enum USER_STREAMS_BITMASK {
+    USER_STREAMS_BITMASK_AUDIO = 1 << 0,
+    USER_STREAMS_BITMASK_VIDEO_LOW = 1 << 1,
+    USER_STREAMS_BITMASK_VIDEO_HIGH = 1 << 2,
+    USER_STREAMS_BITMASK_VIDEO_LAYER_1 = 1 << 3,
+    USER_STREAMS_BITMASK_VIDEO_LAYER_2 = 1 << 4,
+    USER_STREAMS_BITMASK_VIDEO_LAYER_3 = 1 << 5,
+    USER_STREAMS_BITMASK_VIDEO_LAYER_4 = 1 << 6,
+    USER_STREAMS_BITMASK_VIDEO_LAYER_5 = 1 << 7,
+    USER_STREAMS_BITMASK_VIDEO_LAYER_6 = 1 << 8,
+  };
+
   virtual ~ILocalUserObserver() {}
 
   virtual void onAudioTrackPublishStart(agora_refptr<ILocalAudioTrack> audioTrack) = 0;
@@ -1514,7 +1534,7 @@ class ILocalUserObserver {
    * @param userId ID of the remote user.
    * @param metadata The pointer of metadata
    * @param length Size of metadata
-   * @technical preview 
+   * @technical preview
    */
   virtual void onAudioMetadataReceived(user_id_t userId, const char* metadata, size_t length) {
     (void)userId;
@@ -1569,7 +1589,7 @@ class ILocalUserObserver {
   /**
    * datastream from this connection.
    */
-  virtual void onStreamMessage(user_id_t userId, int streamId, const char* data, size_t length) {}
+  virtual void onStreamMessage(user_id_t userId, int streamId, const char* data, size_t length, uint64_t sendTs = 0) {}
 
   /**
    * Occurs when the remote user state is updated.
@@ -1578,7 +1598,31 @@ class ILocalUserObserver {
    */
   virtual void onUserStateChanged(user_id_t userId, uint32_t state){}
 
+  /**
+   * Occurs when the remote user published streams are updated.
+   * @param uid The uid of the remote user.
+   * @param streams The remote user published streams in bitmask.
+   *                See #USER_STREAMS_BITMASK.
+   */
+  virtual void onUserStreamsChanged(user_id_t userId, uint32_t streams) {}
+
   virtual void onVideoRenderingTracingResult(user_id_t user_id, MEDIA_TRACE_EVENT currentState, VideoRenderingTracingInfo tracingInfo) {}
+
+  /** Occurs when receive rdt message.
+   *
+   * @param userId Remote uid.
+   * @param type Rdt stream type.
+   * @param data data The pointer to the sent data.
+   * @param length length The length of the sent data.
+   */
+  virtual void onRdtMessage(user_id_t userId, RdtStreamType type, const char *data, size_t length) {}
+
+  /** Occurs when rdt state changed with userId.
+   *
+   * @param userId Remote uid.
+   * @param state  rdt state.
+   */
+  virtual void onRdtStateChanged(user_id_t userId, RdtState state) {}
 };
 
 class IVideoFrameObserver2 {

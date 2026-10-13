@@ -6,8 +6,6 @@
 
 #pragma once  // NOLINT(build/header_guard)
 
-#include <cstring>
-
 #include "AgoraBase.h"
 #include "AgoraRefPtr.h"
 #include <api/cpp/aosl_ares_class.h>
@@ -19,54 +17,6 @@ class IAudioFrameObserver;
 } // namespace media
 
 namespace rtc {
-
-static const int kAdmMaxDeviceNameSize = 128;
-static const int kAdmMaxGuidSize = 128;
-static const int kIntervalInMillseconds = 200;
-
-
-#if defined(_WIN32) || (defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE) 
-/**
- * The struct of AudioDeviceInfo.
- *
- * @note
- * This struct applies to Windows and macOS only.
- */
-struct AudioDeviceInfo {
-  /**
-   * The name of the device. The maximum name size is 128 bytes. The default value is 0.
-   */
-  char deviceName[kAdmMaxDeviceNameSize];
-  /**
-   * The type name of the device. such as Built-in, USB, HDMI, etc. The maximum size is 128 bytes. The default value is 0.
-   * @note This member applies to macOS only.
-   */
-  char deviceTypeName[kAdmMaxDeviceNameSize];
-  /**
-   * The ID of the device. The maximum size is 128 bytes. The default value is 0.
-   */
-  char deviceId[kAdmMaxGuidSize];
-  /**
-   * Determines whether the current device is selected for audio capturing or playback.
-   * - true: Select the current device for audio capturing or playback.
-   * - false: (Default) Do not select the current device for audio capturing or playback.
-   */
-  bool isCurrentSelected;
-  /**
-   * Determines whether the current device is the audio playout device.
-   * - true: (Default) The current device is the playout device.
-   * - false: The current device is not the playout device.
-   */
-  bool isPlayoutDevice;
-
-  AudioDeviceInfo() : isCurrentSelected(false),
-                      isPlayoutDevice(true) {
-    memset(deviceName, 0, sizeof(deviceName));
-    memset(deviceTypeName, 0, sizeof(deviceTypeName));
-    memset(deviceId, 0, sizeof(deviceId));
-  }
-};
-#endif  // _WIN32 || (TARGET_OS_MAC && !TARGET_OS_IPHONE)
 
 /**
  * The struct of LoopbackRecordingOption
@@ -101,7 +51,7 @@ public:
 
   /**
    * Occurs when the device state changes, for example, when a device is added or removed or default device change.
-   * 
+   *
    * @note
    * This method applies to Windows only now.
    *
@@ -185,7 +135,7 @@ class IRecordingDeviceSource : public RefCountInterface {
 
   /**
    * Set parameter to object loopback device;
-   * @param option  
+   * @param option
    * - 0: Success.
    * - < 0: Failure.
    */
@@ -299,7 +249,7 @@ public:
    */
   virtual int getRecordAudioParameters(AudioParameters* params) const = 0;
 
-#if defined(__ANDROID__) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#if defined(__ANDROID__) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) || defined (__OHOS__)
   /**
    * Sets the default audio routing.
    *
@@ -352,9 +302,9 @@ public:
    * - < 0: Failure.
    */
   virtual int getCurrentRouting(AudioRoute& route) = 0;
-#endif  // __ANDROID__ || TARGET_OS_IPHONE
+#endif  // __ANDROID__ || TARGET_OS_IPHONE || __OHOS__
 
-#if defined(_WIN32) || (defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE) 
+#if defined(_WIN32) || (defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE) || defined(__linux__)
   /**
    * Gets the index numbers of all audio playout devices.
    *

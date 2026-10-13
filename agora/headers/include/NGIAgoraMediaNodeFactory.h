@@ -18,7 +18,6 @@ class IRemoteAudioMixerSource;
 class ICameraCapturer;
 class IScreenCapturer;
 class IVideoMixerSource;
-class IAudioMixerSource;
 class IVideoFrameTransceiver;
 class IVideoFrameSender;
 class IVideoRenderer;
@@ -75,7 +74,7 @@ class IMediaNodeFactory : public RefCountInterface {
    */
   virtual agora_refptr<ICameraCapturer> createCameraCapturer() = 0;
 
-#if !defined(__ANDROID__) && !(defined(__APPLE__) && TARGET_OS_IPHONE)
+#if !defined(__ANDROID__) && !(defined(__APPLE__) && TARGET_OS_IPHONE) && !defined(__OHOS__)
   /**
    * Creates a screen capturer.
    *
@@ -100,18 +99,6 @@ class IMediaNodeFactory : public RefCountInterface {
    * - A null pointer: Failure.
    */
   virtual agora_refptr<IVideoMixerSource> createVideoMixer() = 0;
-
-  /**
-   * Creates a audio mixer.
-   *
-   * Once a audio mixer object is created, you can use the audio mixer data as the custom audio
-   * source.
-   *
-   * @return
-   * - The pointer to IAudioMixerSource: Success.
-   * - A null pointer: Failure.
-   */
-  virtual agora_refptr<IAudioMixerSource> createAudioMixer() = 0;
 
   /**
    * Creates a video transceiver.
@@ -245,7 +232,7 @@ class IMediaNodeFactory : public RefCountInterface {
 
   virtual agora_refptr<IMediaRecorder2> createMediaRecorder() = 0;
 
-#if defined(__ANDROID__) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#if defined(__ANDROID__) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) || defined(__OHOS__)
   /**
    * Creates screen capture source extension with given provider&extension names
    * @param provider_name provider name string.

@@ -110,6 +110,9 @@ type VideoFrameSender struct {
 }
 
 func (mediaNodeFactory *MediaNodeFactory) NewVideoFrameSender() *VideoFrameSender {
+	if mediaNodeFactory == nil || mediaNodeFactory.cFactory == nil {
+		return nil
+	}
 	sender := C.agora_media_node_factory_create_video_frame_sender(mediaNodeFactory.cFactory)
 	if sender == nil {
 		return nil
@@ -120,7 +123,7 @@ func (mediaNodeFactory *MediaNodeFactory) NewVideoFrameSender() *VideoFrameSende
 }
 
 func (sender *VideoFrameSender) Release() {
-	if sender.cSender == nil {
+	if sender == nil || sender.cSender == nil {
 		return
 	}
 	C.agora_video_frame_sender_destroy(sender.cSender)
@@ -128,6 +131,9 @@ func (sender *VideoFrameSender) Release() {
 }
 
 func (sender *VideoFrameSender) SendVideoFrame(frame *ExternalVideoFrame) int {
+	if sender == nil || sender.cSender == nil || frame == nil || len(frame.Buffer) == 0 {
+		return -1
+	}
 	cData, pinner := unsafeCBytes(frame.Buffer)
 	defer pinner.Unpin()
 	cFrame := C.struct__external_video_frame{}

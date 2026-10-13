@@ -72,7 +72,7 @@ struct UserDataChannelInfo {
    */
   util::AString userId;
   /**
-   * The data channel infos 
+   * The data channel infos
    */
   const DataChannelInfo* infos;
   /**

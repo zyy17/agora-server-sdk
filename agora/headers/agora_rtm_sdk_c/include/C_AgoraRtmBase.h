@@ -17,6 +17,20 @@ extern "C"
 #define C_DEFAULT_LOG_SIZE_IN_KB 1024
 
 /**
+ * Rtm token event type.
+ */
+enum C_RTM_TOKEN_EVENT_TYPE {
+  /**
+   * The token is about to expire.
+   */
+  RTM_TOKEN_EVENT_TYPE_WILL_EXPIRE = 1,
+  /**
+   * The token read permission is revoked.
+   */
+  RTM_TOKEN_EVENT_TYPE_READ_PERMISSION_REVOKED = 2,
+};
+
+/**
  * Rtm link state.
  */
 enum C_RTM_LINK_STATE {
@@ -458,6 +472,10 @@ enum C_RTM_ERROR_CODE
    * -10021: The operation is too frequent.
    */
   RTM_ERROR_OPERATION_RATE_EXCEED_LIMITATION = -10021,
+  /**
+   * -10027: The user ID is already in use by another active RTM instance.
+   */
+  RTM_ERROR_DUPLICATE_USER_ID = -10027,
 
   /**
    * -11001 ~ -12000 : reserved for channel error.
@@ -592,6 +610,18 @@ enum C_RTM_ERROR_CODE
    * -11033: The destination user of publish message is offline.
    */
   RTM_ERROR_CHANNEL_RECEIVER_OFFLINE = -11033,
+  /**
+   * -11038: The subscribe permission is denied.
+   */
+  RTM_ERROR_CHANNEL_SUBSCRIBE_PERMISSION_DENIED = -11038,
+  /**
+   * -11039: The publish permission is denied.
+   */
+  RTM_ERROR_CHANNEL_PUBLISH_PERMISSION_DENIED = -11039,
+  /**
+   * -11040: Subscribe was canceled by an unsubscribe call before completion.
+   */
+  RTM_ERROR_CHANNEL_SUBSCRIBE_CANCELED = -11040,
 
   /**
    * -12001 ~ -13000 : reserved for storage error.
@@ -670,6 +700,10 @@ enum C_RTM_ERROR_CODE
    * -12019: The storage service not available.
    */
   RTM_ERROR_STORAGE_NOT_AVAILABLE = -12019,
+  /**
+   * -12020: The storage permission is denied.
+   */
+  RTM_ERROR_STORAGE_PERMISSION_DENIED = -12020,
 
   /**
    * -13001 ~ -14000 : reserved for presence error.
@@ -724,6 +758,18 @@ enum C_RTM_ERROR_CODE
    * -13013: The presence operation failed.
    */
   RTM_ERROR_PRESENCE_OPERATION_FAILED = -13013,
+  /**
+   * -13014: The presence service is not activated.
+   */
+  RTM_ERROR_PRESENCE_INACTIVE = -13014,
+  /**
+   * -13015: The presence pending request is cancelled.
+   */
+  RTM_ERROR_PRESENCE_PENDING_REQUEST_CANCELLED = -13015,
+  /**
+   * -13016: The presence pending request count exceeds the limitation.
+   */
+  RTM_ERROR_PRESENCE_PENDING_REQUEST_EXCEED_LIMITATION = -13016,
 
   /**
    * -14001 ~ -15000 : reserved for lock error.
@@ -762,151 +808,14 @@ enum C_RTM_ERROR_CODE
    * -14009: The lock service is not available.
    */
   RTM_ERROR_LOCK_NOT_AVAILABLE = -14009,
-};
-
-/**
- * Connection states between rtm sdk and agora server.
- */
-enum C_RTM_CONNECTION_STATE
-{
   /**
-   * 1: The SDK is disconnected with server.
+   * -14010: The lock permission is denied.
    */
-  RTM_CONNECTION_STATE_DISCONNECTED = 1,
+  RTM_ERROR_LOCK_PERMISSION_DENIED = -14010,
   /**
-   * 2: The SDK is connecting to the server.
+   * -15006: The history permission is denied.
    */
-  RTM_CONNECTION_STATE_CONNECTING = 2,
-  /**
-   * 3: The SDK is connected to the server and has joined a channel. You can now publish or subscribe to
-   * a track in the channel.
-   */
-  RTM_CONNECTION_STATE_CONNECTED = 3,
-  /**
-   * 4: The SDK keeps rejoining the channel after being disconnected from the channel, probably because of
-   * network issues.
-   */
-  RTM_CONNECTION_STATE_RECONNECTING = 4,
-  /**
-   * 5: The SDK fails to connect to the server or join the channel.
-   */
-  RTM_CONNECTION_STATE_FAILED = 5,
-};
-
-/**
- * Reasons for connection state change.
- */
-enum C_RTM_CONNECTION_CHANGE_REASON
-{
-  /**
-   * 0: The SDK is connecting to the server.
-   */
-  RTM_CONNECTION_CHANGED_CONNECTING = 0,
-  /**
-   * 1: The SDK has joined the channel successfully.
-   */
-  RTM_CONNECTION_CHANGED_JOIN_SUCCESS = 1,
-  /**
-   * 2: The connection between the SDK and the server is interrupted.
-   */
-  RTM_CONNECTION_CHANGED_INTERRUPTED = 2,
-  /**
-   * 3: The connection between the SDK and the server is banned by the server.
-   */
-  RTM_CONNECTION_CHANGED_BANNED_BY_SERVER = 3,
-  /**
-   * 4: The SDK fails to join the channel for more than 20 minutes and stops reconnecting to the channel.
-   */
-  RTM_CONNECTION_CHANGED_JOIN_FAILED = 4,
-  /**
-   * 5: The SDK has left the channel.
-   */
-  RTM_CONNECTION_CHANGED_LEAVE_CHANNEL = 5,
-  /**
-   * 6: The connection fails because the App ID is not valid.
-   */
-  RTM_CONNECTION_CHANGED_INVALID_APP_ID = 6,
-  /**
-   * 7: The connection fails because the channel name is not valid.
-   */
-  RTM_CONNECTION_CHANGED_INVALID_CHANNEL_NAME = 7,
-  /**
-   * 8: The connection fails because the token is not valid.
-   */
-  RTM_CONNECTION_CHANGED_INVALID_TOKEN = 8,
-  /**
-   * 9: The connection fails because the token has expired.
-   */
-  RTM_CONNECTION_CHANGED_TOKEN_EXPIRED = 9,
-  /**
-   * 10: The connection is rejected by the server.
-   */
-  RTM_CONNECTION_CHANGED_REJECTED_BY_SERVER = 10,
-  /**
-   * 11: The connection changes to reconnecting because the SDK has set a proxy server.
-   */
-  RTM_CONNECTION_CHANGED_SETTING_PROXY_SERVER = 11,
-  /**
-   * 12: When the connection state changes because the app has renewed the token.
-   */
-  RTM_CONNECTION_CHANGED_RENEW_TOKEN = 12,
-  /**
-   * 13: The IP Address of the app has changed. A change in the network type or IP/Port changes the IP
-   * address of the app.
-   */
-  RTM_CONNECTION_CHANGED_CLIENT_IP_ADDRESS_CHANGED = 13,
-  /**
-   * 14: A timeout occurs for the keep-alive of the connection between the SDK and the server.
-   */
-  RTM_CONNECTION_CHANGED_KEEP_ALIVE_TIMEOUT = 14,
-  /**
-   * 15: The SDK has rejoined the channel successfully.
-   */
-  RTM_CONNECTION_CHANGED_REJOIN_SUCCESS = 15,
-  /**
-   * 16: The connection between the SDK and the server is lost.
-   */
-  RTM_CONNECTION_CHANGED_LOST = 16,
-  /**
-   * 17: The change of connection state is caused by echo test.
-   */
-  RTM_CONNECTION_CHANGED_ECHO_TEST = 17,
-  /**
-   * 18: The local IP Address is changed by user.
-   */
-  RTM_CONNECTION_CHANGED_CLIENT_IP_ADDRESS_CHANGED_BY_USER = 18,
-  /**
-   * 19: The connection is failed due to join the same channel on another device with the same uid.
-   */
-  RTM_CONNECTION_CHANGED_SAME_UID_LOGIN = 19,
-  /**
-   * 20: The connection is failed due to too many broadcasters in the channel.
-   */
-  RTM_CONNECTION_CHANGED_TOO_MANY_BROADCASTERS = 20,
-  /**
-   * 21: The connection is failed due to license validation failure.
-   */
-  RTM_CONNECTION_CHANGED_LICENSE_VALIDATION_FAILURE = 21,
-  /**
-   * 22: The connection is failed due to user vid not support stream channel.
-   */
-  RTM_CONNECTION_CHANGED_STREAM_CHANNEL_NOT_AVAILABLE = 22,
-  /**
-   * 23: The connection is failed due to token and appid inconsistent.
-   */
-  RTM_CONNECTION_CHANGED_INCONSISTENT_APPID = 23,
-  /**
-   * 10001: The connection of rtm edge service has been successfully established.
-   */
-  RTM_CONNECTION_CHANGED_LOGIN_SUCCESS = 10001,
-  /**
-   * 10002: User log out Agora RTM system.
-   */
-  RTM_CONNECTION_CHANGED_LOGOUT = 10002,
-  /**
-   * 10003: User log out Agora RTM system.
-   */
-  RTM_CONNECTION_CHANGED_PRESENCE_NOT_READY = 10003,
+  RTM_ERROR_HISTORY_PERMISSION_DENIED = -15006,
 };
 
 /**

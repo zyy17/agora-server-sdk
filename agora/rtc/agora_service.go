@@ -1,7 +1,7 @@
 package agoraservice
 
 // #cgo darwin CFLAGS: -I${SRCDIR}/../headers/include/c/api2 -I${SRCDIR}/../headers/include/c/base
-// #cgo darwin LDFLAGS: -lAgoraRtcKit -lAgorafdkaac -lAgoraffmpeg -lAgoraAiNoiseSuppressionExtension
+// #cgo darwin LDFLAGS: -lAgoraRtcKit -lAgorafdkaac -lAgoraffmpeg -lAgoraAiNoiseSuppressionExtension   -lAgoraVideoAv1EncoderExtension
 // #cgo linux CFLAGS: -D__linux__=1 -I${SRCDIR}/../headers/include/c/api2 -I${SRCDIR}/../headers/include/c/base
 // #cgo linux LDFLAGS: -lagora_rtc_sdk -lagora-fdkaac -laosl
 // #include "agora_local_user.h"
@@ -85,13 +85,20 @@ type AgoraServiceConfig struct {
 	// version 2.2.9 and later, if not set, use default path
 	DataDir string
 
-	// 20251028 for apm filter related config
+	// date: 20251028 for apm filter related config
 	// apm model: 0: disable apm, default to disable, 1: enable apm. def to int not bool for future extension
+	// note : apmModel is used for remote audio track, not for local audio track!!
 	APMModel  int
 	APMConfig *APMConfig
 
 	// date: 2025-11-03, idle mode, if true, the connection will be released when idle for a period of time
 	IdleMode bool
+
+	// date: 20260618, add local audio track with apm support, default to false
+	// NOTE：Regardless of whether it is set to true, it only applies to non-aiserver audio scenario
+	// for aiserver audio scenario, it will be ignored!
+	EnableLocalAudioTrackWithAPM bool
+	LocalAudioTrackAPMConfig     *APMConfig
 }
 
 // const def for map type
@@ -100,6 +107,7 @@ const (
 	ConTypeCLocalUser            = 1
 	ConTypeCVideoObserver        = 2
 	ConTypeCEncodedVideoObserver = 3
+	ConTypeCCapabilitiesObserver = 4
 )
 
 // AgoraService is the core service of the Agora SDK.
@@ -124,6 +132,10 @@ type AgoraService struct {
 	idleQueueMutex sync.Mutex
 	idleMode       bool
 	apmModel       int
+	// for encoded audio frame received
+	encAudioFrameObserverItemsMap sync.Map
+	// date: 20260618, add field to keep service config
+	serviceConfig *AgoraServiceConfig
 }
 
 // / newAgoraService creates a new instance of AgoraService
@@ -140,10 +152,12 @@ func newAgoraService() *AgoraService {
 		idleQueueMutex: sync.Mutex{},
 		idleMode:       false,
 		apmModel:       0,
+		serviceConfig:  nil,
 	}
 }
 
 var agoraService *AgoraService = newAgoraService()
+var serviceLifecycleMu sync.Mutex
 
 func NewAgoraServiceConfig() *AgoraServiceConfig {
 	return &AgoraServiceConfig{
@@ -169,6 +183,10 @@ func NewAgoraServiceConfig() *AgoraServiceConfig {
 		APMModel:                0,
 		APMConfig:               nil,
 		IdleMode:                true, // default to true for  idle mode
+
+		// date: 20260618, add local audio track with apm support, default to false
+		EnableLocalAudioTrackWithAPM: false,
+		LocalAudioTrackAPMConfig:     nil,
 	}
 }
 
@@ -177,6 +195,13 @@ func NewAgoraServiceConfig() *AgoraServiceConfig {
 // You must call this method before calling any other methods.
 // This function must be called once globally.
 func Initialize(cfg *AgoraServiceConfig) int {
+	serviceLifecycleMu.Lock()
+	defer serviceLifecycleMu.Unlock()
+	if cfg == nil || cfg.AppId == "" {
+		return -2
+	}
+	cfgCopy := *cfg
+	cfg = &cfgCopy
 	if agoraService.inited {
 		return 0
 	}
@@ -192,7 +217,22 @@ func Initialize(cfg *AgoraServiceConfig) int {
 
 	ret := int(C.agora_service_initialize(agoraService.service, ccfg))
 	if ret != 0 {
+		C.agora_service_release(agoraService.service)
+		agoraService.service = nil
 		return ret
+	}
+
+	// save service config
+	agoraService.serviceConfig = cfg
+	// validity check: if local audio track with apm is enabled, but local audio track apm config is not set, set default config
+	if cfg.EnableLocalAudioTrackWithAPM {
+		if cfg.LocalAudioTrackAPMConfig == nil {
+			LocalAudioTrackAPMConfig := NewAPMConfig()
+			LocalAudioTrackAPMConfig.AgcConfig.Enabled = true
+			LocalAudioTrackAPMConfig.AiNsConfig.NsEnabled = false
+			LocalAudioTrackAPMConfig.AiAecConfig.Enabled = false
+			agoraService.serviceConfig.LocalAudioTrackAPMConfig = LocalAudioTrackAPMConfig
+		}
 	}
 
 	// agoraService.mediaFactory = C.agora_service_create_media_node_factory(agoraService.service)
@@ -243,7 +283,16 @@ func Initialize(cfg *AgoraServiceConfig) int {
 	// it will be encoded as av1 if config is av1 or it only work for resolution >= 360p
 	agoraParam.SetParameters("{\"che.video.min_enc_level\": 0}")
 
+	// date: 2026-02-26, default set the minor stream intra request to true
+	agoraParam.SetParameters("{\"rtc.video.enable_minor_stream_intra_request\":true}")
+
 	agoraService.mediaFactory = newMediaNodeFactory()
+	if agoraService.mediaFactory == nil {
+		C.agora_service_release(agoraService.service)
+		agoraService.service = nil
+		return -1
+	}
+	agoraService.idleMode = cfg.IdleMode
 
 	agoraService.inited = true
 	// and start the timer
@@ -259,8 +308,9 @@ func timerTask() {
 	//fmt.Printf("timerTask: idle queue size: %d\n", 1)
 	removeIdleItem()
 }
-func addIdleItem(handle unsafe.Pointer, lifeCycleInMs int) {
-	idleItem := newIdleItem(handle, lifeCycleInMs/50) // convert to 50ms interval
+func addIdleItem(handle unsafe.Pointer, lifeCycleInMs int, cleanup func()) {
+	idleItem := newIdleItem(handle, lifeCycleInMs/50)
+	idleItem.cleanup = cleanup
 	agoraService.idleQueueMutex.Lock()
 	agoraService.idleQueue = append(agoraService.idleQueue, idleItem)
 	agoraService.idleQueueMutex.Unlock()
@@ -283,6 +333,9 @@ func removeIdleItem() {
 		agoraService.idleQueue = agoraService.idleQueue[1:]
 		// and release it
 		C.agora_rtc_conn_destroy(item.Handle)
+		if item.cleanup != nil {
+			item.cleanup()
+		}
 		fmt.Printf("remove idle item: %p\n", item.Handle)
 		// reset
 		item = nil
@@ -295,6 +348,9 @@ func releaseAllIdleItems() {
 
 	for _, item := range agoraService.idleQueue {
 		C.agora_rtc_conn_destroy(item.Handle)
+		if item.cleanup != nil {
+			item.cleanup()
+		}
 		fmt.Printf("release all idle item: %p\n", item.Handle)
 		item = nil
 	}
@@ -306,16 +362,22 @@ func releaseAllIdleItems() {
 // This function must be called once globally.
 // After this function is called, you must not call other agora APIs any more.
 func Release() int {
+	serviceLifecycleMu.Lock()
+	defer serviceLifecycleMu.Unlock()
 	if !agoraService.inited {
 		return 0
 	}
+	agoraService.consByCCon.Range(func(_, value interface{}) bool {
+		value.(*RtcConnection).Release()
+		return true
+	})
 	// stop timer
 	if agoraService.timer != nil {
 		agoraService.timer.Stop()
 		agoraService.timer = nil
 
-		releaseAllIdleItems()
 	}
+	releaseAllIdleItems()
 	// cleanup go layer resources
 	agoraService.cleanup()
 
@@ -333,6 +395,10 @@ func Release() int {
 		agoraService.service = nil
 	}
 	agoraService.inited = false
+	agoraService.idleMode = false
+	agoraService.serviceConfig = nil
+	agoraService.apmConfig = nil
+	agoraService.apmModel = 0
 	return 0
 }
 
@@ -410,12 +476,22 @@ func (s *AgoraService) cleanup() {
 		s.consByCEncodedVideoObserver.Delete(key)
 		return true
 	})
+	s.encAudioFrameObserverItemsMap.Range(func(key, value interface{}) bool {
+		if item, ok := value.(*EncAudioFrameObserverItem); ok {
+			s.encAudioFrameObserverItemsMap.Delete(key)
+			item.Con = nil
+			item.Uid = ""
+			item = nil
+		}
+		return true
+	})
 
 	// After cleaning up all connections, set maps to nil
 	s.consByCCon = sync.Map{}
 	s.consByCLocalUser = sync.Map{}
 	s.consByCVideoObserver = sync.Map{}
 	s.consByCEncodedVideoObserver = sync.Map{}
+	s.encAudioFrameObserverItemsMap = sync.Map{}
 }
 
 // to get value from sync.Map, use Load method
@@ -429,7 +505,7 @@ func (s *AgoraService) setConFromHandle(handle unsafe.Pointer, con *RtcConnectio
 		s.consByCLocalUser.Store(handle, con)
 	case ConTypeCVideoObserver:
 		s.consByCVideoObserver.Store(handle, con)
-	case ConTypeCEncodedVideoObserver:
+	case ConTypeCEncodedVideoObserver, ConTypeCCapabilitiesObserver:
 		s.consByCEncodedVideoObserver.Store(handle, con)
 	default:
 		return -1
@@ -452,7 +528,7 @@ func (s *AgoraService) getConFromHandle(handle unsafe.Pointer, conType int) *Rtc
 		value, ok = s.consByCLocalUser.Load(handle)
 	case ConTypeCVideoObserver:
 		value, ok = s.consByCVideoObserver.Load(handle)
-	case ConTypeCEncodedVideoObserver:
+	case ConTypeCEncodedVideoObserver, ConTypeCCapabilitiesObserver:
 		value, ok = s.consByCEncodedVideoObserver.Load(handle)
 	default:
 		return nil
@@ -474,9 +550,40 @@ func (s *AgoraService) deleteConFromHandle(handle unsafe.Pointer, conType int) b
 		s.consByCLocalUser.Delete(handle)
 	case ConTypeCVideoObserver:
 		s.consByCVideoObserver.Delete(handle)
-	case ConTypeCEncodedVideoObserver:
+	case ConTypeCEncodedVideoObserver, ConTypeCCapabilitiesObserver:
 		s.consByCEncodedVideoObserver.Delete(handle)
 	}
+	return true
+}
+
+func (s *AgoraService) setAudioEncObserToMap(item *EncAudioFrameObserverItem) bool {
+	if item == nil {
+		return false
+	}
+	s.encAudioFrameObserverItemsMap.Store(item.CObserverHandle, item)
+	return true
+}
+func (s *AgoraService) getAudioEncObserverItemFromMap(observerHandle unsafe.Pointer) *EncAudioFrameObserverItem {
+	if observerHandle == nil {
+		return nil
+	}
+	item, ok := s.encAudioFrameObserverItemsMap.Load(observerHandle)
+	if !ok {
+		return nil
+	}
+	return item.(*EncAudioFrameObserverItem)
+}
+
+// only delete the item from map, do not free the item!!!
+func (s *AgoraService) deleteAudioEncObserverItemFromMap(observerHandle unsafe.Pointer) bool {
+	if observerHandle == nil {
+		return false
+	}
+	_, ok := s.encAudioFrameObserverItemsMap.Load(observerHandle)
+	if !ok {
+		return false
+	}
+	s.encAudioFrameObserverItemsMap.Delete(observerHandle)
 	return true
 }
 
@@ -600,6 +707,8 @@ func isSupportExternalAudioProcessor(model int) bool {
 	}
 	return true
 }
+
+// check enable or disable remote audio track with apm
 func isEnableAPM(model int) bool {
 	if model < 1 {
 		return false

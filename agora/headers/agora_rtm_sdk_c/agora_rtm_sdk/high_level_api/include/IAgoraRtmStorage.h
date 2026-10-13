@@ -100,7 +100,7 @@ class IRtmStorage {
    * @param [in] options The options of operate metadata.
    * @param [in] lock lock for operate channel metadata.
    * @param [out] requestId The unique ID of this request.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -116,7 +116,7 @@ class IRtmStorage {
    * @param [in] options The options of operate metadata.
    * @param [in] lock lock for operate channel metadata.
    * @param [out] requestId The unique ID of this request.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -132,7 +132,7 @@ class IRtmStorage {
    * @param [in] options The options of operate metadata.
    * @param [in] lock lock for operate channel metadata.
    * @param [out] requestId The unique ID of this request.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -145,7 +145,7 @@ class IRtmStorage {
    * @param [in] channelName The channel Name of the specified channel.
    * @param [in] channelType Which channel type, RTM_CHANNEL_TYPE_STREAM or RTM_CHANNEL_TYPE_MESSAGE.
    * @param requestId The unique ID of this request.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -160,7 +160,7 @@ class IRtmStorage {
    * @param [in] data Metadata data.
    * @param [in] options The options of operate metadata.
    * @param [out] requestId The unique ID of this request.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -174,7 +174,7 @@ class IRtmStorage {
    * @param [in] data Metadata data.
    * @param [in] options The options of operate metadata.
    * @param [out] requestId The unique ID of this request.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -188,7 +188,7 @@ class IRtmStorage {
    * @param [in] data Metadata data.
    * @param [in] options The options of operate metadata.
    * @param [out] requestId The unique ID of this request.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -200,7 +200,7 @@ class IRtmStorage {
    *
    * @param [in] userId The user ID of the specified user.
    * @param [out] requestId The unique ID of this request.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -211,7 +211,7 @@ class IRtmStorage {
    * Subscribe the metadata update event of a specified user.
    *
    * @param [in] userId The user ID of the specified user.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -221,7 +221,7 @@ class IRtmStorage {
    * unsubscribe the metadata update event of a specified user.
    *
    * @param [in] userId The user ID of the specified user.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.

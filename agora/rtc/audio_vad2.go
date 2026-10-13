@@ -3,18 +3,19 @@ package agoraservice
 import (
 	"container/list"
 	"fmt"
+	"math"
 )
 
 type AudioVadConfigV2 struct {
-	PreStartRecognizeCount int     // pre start recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 16
-	StartRecognizeCount    int     // start recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 30
-	StopRecognizeCount     int     // max recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 50
-	ActivePercent          float32 // active percent, if over this percent, will be recognized as speaking, default value is 0.7
-	InactivePercent        float32 // inactive percent, if below this percent, will be recognized as non-speaking, default value is 0.5
-	StartVoiceProb         int     // start voice prob, default value is 70
-	StartRms               int     // start rms, default value is -50
-	StopVoiceProb          int     // stop voice prob, default value is 70
-	StopRms                int     // stop rms, default value is -50
+	PreStartRecognizeCount     int     // pre start recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 16
+	StartRecognizeCount        int     // start recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 30
+	StopRecognizeCount         int     // max recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 50
+	ActivePercent              float32 // active percent, if over this percent, will be recognized as speaking, default value is 0.7
+	InactivePercent            float32 // inactive percent, if below this percent, will be recognized as non-speaking, default value is 0.5
+	StartVoiceProb             int     // start voice prob, default value is 70
+	StartRms                   int     // start rms, default value is -50
+	StopVoiceProb              int     // stop voice prob, default value is 70
+	StopRms                    int     // stop rms, default value is -50
 	EnableAdaptiveRmsThreshold bool    // enable adaptive threshold, default value is false
 	AdaptiveRmsThresholdFactor float32 // default to : 0.67.i.e 2/3
 }
@@ -36,15 +37,15 @@ type VadFrameFormat struct {
 }
 
 type AudioVadV2 struct {
-	config       *AudioVadConfigV2
-	expectFormat *VadFrameFormat
-	isSpeaking   bool
-	startBuffer  *VadBuffer
-	stopBuffer   *VadBuffer
-	voiceCount   int
-	silenceCount int
-	totalVoiceRms  int // range from 0 to 127, respond to db: -127db, to 0db
-	refAvgRmsInLastSesseion   int // range from 0 to 127, respond to db: -127db, to 0db
+	config                  *AudioVadConfigV2
+	expectFormat            *VadFrameFormat
+	isSpeaking              bool
+	startBuffer             *VadBuffer
+	stopBuffer              *VadBuffer
+	voiceCount              int
+	silenceCount            int
+	totalVoiceRms           int // range from 0 to 127, respond to db: -127db, to 0db
+	refAvgRmsInLastSesseion int // range from 0 to 127, respond to db: -127db, to 0db
 }
 
 func newVadFrame(frame *AudioFrame, isActive bool) *VadFrame {
@@ -55,6 +56,9 @@ func newVadFrame(frame *AudioFrame, isActive bool) *VadFrame {
 }
 
 func newVadBuffer(maxSize int) *VadBuffer {
+	if maxSize < 1 {
+		maxSize = 1
+	}
 	return &VadBuffer{
 		queue:   list.New(),
 		maxSize: maxSize,
@@ -115,21 +119,26 @@ func (buf *VadBuffer) flushAudio() *AudioFrame {
 }
 
 func NewAudioVadV2(cfg *AudioVadConfigV2) *AudioVadV2 {
-	
+
 	if cfg == nil {
 		cfg = &AudioVadConfigV2{
-			PreStartRecognizeCount: 16,
-			StartRecognizeCount:    30,
-			StopRecognizeCount:     65,
-			ActivePercent:          0.7,
-			InactivePercent:        0.5,
-			StartVoiceProb:         70,
-			StartRms:               -70.0,
-			StopVoiceProb:          70,
-			StopRms:                -70.0,
+			PreStartRecognizeCount:     16,
+			StartRecognizeCount:        30,
+			StopRecognizeCount:         65,
+			ActivePercent:              0.7,
+			InactivePercent:            0.5,
+			StartVoiceProb:             70,
+			StartRms:                   -70.0,
+			StopVoiceProb:              70,
+			StopRms:                    -70.0,
 			EnableAdaptiveRmsThreshold: true,
 			AdaptiveRmsThresholdFactor: 0.67,
 		}
+	}
+	config := *cfg
+	cfg = &config
+	if cfg.PreStartRecognizeCount < 0 {
+		cfg.PreStartRecognizeCount = 0
 	}
 	if cfg.StartRecognizeCount <= 0 {
 		cfg.StartRecognizeCount = 30
@@ -137,17 +146,35 @@ func NewAudioVadV2(cfg *AudioVadConfigV2) *AudioVadV2 {
 	if cfg.StopRecognizeCount <= 0 {
 		cfg.StopRecognizeCount = 65
 	}
+	// Bound buffered frames (10 ms each) and normalize probability thresholds.
+	const maxFrames = 60000
+	cfg.StartRecognizeCount = min(cfg.StartRecognizeCount, maxFrames)
+	cfg.StopRecognizeCount = min(cfg.StopRecognizeCount, maxFrames)
+	cfg.PreStartRecognizeCount = min(cfg.PreStartRecognizeCount, maxFrames-cfg.StartRecognizeCount)
+	cfg.StartVoiceProb = max(0, min(cfg.StartVoiceProb, 100))
+	cfg.StopVoiceProb = max(0, min(cfg.StopVoiceProb, 100))
+	cfg.StartRms = max(-127, min(cfg.StartRms, 0))
+	cfg.StopRms = max(-127, min(cfg.StopRms, 0))
+	if math.IsNaN(float64(cfg.ActivePercent)) || cfg.ActivePercent <= 0 || cfg.ActivePercent > 1 {
+		cfg.ActivePercent = 0.7
+	}
+	if math.IsNaN(float64(cfg.InactivePercent)) || cfg.InactivePercent <= 0 || cfg.InactivePercent > 1 {
+		cfg.InactivePercent = 0.5
+	}
+	if math.IsNaN(float64(cfg.AdaptiveRmsThresholdFactor)) || cfg.AdaptiveRmsThresholdFactor <= 0 || cfg.AdaptiveRmsThresholdFactor > 1 {
+		cfg.AdaptiveRmsThresholdFactor = 0.67
+	}
 	// fmt.Printf("[vad] NewAudioVadV2: %v\n", cfg)
 	startQueueSize := cfg.StartRecognizeCount + cfg.PreStartRecognizeCount
 	ret := &AudioVadV2{
-		config:       cfg,
-		expectFormat: nil,
-		isSpeaking:   false,
-		startBuffer:  newVadBuffer(startQueueSize),
-		stopBuffer:   newVadBuffer(cfg.StopRecognizeCount),
-		voiceCount:   0,
-		silenceCount: 0,
-		totalVoiceRms:  0,
+		config:                  cfg,
+		expectFormat:            nil,
+		isSpeaking:              false,
+		startBuffer:             newVadBuffer(startQueueSize),
+		stopBuffer:              newVadBuffer(cfg.StopRecognizeCount),
+		voiceCount:              0,
+		silenceCount:            0,
+		totalVoiceRms:           0,
 		refAvgRmsInLastSesseion: 0,
 	}
 	// for this version, convert rms from db to rms,i.e convert from -127db to 0db to 0 to 127
@@ -159,6 +186,9 @@ func NewAudioVadV2(cfg *AudioVadConfigV2) *AudioVadV2 {
 }
 
 func (vad *AudioVadV2) Release() {
+	if vad == nil || vad.startBuffer == nil || vad.stopBuffer == nil {
+		return
+	}
 	vad.startBuffer.clear()
 	vad.stopBuffer.clear()
 	vad.startBuffer = nil
@@ -185,13 +215,16 @@ func (vad *AudioVadV2) isActive(frame *AudioFrame) bool {
 }
 func (vad *AudioVadV2) getRefActiveAvgRms() int {
 	if vad.config.EnableAdaptiveRmsThreshold && vad.refAvgRmsInLastSesseion > 0 {
-		return int(float32(vad.refAvgRmsInLastSesseion)*vad.config.AdaptiveRmsThresholdFactor) // half of avg as threshold value
+		return int(float32(vad.refAvgRmsInLastSesseion) * vad.config.AdaptiveRmsThresholdFactor) // half of avg as threshold value
 	}
 	// convert from db to rms
 	return vad.config.StartRms
 }
 
 func (vad *AudioVadV2) Process(frame *AudioFrame) (*AudioFrame, VadState) {
+	if vad == nil || frame == nil || vad.startBuffer == nil || vad.stopBuffer == nil {
+		return nil, VadStateInvalid
+	}
 	if vad.expectFormat == nil {
 		vad.expectFormat = &VadFrameFormat{
 			BytesPerSample: frame.BytesPerSample,
@@ -233,9 +266,9 @@ func (vad *AudioVadV2) Process(frame *AudioFrame) (*AudioFrame, VadState) {
 
 				// update ref rms
 				vad.refAvgRmsInLastSesseion = vad.totalVoiceRms / vad.voiceCount
-				fmt.Printf("[vad] StartSpeeking: %d, %d, %d, %d\n", vad.voiceCount, vad.totalVoiceRms, vad.refAvgRmsInLastSesseion,vad.config.StartRecognizeCount)
+				fmt.Printf("[vad] StartSpeeking: %d, %d, %d, %d\n", vad.voiceCount, vad.totalVoiceRms, vad.refAvgRmsInLastSesseion, vad.config.StartRecognizeCount)
 
-				//reset 
+				//reset
 				vad.voiceCount = 0
 				vad.totalVoiceRms = 0
 				vad.silenceCount = 0
@@ -255,13 +288,13 @@ func (vad *AudioVadV2) Process(frame *AudioFrame) (*AudioFrame, VadState) {
 		}
 		if full {
 			//inactivePercent := float32(vad.silenceCount) / float32(vad.config.StopRecognizeCount)
-			if (vad.silenceCount >= vad.config.StopRecognizeCount) {
+			if vad.silenceCount >= vad.config.StopRecognizeCount {
 				vad.isSpeaking = false
 				vad.stopBuffer.clear()
 
-				fmt.Printf("[vad] StopSpeeking: %d, %d, %d, %d\n", vad.silenceCount, vad.totalVoiceRms, vad.refAvgRmsInLastSesseion,vad.config.StopRecognizeCount)
+				fmt.Printf("[vad] StopSpeeking: %d, %d, %d, %d\n", vad.silenceCount, vad.totalVoiceRms, vad.refAvgRmsInLastSesseion, vad.config.StopRecognizeCount)
 
-				// reset 
+				// reset
 				vad.voiceCount = 0
 				vad.totalVoiceRms = 0
 				vad.silenceCount = 0

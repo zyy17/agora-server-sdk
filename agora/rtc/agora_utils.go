@@ -65,7 +65,7 @@ func NewAudioConsumer(pcmSender *AudioPcmDataSender, sampleRate int, channels in
 		directDataLen:     0,
 	}
 
-	fmt.Printf("NewAudioConsumer, audioScenario: %d, isDirectMode: %d\n", pcmSender.audioScenario, consumer.IsDirectMode())
+	fmt.Printf("NewAudioConsumer, audioScenario: %d, isDirectMode: %t\n", pcmSender.audioScenario, consumer.IsDirectMode())
 
 	return consumer
 }
@@ -424,6 +424,10 @@ func (v *VadDump) Open() int {
 	return 0
 }
 func (v *VadDump) fillItemData(value int16, leninBytes int) {
+	if leninBytes <= 0 {
+		v.itemData = nil
+		return
+	}
 	if v.itemData == nil || len(v.itemData) < leninBytes {
 		v.itemData = make([]byte, leninBytes)
 	}
@@ -662,7 +666,7 @@ func GenerateWAVHeader(sampleRate int, channels int, pcmDataSizeInBytes int) []b
 	binary.LittleEndian.PutUint16(header[22:24], uint16(channels))                 // 单声道
 	binary.LittleEndian.PutUint32(header[24:28], uint32(sampleRate))               // 采样率
 	binary.LittleEndian.PutUint32(header[28:32], uint32(sampleRate*channels*16/8)) // 字节率（16000 * 1 * 16/8）
-	binary.LittleEndian.PutUint16(header[32:34], 2)                                // 块对齐（1 * 16/8）
+	binary.LittleEndian.PutUint16(header[32:34], uint16(channels*2))               // 块对齐（1 * 16/8）
 	binary.LittleEndian.PutUint16(header[34:36], 16)                               // 位深度
 
 	// data块
@@ -674,33 +678,59 @@ func GenerateWAVHeader(sampleRate int, channels int, pcmDataSizeInBytes int) []b
 type PrecisionTimer struct {
 	ticker   *time.Ticker
 	stopChan chan bool
+	mu       sync.Mutex
+	wg       sync.WaitGroup
+	started  bool
+	stopped  bool
 }
 
 func NewPrecisionTimer(interval int) *PrecisionTimer {
-	return &PrecisionTimer{
-		ticker:   time.NewTicker(time.Duration(interval) * time.Millisecond),
-		stopChan: make(chan bool),
+	if interval <= 0 {
+		interval = 1
 	}
+	return &PrecisionTimer{ticker: time.NewTicker(time.Duration(interval) * time.Millisecond), stopChan: make(chan bool)}
 }
+
 func (t *PrecisionTimer) Start(taskFunc func()) {
+	if t == nil || taskFunc == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.started || t.stopped {
+		return
+	}
+	t.started = true
+	t.wg.Add(1)
 	go func() {
+		defer t.wg.Done()
 		for {
 			select {
+			case <-t.stopChan:
+				return
 			case <-t.ticker.C:
 				taskFunc()
-			case <-t.stopChan:
-				t.ticker.Stop()
-				return
 			}
 		}
 	}()
 }
-func (pt *PrecisionTimer) Stop() {
-	pt.ticker.Stop()
-	close(pt.stopChan)
+
+func (t *PrecisionTimer) Stop() {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	if !t.stopped {
+		t.stopped = true
+		t.ticker.Stop()
+		close(t.stopChan)
+	}
+	t.mu.Unlock()
+	t.wg.Wait()
 }
 
 type IdleItem struct {
+	cleanup   func()
 	Handle    unsafe.Pointer
 	LifeCycle int // in ms
 }

@@ -463,7 +463,7 @@ typedef struct _audio_spectrum_observer {
  * @ANNOTATION:TYPE:OBSERVER
  */
 typedef struct _video_encoded_frame_observer {
-  int (*on_encoded_video_frame)(AGORA_HANDLE agora_video_encoded_frame_observer, uid_t uid, const uint8_t* image_buffer, size_t length,
+  int (*on_encoded_video_frame)(AGORA_HANDLE agora_video_encoded_frame_observer, const char* channel_id, const char* uid, const uint8_t* image_buffer, size_t length,
                                 const encoded_video_frame_info* video_encoded_frame_info);
 } video_encoded_frame_observer;
 

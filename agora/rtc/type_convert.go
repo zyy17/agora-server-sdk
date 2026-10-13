@@ -87,6 +87,8 @@ func CRtcConnectionConfig(cfg *RtcConnectionConfig) *C.struct__rtc_conn_config {
 	ret.channel_profile = C.int(cfg.ChannelProfile)
 	ret.audio_recv_media_packet = CIntFromBool(cfg.AudioRecvMediaPacket)
 	ret.video_recv_media_packet = CIntFromBool(cfg.VideoRecvMediaPacket)
+	ret.audio_recv_encoded_frame = CIntFromBool(cfg.AudioRecvEncodedFrame)
+	ret.channel_type = C.int(cfg.ChannelType)
 	return ret
 }
 
@@ -95,6 +97,9 @@ func FreeCRtcConnectionConfig(cfg *C.struct__rtc_conn_config) {
 }
 
 func GoRtcConnectionInfo(cInfo *C.struct__rtc_conn_info, info *RtcConnectionInfo) {
+	if cInfo == nil || info == nil {
+		return
+	}
 	info.ConnectionId = uint(cInfo.id)
 	info.ChannelId = C.GoString(cInfo.channel_id)
 	info.State = int(cInfo.state)
@@ -150,6 +155,12 @@ func CLocalUserObserver() *C.struct__local_user_observer {
 	// added on 2025-06-09
 	ret.on_audio_track_publish_success = (*[0]byte)(C.cgo_on_audio_track_publish_success)
 	ret.on_audio_track_unpublished = (*[0]byte)(C.cgo_on_audio_track_unpublished)
+
+	// Video track publish callbacks
+	ret.on_video_track_publish_success = (*[0]byte)(C.cgo_on_video_track_publish_success)
+	ret.on_video_track_unpublished = (*[0]byte)(C.cgo_on_video_track_unpublished)
+	ret.on_intra_request_received = (*[0]byte)(C.cgo_on_intra_request_received)
+
 	return ret
 }
 
@@ -177,6 +188,9 @@ func FreeCAudioFrameObserver(observer *C.struct__audio_frame_observer) {
 }
 
 func GoPcmAudioFrame(frame *C.struct__audio_frame) *AudioFrame {
+	if frame == nil {
+		return nil
+	}
 	bufferLen := frame.samples_per_channel * frame.bytes_per_sample * frame.channels
 	ret := &AudioFrame{
 		Type:              AudioFrameType(frame._type),
@@ -198,8 +212,11 @@ func GoPcmAudioFrame(frame *C.struct__audio_frame) *AudioFrame {
 }
 
 func GoSinkAudioFrame(frame *C.struct__audio_pcm_frame) *AudioFrame {
+	if frame == nil {
+		return nil
+	}
 	bufferLen := int(frame.samples_per_channel) * int(frame.bytes_per_sample) * int(frame.num_channels)
-	samplepersec := int(frame.sample_rate_hz) * int(frame.num_channels)
+	samplepersec := int(frame.sample_rate_hz)
 	buffer := C.GoBytes(unsafe.Pointer(&frame.data[0]), C.int(bufferLen))
 	ret := &AudioFrame{
 		Type:              AudioFrameType(AudioFrameTypePCM16),
@@ -250,6 +267,9 @@ func Uint8PtrToUintptr(p *C.uint8_t) uintptr {
 }
 
 func GoVideoFrame(frame *C.struct__video_frame) *VideoFrame {
+	if frame == nil {
+		return nil
+	}
 	// var buf []byte = nil
 	// bufLen := frame.y_stride*frame.height + frame.u_stride*frame.height/2 + frame.v_stride*frame.height/2
 	// uStart := frame.y_stride * frame.height
@@ -310,6 +330,9 @@ func GoVideoTrackInfo(cInfo *C.struct__video_track_info) *VideoTrackInfo {
 }
 
 func unsafeCBytes(data []byte) (unsafe.Pointer, runtime.Pinner) {
+	if len(data) == 0 {
+		return nil, runtime.Pinner{}
+	}
 	ptr := unsafe.Pointer(&data[0])
 
 	var pinner runtime.Pinner
@@ -421,4 +444,72 @@ func CCapatilitiesObserver() *C.struct__capabilites_observer {
 
 func FreeCCapatilitiesObserver(observer *C.struct__capabilites_observer) {
 	C.free(unsafe.Pointer(observer))
+}
+
+// for encoded audio frame observer
+// date: 20260206
+// for encoded audio frame received, if needed
+
+type AudioEncodedFrameObserver struct {
+	OnEncodedAudioFrameReceived func(uid string, packet []byte, sendTs int64, codec int)
+}
+
+type EncAudioFrameObserverItem struct {
+	Uid             string
+	Con             *RtcConnection
+	CObserver       *C.struct__audio_encoded_frame_rev_observer
+	CTrack          unsafe.Pointer
+	CObserverHandle unsafe.Pointer
+}
+
+// _audio_encoded_frame_rev_observer
+// on_encoded_audio_frame_received
+func CAudioEncodedFrameObserver() *C.struct__audio_encoded_frame_rev_observer {
+	ret := (*C.struct__audio_encoded_frame_rev_observer)(C.malloc(C.sizeof_struct__audio_encoded_frame_rev_observer))
+	C.memset(unsafe.Pointer(ret), 0, C.sizeof_struct__audio_encoded_frame_rev_observer)
+	ret.on_encoded_audio_frame_received = (*[0]byte)(C.cgo_on_encoded_audio_frame_received)
+	return ret
+}
+func freeCAudioEncodedFrameObserver(observer *C.struct__audio_encoded_frame_rev_observer) {
+	C.free(unsafe.Pointer(observer))
+}
+
+func createAudioEncodedFrameObserverItem(uid string, cTrack unsafe.Pointer, conn *RtcConnection) *EncAudioFrameObserverItem {
+	// create a c type observer
+	cObserver := CAudioEncodedFrameObserver()
+	// convert c type observer to handle for c api layer
+	cObserverHandle := C.agora_audio_encoded_frame_rev_observer_create(cObserver)
+	// end
+
+	if cObserverHandle == nil {
+		freeCAudioEncodedFrameObserver(cObserver)
+		return nil
+	}
+
+	cPersistTrack := C.agora_create_remote_audio_track(cTrack)
+	if cPersistTrack == nil {
+		C.agora_audio_encoded_frame_rev_observer_destroy(cObserverHandle)
+		freeCAudioEncodedFrameObserver(cObserver)
+		return nil
+	}
+
+	item := &EncAudioFrameObserverItem{
+		Uid:             uid,
+		Con:             conn,
+		CObserverHandle: cObserverHandle,
+		CObserver:       cObserver,
+		CTrack:          cPersistTrack,
+	}
+	return item
+}
+
+func freeAudioEncodedFrameObserverItem(item *EncAudioFrameObserverItem) int {
+	// 1. free track
+	C.agora_destroy_remote_audio_track(item.CTrack)
+	// 2. free cobser
+	C.agora_audio_encoded_frame_rev_observer_destroy(item.CObserverHandle)
+	C.free(unsafe.Pointer(item.CObserver))
+	// 3. free item
+
+	return 0
 }

@@ -62,15 +62,15 @@ void cgo_on_error(AGORA_HANDLE agora_rtc_conn, int error, const char* msg) {
   goOnError(agora_rtc_conn, error, msg);
 }
 
-//steam message 
+//steam message
 extern void goOnStreamMessageError(void* agora_rtc_conn, user_id_t user_id, int stream_id, int code, int missed, int cached);
 void cgo_on_stream_message_error(AGORA_HANDLE agora_rtc_conn, user_id_t user_id, int stream_id, int code, int missed, int cached) {
   goOnStreamMessageError(agora_rtc_conn, user_id, stream_id, code, missed, cached);
 }
 
-extern void goOnStreamMessage(void* agora_local_user, user_id_t user_id, int stream_id, const char* data, size_t length);
-void cgo_on_stream_message(AGORA_HANDLE agora_local_user, user_id_t user_id, int stream_id, const char* data, size_t length) {
-  goOnStreamMessage(agora_local_user, user_id, stream_id, data, length);
+extern void goOnStreamMessage(void* agora_local_user, user_id_t user_id, int stream_id, const char* data, size_t length, uint64_t send_ts);
+void cgo_on_stream_message(AGORA_HANDLE agora_local_user, user_id_t user_id, int stream_id, const char* data, size_t length, uint64_t send_ts) {
+  goOnStreamMessage(agora_local_user, user_id, stream_id, data, length, send_ts);
 }
 
 extern void goOnUserInfoUpdated(void* agora_local_user, user_id_t user_id, int msg, int val);
@@ -101,7 +101,7 @@ void cgo_on_user_video_track_state_changed(AGORA_HANDLE agora_local_user, user_i
 extern void goOnAudioPublishStateChanged(void* agora_local_user, const char* channelid, int oldstate, int newstate, int elapseSinceLastState);
 void  cgo_on_audio_publish_state_changed(AGORA_HANDLE agora_local_user, const char* channelid, int oldstate, int newstate, int elapseSinceLastState) {
   goOnAudioPublishStateChanged(agora_local_user, channelid, oldstate, newstate, elapseSinceLastState);
-  
+
 }
 
 extern void goOnAudioVolumeIndication(void* agora_local_user, struct _audio_volume_info* speakers, unsigned int speaker_number, int total_volume);
@@ -156,4 +156,15 @@ void cgo_on_capabilities_changed(AGORA_HANDLE agora_local_user, const capabiliti
 extern void goOnIntraRequestReceived(void* agora_local_user);
 void cgo_on_intra_request_received(AGORA_HANDLE agora_local_user) {
   goOnIntraRequestReceived(agora_local_user);
+}
+
+
+extern void goOnVideoTrackPublishSuccess(void* agora_local_user, void* agora_local_video_track);
+void cgo_on_video_track_publish_success(AGORA_HANDLE agora_local_user, AGORA_HANDLE agora_local_video_track) {
+  goOnVideoTrackPublishSuccess(agora_local_user, agora_local_video_track);
+}
+
+extern void goOnVideoTrackUnpublished(void* agora_local_user, void* agora_local_video_track);
+void cgo_on_video_track_unpublished(AGORA_HANDLE agora_local_user, AGORA_HANDLE agora_local_video_track) {
+  goOnVideoTrackUnpublished(agora_local_user, agora_local_video_track);
 }

@@ -41,6 +41,9 @@ type AudioEncodedFrameSender struct {
 }
 
 func (mediaNodeFactory *MediaNodeFactory) NewAudioEncodedFrameSender() *AudioEncodedFrameSender {
+	if mediaNodeFactory == nil || mediaNodeFactory.cFactory == nil {
+		return nil
+	}
 	sender := C.agora_media_node_factory_create_audio_encoded_frame_sender(mediaNodeFactory.cFactory)
 	if sender == nil {
 		return nil
@@ -52,11 +55,14 @@ func (mediaNodeFactory *MediaNodeFactory) NewAudioEncodedFrameSender() *AudioEnc
 }
 
 func (sender *AudioEncodedFrameSender) Release() {
-	if sender.cSender == nil || sender.closed {
+	if sender == nil {
 		return
 	}
 	sender.mu.Lock()
 	defer sender.mu.Unlock()
+	if sender.closed || sender.cSender == nil {
+		return
+	}
 	sender.closed = true
 	C.agora_audio_encoded_frame_sender_destroy(sender.cSender)
 	sender.cSender = nil
@@ -64,7 +70,7 @@ func (sender *AudioEncodedFrameSender) Release() {
 
 func (sender *AudioEncodedFrameSender) SendEncodedAudioFrame(payload []byte, frameInfo *EncodedAudioFrameInfo) int {
 
-	if frameInfo == nil || payload == nil || sender.closed || len(payload) == 0 {
+	if sender == nil || frameInfo == nil || len(payload) == 0 {
 		return -1
 	}
 

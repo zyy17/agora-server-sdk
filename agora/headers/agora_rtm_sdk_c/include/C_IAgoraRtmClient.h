@@ -25,6 +25,7 @@ extern "C"
   struct C_LockEvent;
   struct C_StorageEvent;
   struct C_LinkStateEvent;
+  struct C_TokenEvent;
 
   /**
    * The IRtmEventHandler class.
@@ -48,12 +49,12 @@ extern "C"
     void (*onTopicEvent)(struct C_IRtmEventHandler *handler, const struct C_TopicEvent *event);
     void (*onLockEvent)(struct C_IRtmEventHandler *handler, const struct C_LockEvent *event);
     void (*onStorageEvent)(struct C_IRtmEventHandler *handler, const struct C_StorageEvent *event);
+    void (*onTokenEvent)(struct C_IRtmEventHandler *handler, const struct C_TokenEvent *event);
     void (*onJoinResult)(struct C_IRtmEventHandler *handler, const uint64_t requestId, const char *channelName, const char *userId, enum C_RTM_ERROR_CODE errorCode);
     void (*onLeaveResult)(struct C_IRtmEventHandler *handler, const uint64_t requestId, const char *channelName, const char *userId, enum C_RTM_ERROR_CODE errorCode);
     void (*onJoinTopicResult)(struct C_IRtmEventHandler *handler, const uint64_t requestId, const char *channelName, const char *userId, const char *topic, const char *meta, enum C_RTM_ERROR_CODE errorCode);
     void (*onLeaveTopicResult)(struct C_IRtmEventHandler *handler, const uint64_t requestId, const char *channelName, const char *userId, const char *topic, const char *meta, enum C_RTM_ERROR_CODE errorCode);
     void (*onSubscribeTopicResult)(struct C_IRtmEventHandler *handler, const uint64_t requestId, const char *channelName, const char *userId, const char *topic, struct C_UserList succeedUsers, struct C_UserList failedUsers, enum C_RTM_ERROR_CODE errorCode);
-    void (*onConnectionStateChanged)(struct C_IRtmEventHandler *handler, const char *channelName, enum C_RTM_CONNECTION_STATE state, enum C_RTM_CONNECTION_CHANGE_REASON reason);
     void (*onTokenPrivilegeWillExpire)(struct C_IRtmEventHandler *handler, const char *channelName);
     void (*onSubscribeResult)(struct C_IRtmEventHandler *handler, const uint64_t requestId, const char *channelName, enum C_RTM_ERROR_CODE errorCode);
     void (*onUnsubscribeResult)(struct C_IRtmEventHandler *handler, const uint64_t requestId, const char *channelName, enum C_RTM_ERROR_CODE errorCode);
@@ -161,6 +162,12 @@ extern "C"
     void *context;
 
     /**
+     * Reconnection timeout in seconds. Zero means retry indefinitely.
+     * Valid non-zero values are in the range [15, 3600].
+     */
+    uint32_t reconnectTimeout;
+
+    /**
      * Whether to use String user IDs, if you are using RTC products with Int user IDs,
      * set this value as 'false'. Otherwise errors might occur.
      */
@@ -202,6 +209,11 @@ extern "C"
      * The config for private setting
      */
     struct C_RtmPrivateConfig privateConfig;
+
+    /**
+     * Optional JSON parameters string.
+     */
+    const char *parameters;
   };
   struct C_RtmConfig *C_RtmConfig_New();
   void C_RtmConfig_Delete(struct C_RtmConfig *this_);
@@ -259,6 +271,28 @@ extern "C"
   };
   struct C_LinkStateEvent *C_LinkStateEvent_New();
   void C_LinkStateEvent_Delete(struct C_LinkStateEvent *this_);
+
+  struct C_ChannelList
+  {
+    const char **channels;
+    size_t channelCount;
+  };
+
+  struct C_AffectedResources
+  {
+    struct C_ChannelList messageChannels;
+  };
+
+  /**
+   * Token event data borrowed from the SDK and valid only during the callback.
+   */
+  struct C_TokenEvent
+  {
+    enum C_RTM_TOKEN_EVENT_TYPE eventType;
+    const char *reason;
+    struct C_AffectedResources affectedResources;
+    uint64_t timestamp;
+  };
   struct C_MessageEvent
   {
     /**
