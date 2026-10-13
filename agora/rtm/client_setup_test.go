@@ -56,7 +56,7 @@ func TestRtmClientConfigResourcesPreserveFields(t *testing.T) {
 	config := &RtmConfig{
 		AppId: "test-app", UserId: "test-user", AreaCode: RtmAreaCodeGLOB,
 		ProtocolType: 3, PresenceTimeout: 41, HeartbeatInterval: 7, ReconnectTimeout: 11,
-		Context: unsafe.Pointer(resources.config), UseStringUserId: true, Multipath: true,
+		Context: unsafe.Pointer(resources.config), UseStringUserId: true, Multipath: true, ISPPolicyEnabled: true, Parameters: `{"test":true}`,
 		LogConfig:        &RtmLogConfig{FilePath: "rtm.log", FileSizeInKB: 2048, Level: RtmLogLevelNONE},
 		EncryptionConfig: &RtmEncryptionConfig{EncryptionMode: RtmEncryptionModeNONE, EncryptionKey: "key", EncryptionSalt: []byte{1, 2, 3}},
 		ProxyConfig:      &RtmProxyConfig{Server: "proxy.test", Port: 9000, Account: "account", Password: "password"},
@@ -79,7 +79,8 @@ func TestRtmClientConfigResourcesPreserveFields(t *testing.T) {
 		if RtmAreaCode(native.areaCode) != config.AreaCode || uint32(native.protocolType) != config.ProtocolType ||
 			uint32(native.presenceTimeout) != config.PresenceTimeout || uint32(native.heartbeatInterval) != config.HeartbeatInterval ||
 			uint32(native.reconnectTimeout) != config.ReconnectTimeout || native.context != config.Context ||
-			bool(native.useStringUserId) != config.UseStringUserId || bool(native.multipath) != config.Multipath {
+			bool(native.useStringUserId) != config.UseStringUserId || bool(native.multipath) != config.Multipath ||
+			bool(native.ispPolicyEnabled) != config.ISPPolicyEnabled || copyStrings(&native.parameters, 1)[0] != config.Parameters {
 			t.Fatal("native scalar configuration does not match the input")
 		}
 	})

@@ -1,0 +1,444 @@
+// Code generated from the pinned C_AgoraRtmBase.h enum declarations; DO NOT EDIT.
+// Source: Agora Go SDK v2.6.5, d51ff1b5baf85dd53155b31543bceba8ec304dc7.
+package agorartm
+
+/*
+#include "C_AgoraRtmBase.h"
+*/
+import "C"
+
+// RtmTokenEventType preserves the native RTM_TOKEN_EVENT_TYPE enumeration.
+type RtmTokenEventType int
+
+const (
+	// RtmTokenEventTypeWillExpire is RTM_TOKEN_EVENT_TYPE_WILL_EXPIRE.
+	RtmTokenEventTypeWillExpire RtmTokenEventType = C.RTM_TOKEN_EVENT_TYPE_WILL_EXPIRE
+	// RtmTokenEventTypeReadPermissionRevoked is RTM_TOKEN_EVENT_TYPE_READ_PERMISSION_REVOKED.
+	RtmTokenEventTypeReadPermissionRevoked RtmTokenEventType = C.RTM_TOKEN_EVENT_TYPE_READ_PERMISSION_REVOKED
+)
+
+// RtmLinkState preserves the native RTM_LINK_STATE enumeration.
+type RtmLinkState int
+
+const (
+	// RtmLinkStateIdle is RTM_LINK_STATE_IDLE.
+	RtmLinkStateIdle RtmLinkState = C.RTM_LINK_STATE_IDLE
+	// RtmLinkStateConnecting is RTM_LINK_STATE_CONNECTING.
+	RtmLinkStateConnecting RtmLinkState = C.RTM_LINK_STATE_CONNECTING
+	// RtmLinkStateConnected is RTM_LINK_STATE_CONNECTED.
+	RtmLinkStateConnected RtmLinkState = C.RTM_LINK_STATE_CONNECTED
+	// RtmLinkStateDisconnected is RTM_LINK_STATE_DISCONNECTED.
+	RtmLinkStateDisconnected RtmLinkState = C.RTM_LINK_STATE_DISCONNECTED
+	// RtmLinkStateSuspended is RTM_LINK_STATE_SUSPENDED.
+	RtmLinkStateSuspended RtmLinkState = C.RTM_LINK_STATE_SUSPENDED
+	// RtmLinkStateFailed is RTM_LINK_STATE_FAILED.
+	RtmLinkStateFailed RtmLinkState = C.RTM_LINK_STATE_FAILED
+)
+
+// RtmLinkOperation preserves the native RTM_LINK_OPERATION enumeration.
+type RtmLinkOperation int
+
+const (
+	// RtmLinkOperationLogin is RTM_LINK_OPERATION_LOGIN.
+	RtmLinkOperationLogin RtmLinkOperation = C.RTM_LINK_OPERATION_LOGIN
+	// RtmLinkOperationLogout is RTM_LINK_OPERATION_LOGOUT.
+	RtmLinkOperationLogout RtmLinkOperation = C.RTM_LINK_OPERATION_LOGOUT
+	// RtmLinkOperationJoin is RTM_LINK_OPERATION_JOIN.
+	RtmLinkOperationJoin RtmLinkOperation = C.RTM_LINK_OPERATION_JOIN
+	// RtmLinkOperationLeave is RTM_LINK_OPERATION_LEAVE.
+	RtmLinkOperationLeave RtmLinkOperation = C.RTM_LINK_OPERATION_LEAVE
+	// RtmLinkOperationServerReject is RTM_LINK_OPERATION_SERVER_REJECT.
+	RtmLinkOperationServerReject RtmLinkOperation = C.RTM_LINK_OPERATION_SERVER_REJECT
+	// RtmLinkOperationAutoReconnect is RTM_LINK_OPERATION_AUTO_RECONNECT.
+	RtmLinkOperationAutoReconnect RtmLinkOperation = C.RTM_LINK_OPERATION_AUTO_RECONNECT
+	// RtmLinkOperationReconnected is RTM_LINK_OPERATION_RECONNECTED.
+	RtmLinkOperationReconnected RtmLinkOperation = C.RTM_LINK_OPERATION_RECONNECTED
+	// RtmLinkOperationHeartbeatLost is RTM_LINK_OPERATION_HEARTBEAT_LOST.
+	RtmLinkOperationHeartbeatLost RtmLinkOperation = C.RTM_LINK_OPERATION_HEARTBEAT_LOST
+	// RtmLinkOperationServerTimeout is RTM_LINK_OPERATION_SERVER_TIMEOUT.
+	RtmLinkOperationServerTimeout RtmLinkOperation = C.RTM_LINK_OPERATION_SERVER_TIMEOUT
+	// RtmLinkOperationNetworkChange is RTM_LINK_OPERATION_NETWORK_CHANGE.
+	RtmLinkOperationNetworkChange RtmLinkOperation = C.RTM_LINK_OPERATION_NETWORK_CHANGE
+)
+
+// RtmLinkStateChangeReason preserves the native RTM_LINK_STATE_CHANGE_REASON enumeration.
+type RtmLinkStateChangeReason int
+
+const (
+	// RtmLinkStateChangeReasonUnknown is RTM_LINK_STATE_CHANGE_REASON_UNKNOWN.
+	RtmLinkStateChangeReasonUnknown RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_UNKNOWN
+	// RtmLinkStateChangeReasonLogin is RTM_LINK_STATE_CHANGE_REASON_LOGIN.
+	RtmLinkStateChangeReasonLogin RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_LOGIN
+	// RtmLinkStateChangeReasonLoginSuccess is RTM_LINK_STATE_CHANGE_REASON_LOGIN_SUCCESS.
+	RtmLinkStateChangeReasonLoginSuccess RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_LOGIN_SUCCESS
+	// RtmLinkStateChangeReasonLoginTimeout is RTM_LINK_STATE_CHANGE_REASON_LOGIN_TIMEOUT.
+	RtmLinkStateChangeReasonLoginTimeout RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_LOGIN_TIMEOUT
+	// RtmLinkStateChangeReasonLoginNotAuthorized is RTM_LINK_STATE_CHANGE_REASON_LOGIN_NOT_AUTHORIZED.
+	RtmLinkStateChangeReasonLoginNotAuthorized RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_LOGIN_NOT_AUTHORIZED
+	// RtmLinkStateChangeReasonLoginRejected is RTM_LINK_STATE_CHANGE_REASON_LOGIN_REJECTED.
+	RtmLinkStateChangeReasonLoginRejected RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_LOGIN_REJECTED
+	// RtmLinkStateChangeReasonRelogin is RTM_LINK_STATE_CHANGE_REASON_RELOGIN.
+	RtmLinkStateChangeReasonRelogin RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_RELOGIN
+	// RtmLinkStateChangeReasonLogout is RTM_LINK_STATE_CHANGE_REASON_LOGOUT.
+	RtmLinkStateChangeReasonLogout RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_LOGOUT
+	// RtmLinkStateChangeReasonAutoReconnect is RTM_LINK_STATE_CHANGE_REASON_AUTO_RECONNECT.
+	RtmLinkStateChangeReasonAutoReconnect RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_AUTO_RECONNECT
+	// RtmLinkStateChangeReasonReconnectTimeout is RTM_LINK_STATE_CHANGE_REASON_RECONNECT_TIMEOUT.
+	RtmLinkStateChangeReasonReconnectTimeout RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_RECONNECT_TIMEOUT
+	// RtmLinkStateChangeReasonReconnectSuccess is RTM_LINK_STATE_CHANGE_REASON_RECONNECT_SUCCESS.
+	RtmLinkStateChangeReasonReconnectSuccess RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_RECONNECT_SUCCESS
+	// RtmLinkStateChangeReasonJoin is RTM_LINK_STATE_CHANGE_REASON_JOIN.
+	RtmLinkStateChangeReasonJoin RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_JOIN
+	// RtmLinkStateChangeReasonJoinSuccess is RTM_LINK_STATE_CHANGE_REASON_JOIN_SUCCESS.
+	RtmLinkStateChangeReasonJoinSuccess RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_JOIN_SUCCESS
+	// RtmLinkStateChangeReasonJoinFailed is RTM_LINK_STATE_CHANGE_REASON_JOIN_FAILED.
+	RtmLinkStateChangeReasonJoinFailed RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_JOIN_FAILED
+	// RtmLinkStateChangeReasonRejoin is RTM_LINK_STATE_CHANGE_REASON_REJOIN.
+	RtmLinkStateChangeReasonRejoin RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_REJOIN
+	// RtmLinkStateChangeReasonLeave is RTM_LINK_STATE_CHANGE_REASON_LEAVE.
+	RtmLinkStateChangeReasonLeave RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_LEAVE
+	// RtmLinkStateChangeReasonInvalidToken is RTM_LINK_STATE_CHANGE_REASON_INVALID_TOKEN.
+	RtmLinkStateChangeReasonInvalidToken RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_INVALID_TOKEN
+	// RtmLinkStateChangeReasonTokenExpired is RTM_LINK_STATE_CHANGE_REASON_TOKEN_EXPIRED.
+	RtmLinkStateChangeReasonTokenExpired RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_TOKEN_EXPIRED
+	// RtmLinkStateChangeReasonInconsistentAppID is RTM_LINK_STATE_CHANGE_REASON_INCONSISTENT_APP_ID.
+	RtmLinkStateChangeReasonInconsistentAppID RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_INCONSISTENT_APP_ID
+	// RtmLinkStateChangeReasonInvalidChannelName is RTM_LINK_STATE_CHANGE_REASON_INVALID_CHANNEL_NAME.
+	RtmLinkStateChangeReasonInvalidChannelName RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_INVALID_CHANNEL_NAME
+	// RtmLinkStateChangeReasonInvalidUserID is RTM_LINK_STATE_CHANGE_REASON_INVALID_USER_ID.
+	RtmLinkStateChangeReasonInvalidUserID RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_INVALID_USER_ID
+	// RtmLinkStateChangeReasonNotInitialized is RTM_LINK_STATE_CHANGE_REASON_NOT_INITIALIZED.
+	RtmLinkStateChangeReasonNotInitialized RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_NOT_INITIALIZED
+	// RtmLinkStateChangeReasonRTMServiceNotConnected is RTM_LINK_STATE_CHANGE_REASON_RTM_SERVICE_NOT_CONNECTED.
+	RtmLinkStateChangeReasonRTMServiceNotConnected RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_RTM_SERVICE_NOT_CONNECTED
+	// RtmLinkStateChangeReasonChannelInstanceExceedLimitation is RTM_LINK_STATE_CHANGE_REASON_CHANNEL_INSTANCE_EXCEED_LIMITATION.
+	RtmLinkStateChangeReasonChannelInstanceExceedLimitation RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_CHANNEL_INSTANCE_EXCEED_LIMITATION
+	// RtmLinkStateChangeReasonOperationRateExceedLimitation is RTM_LINK_STATE_CHANGE_REASON_OPERATION_RATE_EXCEED_LIMITATION.
+	RtmLinkStateChangeReasonOperationRateExceedLimitation RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_OPERATION_RATE_EXCEED_LIMITATION
+	// RtmLinkStateChangeReasonChannelInErrorState is RTM_LINK_STATE_CHANGE_REASON_CHANNEL_IN_ERROR_STATE.
+	RtmLinkStateChangeReasonChannelInErrorState RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_CHANNEL_IN_ERROR_STATE
+	// RtmLinkStateChangeReasonPresenceNotConnected is RTM_LINK_STATE_CHANGE_REASON_PRESENCE_NOT_CONNECTED.
+	RtmLinkStateChangeReasonPresenceNotConnected RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_PRESENCE_NOT_CONNECTED
+	// RtmLinkStateChangeReasonSameUidLogin is RTM_LINK_STATE_CHANGE_REASON_SAME_UID_LOGIN.
+	RtmLinkStateChangeReasonSameUidLogin RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_SAME_UID_LOGIN
+	// RtmLinkStateChangeReasonKickedOutByServer is RTM_LINK_STATE_CHANGE_REASON_KICKED_OUT_BY_SERVER.
+	RtmLinkStateChangeReasonKickedOutByServer RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_KICKED_OUT_BY_SERVER
+	// RtmLinkStateChangeReasonKeepAliveTimeout is RTM_LINK_STATE_CHANGE_REASON_KEEP_ALIVE_TIMEOUT.
+	RtmLinkStateChangeReasonKeepAliveTimeout RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_KEEP_ALIVE_TIMEOUT
+	// RtmLinkStateChangeReasonConnectionError is RTM_LINK_STATE_CHANGE_REASON_CONNECTION_ERROR.
+	RtmLinkStateChangeReasonConnectionError RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_CONNECTION_ERROR
+	// RtmLinkStateChangeReasonPresenceNotReady is RTM_LINK_STATE_CHANGE_REASON_PRESENCE_NOT_READY.
+	RtmLinkStateChangeReasonPresenceNotReady RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_PRESENCE_NOT_READY
+	// RtmLinkStateChangeReasonNetworkChange is RTM_LINK_STATE_CHANGE_REASON_NETWORK_CHANGE.
+	RtmLinkStateChangeReasonNetworkChange RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_NETWORK_CHANGE
+	// RtmLinkStateChangeReasonServiceNotSupported is RTM_LINK_STATE_CHANGE_REASON_SERVICE_NOT_SUPPORTED.
+	RtmLinkStateChangeReasonServiceNotSupported RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_SERVICE_NOT_SUPPORTED
+	// RtmLinkStateChangeReasonStreamChannelNotAvailable is RTM_LINK_STATE_CHANGE_REASON_STREAM_CHANNEL_NOT_AVAILABLE.
+	RtmLinkStateChangeReasonStreamChannelNotAvailable RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_STREAM_CHANNEL_NOT_AVAILABLE
+	// RtmLinkStateChangeReasonStorageNotAvailable is RTM_LINK_STATE_CHANGE_REASON_STORAGE_NOT_AVAILABLE.
+	RtmLinkStateChangeReasonStorageNotAvailable RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_STORAGE_NOT_AVAILABLE
+	// RtmLinkStateChangeReasonLockNotAvailable is RTM_LINK_STATE_CHANGE_REASON_LOCK_NOT_AVAILABLE.
+	RtmLinkStateChangeReasonLockNotAvailable RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_LOCK_NOT_AVAILABLE
+	// RtmLinkStateChangeReasonLoginTooFrequent is RTM_LINK_STATE_CHANGE_REASON_LOGIN_TOO_FREQUENT.
+	RtmLinkStateChangeReasonLoginTooFrequent RtmLinkStateChangeReason = C.RTM_LINK_STATE_CHANGE_REASON_LOGIN_TOO_FREQUENT
+)
+
+// RtmProtocolType preserves the native RTM_PROTOCOL_TYPE enumeration.
+type RtmProtocolType int
+
+const (
+	// RtmProtocolTypeTCPUDP is RTM_PROTOCOL_TYPE_TCP_UDP.
+	RtmProtocolTypeTCPUDP RtmProtocolType = C.RTM_PROTOCOL_TYPE_TCP_UDP
+	// RtmProtocolTypeTCPOnly is RTM_PROTOCOL_TYPE_TCP_ONLY.
+	RtmProtocolTypeTCPOnly RtmProtocolType = C.RTM_PROTOCOL_TYPE_TCP_ONLY
+)
+
+// RtmErrorCode preserves the native RTM_ERROR_CODE enumeration.
+type RtmErrorCode int
+
+const (
+	// RtmErrorCodeOK is RTM_ERROR_OK.
+	RtmErrorCodeOK RtmErrorCode = C.RTM_ERROR_OK
+	// RtmErrorCodeNotInitialized is RTM_ERROR_NOT_INITIALIZED.
+	RtmErrorCodeNotInitialized RtmErrorCode = C.RTM_ERROR_NOT_INITIALIZED
+	// RtmErrorCodeNotLogin is RTM_ERROR_NOT_LOGIN.
+	RtmErrorCodeNotLogin RtmErrorCode = C.RTM_ERROR_NOT_LOGIN
+	// RtmErrorCodeInvalidAppID is RTM_ERROR_INVALID_APP_ID.
+	RtmErrorCodeInvalidAppID RtmErrorCode = C.RTM_ERROR_INVALID_APP_ID
+	// RtmErrorCodeInvalidEventHandler is RTM_ERROR_INVALID_EVENT_HANDLER.
+	RtmErrorCodeInvalidEventHandler RtmErrorCode = C.RTM_ERROR_INVALID_EVENT_HANDLER
+	// RtmErrorCodeInvalidToken is RTM_ERROR_INVALID_TOKEN.
+	RtmErrorCodeInvalidToken RtmErrorCode = C.RTM_ERROR_INVALID_TOKEN
+	// RtmErrorCodeInvalidUserID is RTM_ERROR_INVALID_USER_ID.
+	RtmErrorCodeInvalidUserID RtmErrorCode = C.RTM_ERROR_INVALID_USER_ID
+	// RtmErrorCodeInitServiceFailed is RTM_ERROR_INIT_SERVICE_FAILED.
+	RtmErrorCodeInitServiceFailed RtmErrorCode = C.RTM_ERROR_INIT_SERVICE_FAILED
+	// RtmErrorCodeInvalidChannelName is RTM_ERROR_INVALID_CHANNEL_NAME.
+	RtmErrorCodeInvalidChannelName RtmErrorCode = C.RTM_ERROR_INVALID_CHANNEL_NAME
+	// RtmErrorCodeTokenExpired is RTM_ERROR_TOKEN_EXPIRED.
+	RtmErrorCodeTokenExpired RtmErrorCode = C.RTM_ERROR_TOKEN_EXPIRED
+	// RtmErrorCodeLoginNoServerResources is RTM_ERROR_LOGIN_NO_SERVER_RESOURCES.
+	RtmErrorCodeLoginNoServerResources RtmErrorCode = C.RTM_ERROR_LOGIN_NO_SERVER_RESOURCES
+	// RtmErrorCodeLoginTimeout is RTM_ERROR_LOGIN_TIMEOUT.
+	RtmErrorCodeLoginTimeout RtmErrorCode = C.RTM_ERROR_LOGIN_TIMEOUT
+	// RtmErrorCodeLoginRejected is RTM_ERROR_LOGIN_REJECTED.
+	RtmErrorCodeLoginRejected RtmErrorCode = C.RTM_ERROR_LOGIN_REJECTED
+	// RtmErrorCodeLoginAborted is RTM_ERROR_LOGIN_ABORTED.
+	RtmErrorCodeLoginAborted RtmErrorCode = C.RTM_ERROR_LOGIN_ABORTED
+	// RtmErrorCodeInvalidParameter is RTM_ERROR_INVALID_PARAMETER.
+	RtmErrorCodeInvalidParameter RtmErrorCode = C.RTM_ERROR_INVALID_PARAMETER
+	// RtmErrorCodeLoginNotAuthorized is RTM_ERROR_LOGIN_NOT_AUTHORIZED.
+	RtmErrorCodeLoginNotAuthorized RtmErrorCode = C.RTM_ERROR_LOGIN_NOT_AUTHORIZED
+	// RtmErrorCodeInconsistentAppid is RTM_ERROR_INCONSISTENT_APPID.
+	RtmErrorCodeInconsistentAppid RtmErrorCode = C.RTM_ERROR_INCONSISTENT_APPID
+	// RtmErrorCodeDuplicateOperation is RTM_ERROR_DUPLICATE_OPERATION.
+	RtmErrorCodeDuplicateOperation RtmErrorCode = C.RTM_ERROR_DUPLICATE_OPERATION
+	// RtmErrorCodeInstanceAlreadyReleased is RTM_ERROR_INSTANCE_ALREADY_RELEASED.
+	RtmErrorCodeInstanceAlreadyReleased RtmErrorCode = C.RTM_ERROR_INSTANCE_ALREADY_RELEASED
+	// RtmErrorCodeInvalidChannelType is RTM_ERROR_INVALID_CHANNEL_TYPE.
+	RtmErrorCodeInvalidChannelType RtmErrorCode = C.RTM_ERROR_INVALID_CHANNEL_TYPE
+	// RtmErrorCodeInvalidEncryptionParameter is RTM_ERROR_INVALID_ENCRYPTION_PARAMETER.
+	RtmErrorCodeInvalidEncryptionParameter RtmErrorCode = C.RTM_ERROR_INVALID_ENCRYPTION_PARAMETER
+	// RtmErrorCodeOperationRateExceedLimitation is RTM_ERROR_OPERATION_RATE_EXCEED_LIMITATION.
+	RtmErrorCodeOperationRateExceedLimitation RtmErrorCode = C.RTM_ERROR_OPERATION_RATE_EXCEED_LIMITATION
+	// RtmErrorCodeDuplicateUserID is RTM_ERROR_DUPLICATE_USER_ID.
+	RtmErrorCodeDuplicateUserID RtmErrorCode = C.RTM_ERROR_DUPLICATE_USER_ID
+	// RtmErrorCodeChannelNotJoined is RTM_ERROR_CHANNEL_NOT_JOINED.
+	RtmErrorCodeChannelNotJoined RtmErrorCode = C.RTM_ERROR_CHANNEL_NOT_JOINED
+	// RtmErrorCodeChannelNotSubscribed is RTM_ERROR_CHANNEL_NOT_SUBSCRIBED.
+	RtmErrorCodeChannelNotSubscribed RtmErrorCode = C.RTM_ERROR_CHANNEL_NOT_SUBSCRIBED
+	// RtmErrorCodeChannelExceedTopicUserLimitation is RTM_ERROR_CHANNEL_EXCEED_TOPIC_USER_LIMITATION.
+	RtmErrorCodeChannelExceedTopicUserLimitation RtmErrorCode = C.RTM_ERROR_CHANNEL_EXCEED_TOPIC_USER_LIMITATION
+	// RtmErrorCodeChannelInReuse is RTM_ERROR_CHANNEL_IN_REUSE.
+	RtmErrorCodeChannelInReuse RtmErrorCode = C.RTM_ERROR_CHANNEL_IN_REUSE
+	// RtmErrorCodeChannelInstanceExceedLimitation is RTM_ERROR_CHANNEL_INSTANCE_EXCEED_LIMITATION.
+	RtmErrorCodeChannelInstanceExceedLimitation RtmErrorCode = C.RTM_ERROR_CHANNEL_INSTANCE_EXCEED_LIMITATION
+	// RtmErrorCodeChannelInErrorState is RTM_ERROR_CHANNEL_IN_ERROR_STATE.
+	RtmErrorCodeChannelInErrorState RtmErrorCode = C.RTM_ERROR_CHANNEL_IN_ERROR_STATE
+	// RtmErrorCodeChannelJoinFailed is RTM_ERROR_CHANNEL_JOIN_FAILED.
+	RtmErrorCodeChannelJoinFailed RtmErrorCode = C.RTM_ERROR_CHANNEL_JOIN_FAILED
+	// RtmErrorCodeChannelInvalidTopicName is RTM_ERROR_CHANNEL_INVALID_TOPIC_NAME.
+	RtmErrorCodeChannelInvalidTopicName RtmErrorCode = C.RTM_ERROR_CHANNEL_INVALID_TOPIC_NAME
+	// RtmErrorCodeChannelInvalidMessage is RTM_ERROR_CHANNEL_INVALID_MESSAGE.
+	RtmErrorCodeChannelInvalidMessage RtmErrorCode = C.RTM_ERROR_CHANNEL_INVALID_MESSAGE
+	// RtmErrorCodeChannelMessageLengthExceedLimitation is RTM_ERROR_CHANNEL_MESSAGE_LENGTH_EXCEED_LIMITATION.
+	RtmErrorCodeChannelMessageLengthExceedLimitation RtmErrorCode = C.RTM_ERROR_CHANNEL_MESSAGE_LENGTH_EXCEED_LIMITATION
+	// RtmErrorCodeChannelInvalidUserList is RTM_ERROR_CHANNEL_INVALID_USER_LIST.
+	RtmErrorCodeChannelInvalidUserList RtmErrorCode = C.RTM_ERROR_CHANNEL_INVALID_USER_LIST
+	// RtmErrorCodeChannelNotAvailable is RTM_ERROR_CHANNEL_NOT_AVAILABLE.
+	RtmErrorCodeChannelNotAvailable RtmErrorCode = C.RTM_ERROR_CHANNEL_NOT_AVAILABLE
+	// RtmErrorCodeChannelTopicNotSubscribed is RTM_ERROR_CHANNEL_TOPIC_NOT_SUBSCRIBED.
+	RtmErrorCodeChannelTopicNotSubscribed RtmErrorCode = C.RTM_ERROR_CHANNEL_TOPIC_NOT_SUBSCRIBED
+	// RtmErrorCodeChannelExceedTopicLimitation is RTM_ERROR_CHANNEL_EXCEED_TOPIC_LIMITATION.
+	RtmErrorCodeChannelExceedTopicLimitation RtmErrorCode = C.RTM_ERROR_CHANNEL_EXCEED_TOPIC_LIMITATION
+	// RtmErrorCodeChannelJoinTopicFailed is RTM_ERROR_CHANNEL_JOIN_TOPIC_FAILED.
+	RtmErrorCodeChannelJoinTopicFailed RtmErrorCode = C.RTM_ERROR_CHANNEL_JOIN_TOPIC_FAILED
+	// RtmErrorCodeChannelTopicNotJoined is RTM_ERROR_CHANNEL_TOPIC_NOT_JOINED.
+	RtmErrorCodeChannelTopicNotJoined RtmErrorCode = C.RTM_ERROR_CHANNEL_TOPIC_NOT_JOINED
+	// RtmErrorCodeChannelTopicNotExist is RTM_ERROR_CHANNEL_TOPIC_NOT_EXIST.
+	RtmErrorCodeChannelTopicNotExist RtmErrorCode = C.RTM_ERROR_CHANNEL_TOPIC_NOT_EXIST
+	// RtmErrorCodeChannelInvalidTopicMeta is RTM_ERROR_CHANNEL_INVALID_TOPIC_META.
+	RtmErrorCodeChannelInvalidTopicMeta RtmErrorCode = C.RTM_ERROR_CHANNEL_INVALID_TOPIC_META
+	// RtmErrorCodeChannelSubscribeTimeout is RTM_ERROR_CHANNEL_SUBSCRIBE_TIMEOUT.
+	RtmErrorCodeChannelSubscribeTimeout RtmErrorCode = C.RTM_ERROR_CHANNEL_SUBSCRIBE_TIMEOUT
+	// RtmErrorCodeChannelSubscribeTooFrequent is RTM_ERROR_CHANNEL_SUBSCRIBE_TOO_FREQUENT.
+	RtmErrorCodeChannelSubscribeTooFrequent RtmErrorCode = C.RTM_ERROR_CHANNEL_SUBSCRIBE_TOO_FREQUENT
+	// RtmErrorCodeChannelSubscribeFailed is RTM_ERROR_CHANNEL_SUBSCRIBE_FAILED.
+	RtmErrorCodeChannelSubscribeFailed RtmErrorCode = C.RTM_ERROR_CHANNEL_SUBSCRIBE_FAILED
+	// RtmErrorCodeChannelUnsubscribeFailed is RTM_ERROR_CHANNEL_UNSUBSCRIBE_FAILED.
+	RtmErrorCodeChannelUnsubscribeFailed RtmErrorCode = C.RTM_ERROR_CHANNEL_UNSUBSCRIBE_FAILED
+	// RtmErrorCodeChannelEncryptMessageFailed is RTM_ERROR_CHANNEL_ENCRYPT_MESSAGE_FAILED.
+	RtmErrorCodeChannelEncryptMessageFailed RtmErrorCode = C.RTM_ERROR_CHANNEL_ENCRYPT_MESSAGE_FAILED
+	// RtmErrorCodeChannelPublishMessageFailed is RTM_ERROR_CHANNEL_PUBLISH_MESSAGE_FAILED.
+	RtmErrorCodeChannelPublishMessageFailed RtmErrorCode = C.RTM_ERROR_CHANNEL_PUBLISH_MESSAGE_FAILED
+	// RtmErrorCodeChannelPublishMessageTooFrequent is RTM_ERROR_CHANNEL_PUBLISH_MESSAGE_TOO_FREQUENT.
+	RtmErrorCodeChannelPublishMessageTooFrequent RtmErrorCode = C.RTM_ERROR_CHANNEL_PUBLISH_MESSAGE_TOO_FREQUENT
+	// RtmErrorCodeChannelPublishMessageTimeout is RTM_ERROR_CHANNEL_PUBLISH_MESSAGE_TIMEOUT.
+	RtmErrorCodeChannelPublishMessageTimeout RtmErrorCode = C.RTM_ERROR_CHANNEL_PUBLISH_MESSAGE_TIMEOUT
+	// RtmErrorCodeChannelNotConnected is RTM_ERROR_CHANNEL_NOT_CONNECTED.
+	RtmErrorCodeChannelNotConnected RtmErrorCode = C.RTM_ERROR_CHANNEL_NOT_CONNECTED
+	// RtmErrorCodeChannelLeaveFailed is RTM_ERROR_CHANNEL_LEAVE_FAILED.
+	RtmErrorCodeChannelLeaveFailed RtmErrorCode = C.RTM_ERROR_CHANNEL_LEAVE_FAILED
+	// RtmErrorCodeChannelCustomTypeLengthOverflow is RTM_ERROR_CHANNEL_CUSTOM_TYPE_LENGTH_OVERFLOW.
+	RtmErrorCodeChannelCustomTypeLengthOverflow RtmErrorCode = C.RTM_ERROR_CHANNEL_CUSTOM_TYPE_LENGTH_OVERFLOW
+	// RtmErrorCodeChannelInvalidCustomType is RTM_ERROR_CHANNEL_INVALID_CUSTOM_TYPE.
+	RtmErrorCodeChannelInvalidCustomType RtmErrorCode = C.RTM_ERROR_CHANNEL_INVALID_CUSTOM_TYPE
+	// RtmErrorCodeChannelUnsupportedMessageType is RTM_ERROR_CHANNEL_UNSUPPORTED_MESSAGE_TYPE.
+	RtmErrorCodeChannelUnsupportedMessageType RtmErrorCode = C.RTM_ERROR_CHANNEL_UNSUPPORTED_MESSAGE_TYPE
+	// RtmErrorCodeChannelPresenceNotReady is RTM_ERROR_CHANNEL_PRESENCE_NOT_READY.
+	RtmErrorCodeChannelPresenceNotReady RtmErrorCode = C.RTM_ERROR_CHANNEL_PRESENCE_NOT_READY
+	// RtmErrorCodeChannelReceiverOffline is RTM_ERROR_CHANNEL_RECEIVER_OFFLINE.
+	RtmErrorCodeChannelReceiverOffline RtmErrorCode = C.RTM_ERROR_CHANNEL_RECEIVER_OFFLINE
+	// RtmErrorCodeChannelSubscribePermissionDenied is RTM_ERROR_CHANNEL_SUBSCRIBE_PERMISSION_DENIED.
+	RtmErrorCodeChannelSubscribePermissionDenied RtmErrorCode = C.RTM_ERROR_CHANNEL_SUBSCRIBE_PERMISSION_DENIED
+	// RtmErrorCodeChannelPublishPermissionDenied is RTM_ERROR_CHANNEL_PUBLISH_PERMISSION_DENIED.
+	RtmErrorCodeChannelPublishPermissionDenied RtmErrorCode = C.RTM_ERROR_CHANNEL_PUBLISH_PERMISSION_DENIED
+	// RtmErrorCodeChannelSubscribeCanceled is RTM_ERROR_CHANNEL_SUBSCRIBE_CANCELED.
+	RtmErrorCodeChannelSubscribeCanceled RtmErrorCode = C.RTM_ERROR_CHANNEL_SUBSCRIBE_CANCELED
+	// RtmErrorCodeStorageOperationFailed is RTM_ERROR_STORAGE_OPERATION_FAILED.
+	RtmErrorCodeStorageOperationFailed RtmErrorCode = C.RTM_ERROR_STORAGE_OPERATION_FAILED
+	// RtmErrorCodeStorageMetadataItemExceedLimitation is RTM_ERROR_STORAGE_METADATA_ITEM_EXCEED_LIMITATION.
+	RtmErrorCodeStorageMetadataItemExceedLimitation RtmErrorCode = C.RTM_ERROR_STORAGE_METADATA_ITEM_EXCEED_LIMITATION
+	// RtmErrorCodeStorageInvalidMetadataItem is RTM_ERROR_STORAGE_INVALID_METADATA_ITEM.
+	RtmErrorCodeStorageInvalidMetadataItem RtmErrorCode = C.RTM_ERROR_STORAGE_INVALID_METADATA_ITEM
+	// RtmErrorCodeStorageInvalidArgument is RTM_ERROR_STORAGE_INVALID_ARGUMENT.
+	RtmErrorCodeStorageInvalidArgument RtmErrorCode = C.RTM_ERROR_STORAGE_INVALID_ARGUMENT
+	// RtmErrorCodeStorageInvalidRevision is RTM_ERROR_STORAGE_INVALID_REVISION.
+	RtmErrorCodeStorageInvalidRevision RtmErrorCode = C.RTM_ERROR_STORAGE_INVALID_REVISION
+	// RtmErrorCodeStorageMetadataLengthOverflow is RTM_ERROR_STORAGE_METADATA_LENGTH_OVERFLOW.
+	RtmErrorCodeStorageMetadataLengthOverflow RtmErrorCode = C.RTM_ERROR_STORAGE_METADATA_LENGTH_OVERFLOW
+	// RtmErrorCodeStorageInvalidLockName is RTM_ERROR_STORAGE_INVALID_LOCK_NAME.
+	RtmErrorCodeStorageInvalidLockName RtmErrorCode = C.RTM_ERROR_STORAGE_INVALID_LOCK_NAME
+	// RtmErrorCodeStorageLockNotAcquired is RTM_ERROR_STORAGE_LOCK_NOT_ACQUIRED.
+	RtmErrorCodeStorageLockNotAcquired RtmErrorCode = C.RTM_ERROR_STORAGE_LOCK_NOT_ACQUIRED
+	// RtmErrorCodeStorageInvalidKey is RTM_ERROR_STORAGE_INVALID_KEY.
+	RtmErrorCodeStorageInvalidKey RtmErrorCode = C.RTM_ERROR_STORAGE_INVALID_KEY
+	// RtmErrorCodeStorageInvalidValue is RTM_ERROR_STORAGE_INVALID_VALUE.
+	RtmErrorCodeStorageInvalidValue RtmErrorCode = C.RTM_ERROR_STORAGE_INVALID_VALUE
+	// RtmErrorCodeStorageKeyLengthOverflow is RTM_ERROR_STORAGE_KEY_LENGTH_OVERFLOW.
+	RtmErrorCodeStorageKeyLengthOverflow RtmErrorCode = C.RTM_ERROR_STORAGE_KEY_LENGTH_OVERFLOW
+	// RtmErrorCodeStorageValueLengthOverflow is RTM_ERROR_STORAGE_VALUE_LENGTH_OVERFLOW.
+	RtmErrorCodeStorageValueLengthOverflow RtmErrorCode = C.RTM_ERROR_STORAGE_VALUE_LENGTH_OVERFLOW
+	// RtmErrorCodeStorageDuplicateKey is RTM_ERROR_STORAGE_DUPLICATE_KEY.
+	RtmErrorCodeStorageDuplicateKey RtmErrorCode = C.RTM_ERROR_STORAGE_DUPLICATE_KEY
+	// RtmErrorCodeStorageOutdatedRevision is RTM_ERROR_STORAGE_OUTDATED_REVISION.
+	RtmErrorCodeStorageOutdatedRevision RtmErrorCode = C.RTM_ERROR_STORAGE_OUTDATED_REVISION
+	// RtmErrorCodeStorageNotSubscribe is RTM_ERROR_STORAGE_NOT_SUBSCRIBE.
+	RtmErrorCodeStorageNotSubscribe RtmErrorCode = C.RTM_ERROR_STORAGE_NOT_SUBSCRIBE
+	// RtmErrorCodeStorageInvalidMetadataInstance is RTM_ERROR_STORAGE_INVALID_METADATA_INSTANCE.
+	RtmErrorCodeStorageInvalidMetadataInstance RtmErrorCode = C.RTM_ERROR_STORAGE_INVALID_METADATA_INSTANCE
+	// RtmErrorCodeStorageSubscribeUserExceedLimitation is RTM_ERROR_STORAGE_SUBSCRIBE_USER_EXCEED_LIMITATION.
+	RtmErrorCodeStorageSubscribeUserExceedLimitation RtmErrorCode = C.RTM_ERROR_STORAGE_SUBSCRIBE_USER_EXCEED_LIMITATION
+	// RtmErrorCodeStorageOperationTimeout is RTM_ERROR_STORAGE_OPERATION_TIMEOUT.
+	RtmErrorCodeStorageOperationTimeout RtmErrorCode = C.RTM_ERROR_STORAGE_OPERATION_TIMEOUT
+	// RtmErrorCodeStorageNotAvailable is RTM_ERROR_STORAGE_NOT_AVAILABLE.
+	RtmErrorCodeStorageNotAvailable RtmErrorCode = C.RTM_ERROR_STORAGE_NOT_AVAILABLE
+	// RtmErrorCodeStoragePermissionDenied is RTM_ERROR_STORAGE_PERMISSION_DENIED.
+	RtmErrorCodeStoragePermissionDenied RtmErrorCode = C.RTM_ERROR_STORAGE_PERMISSION_DENIED
+	// RtmErrorCodePresenceNotConnected is RTM_ERROR_PRESENCE_NOT_CONNECTED.
+	RtmErrorCodePresenceNotConnected RtmErrorCode = C.RTM_ERROR_PRESENCE_NOT_CONNECTED
+	// RtmErrorCodePresenceNotWritable is RTM_ERROR_PRESENCE_NOT_WRITABLE.
+	RtmErrorCodePresenceNotWritable RtmErrorCode = C.RTM_ERROR_PRESENCE_NOT_WRITABLE
+	// RtmErrorCodePresenceInvalidArgument is RTM_ERROR_PRESENCE_INVALID_ARGUMENT.
+	RtmErrorCodePresenceInvalidArgument RtmErrorCode = C.RTM_ERROR_PRESENCE_INVALID_ARGUMENT
+	// RtmErrorCodePresenceCachedTooManyStates is RTM_ERROR_PRESENCE_CACHED_TOO_MANY_STATES.
+	RtmErrorCodePresenceCachedTooManyStates RtmErrorCode = C.RTM_ERROR_PRESENCE_CACHED_TOO_MANY_STATES
+	// RtmErrorCodePresenceStateCountOverflow is RTM_ERROR_PRESENCE_STATE_COUNT_OVERFLOW.
+	RtmErrorCodePresenceStateCountOverflow RtmErrorCode = C.RTM_ERROR_PRESENCE_STATE_COUNT_OVERFLOW
+	// RtmErrorCodePresenceInvalidStateKey is RTM_ERROR_PRESENCE_INVALID_STATE_KEY.
+	RtmErrorCodePresenceInvalidStateKey RtmErrorCode = C.RTM_ERROR_PRESENCE_INVALID_STATE_KEY
+	// RtmErrorCodePresenceInvalidStateValue is RTM_ERROR_PRESENCE_INVALID_STATE_VALUE.
+	RtmErrorCodePresenceInvalidStateValue RtmErrorCode = C.RTM_ERROR_PRESENCE_INVALID_STATE_VALUE
+	// RtmErrorCodePresenceStateKeySizeOverflow is RTM_ERROR_PRESENCE_STATE_KEY_SIZE_OVERFLOW.
+	RtmErrorCodePresenceStateKeySizeOverflow RtmErrorCode = C.RTM_ERROR_PRESENCE_STATE_KEY_SIZE_OVERFLOW
+	// RtmErrorCodePresenceStateValueSizeOverflow is RTM_ERROR_PRESENCE_STATE_VALUE_SIZE_OVERFLOW.
+	RtmErrorCodePresenceStateValueSizeOverflow RtmErrorCode = C.RTM_ERROR_PRESENCE_STATE_VALUE_SIZE_OVERFLOW
+	// RtmErrorCodePresenceStateDuplicateKey is RTM_ERROR_PRESENCE_STATE_DUPLICATE_KEY.
+	RtmErrorCodePresenceStateDuplicateKey RtmErrorCode = C.RTM_ERROR_PRESENCE_STATE_DUPLICATE_KEY
+	// RtmErrorCodePresenceUserNotExist is RTM_ERROR_PRESENCE_USER_NOT_EXIST.
+	RtmErrorCodePresenceUserNotExist RtmErrorCode = C.RTM_ERROR_PRESENCE_USER_NOT_EXIST
+	// RtmErrorCodePresenceOperationTimeout is RTM_ERROR_PRESENCE_OPERATION_TIMEOUT.
+	RtmErrorCodePresenceOperationTimeout RtmErrorCode = C.RTM_ERROR_PRESENCE_OPERATION_TIMEOUT
+	// RtmErrorCodePresenceOperationFailed is RTM_ERROR_PRESENCE_OPERATION_FAILED.
+	RtmErrorCodePresenceOperationFailed RtmErrorCode = C.RTM_ERROR_PRESENCE_OPERATION_FAILED
+	// RtmErrorCodePresenceInactive is RTM_ERROR_PRESENCE_INACTIVE.
+	RtmErrorCodePresenceInactive RtmErrorCode = C.RTM_ERROR_PRESENCE_INACTIVE
+	// RtmErrorCodePresencePendingRequestCancelled is RTM_ERROR_PRESENCE_PENDING_REQUEST_CANCELLED.
+	RtmErrorCodePresencePendingRequestCancelled RtmErrorCode = C.RTM_ERROR_PRESENCE_PENDING_REQUEST_CANCELLED
+	// RtmErrorCodePresencePendingRequestExceedLimitation is RTM_ERROR_PRESENCE_PENDING_REQUEST_EXCEED_LIMITATION.
+	RtmErrorCodePresencePendingRequestExceedLimitation RtmErrorCode = C.RTM_ERROR_PRESENCE_PENDING_REQUEST_EXCEED_LIMITATION
+	// RtmErrorCodeLockOperationFailed is RTM_ERROR_LOCK_OPERATION_FAILED.
+	RtmErrorCodeLockOperationFailed RtmErrorCode = C.RTM_ERROR_LOCK_OPERATION_FAILED
+	// RtmErrorCodeLockOperationTimeout is RTM_ERROR_LOCK_OPERATION_TIMEOUT.
+	RtmErrorCodeLockOperationTimeout RtmErrorCode = C.RTM_ERROR_LOCK_OPERATION_TIMEOUT
+	// RtmErrorCodeLockOperationPerforming is RTM_ERROR_LOCK_OPERATION_PERFORMING.
+	RtmErrorCodeLockOperationPerforming RtmErrorCode = C.RTM_ERROR_LOCK_OPERATION_PERFORMING
+	// RtmErrorCodeLockAlreadyExist is RTM_ERROR_LOCK_ALREADY_EXIST.
+	RtmErrorCodeLockAlreadyExist RtmErrorCode = C.RTM_ERROR_LOCK_ALREADY_EXIST
+	// RtmErrorCodeLockInvalidName is RTM_ERROR_LOCK_INVALID_NAME.
+	RtmErrorCodeLockInvalidName RtmErrorCode = C.RTM_ERROR_LOCK_INVALID_NAME
+	// RtmErrorCodeLockNotAcquired is RTM_ERROR_LOCK_NOT_ACQUIRED.
+	RtmErrorCodeLockNotAcquired RtmErrorCode = C.RTM_ERROR_LOCK_NOT_ACQUIRED
+	// RtmErrorCodeLockAcquireFailed is RTM_ERROR_LOCK_ACQUIRE_FAILED.
+	RtmErrorCodeLockAcquireFailed RtmErrorCode = C.RTM_ERROR_LOCK_ACQUIRE_FAILED
+	// RtmErrorCodeLockNotExist is RTM_ERROR_LOCK_NOT_EXIST.
+	RtmErrorCodeLockNotExist RtmErrorCode = C.RTM_ERROR_LOCK_NOT_EXIST
+	// RtmErrorCodeLockNotAvailable is RTM_ERROR_LOCK_NOT_AVAILABLE.
+	RtmErrorCodeLockNotAvailable RtmErrorCode = C.RTM_ERROR_LOCK_NOT_AVAILABLE
+	// RtmErrorCodeLockPermissionDenied is RTM_ERROR_LOCK_PERMISSION_DENIED.
+	RtmErrorCodeLockPermissionDenied RtmErrorCode = C.RTM_ERROR_LOCK_PERMISSION_DENIED
+	// RtmErrorCodeHistoryPermissionDenied is RTM_ERROR_HISTORY_PERMISSION_DENIED.
+	RtmErrorCodeHistoryPermissionDenied RtmErrorCode = C.RTM_ERROR_HISTORY_PERMISSION_DENIED
+)
+
+// RtmStorageEventType preserves the native RTM_STORAGE_EVENT_TYPE enumeration.
+type RtmStorageEventType int
+
+const (
+	// RtmStorageEventTypeNone is RTM_STORAGE_EVENT_TYPE_NONE.
+	RtmStorageEventTypeNone RtmStorageEventType = C.RTM_STORAGE_EVENT_TYPE_NONE
+	// RtmStorageEventTypeSnapshot is RTM_STORAGE_EVENT_TYPE_SNAPSHOT.
+	RtmStorageEventTypeSnapshot RtmStorageEventType = C.RTM_STORAGE_EVENT_TYPE_SNAPSHOT
+	// RtmStorageEventTypeSet is RTM_STORAGE_EVENT_TYPE_SET.
+	RtmStorageEventTypeSet RtmStorageEventType = C.RTM_STORAGE_EVENT_TYPE_SET
+	// RtmStorageEventTypeUpdate is RTM_STORAGE_EVENT_TYPE_UPDATE.
+	RtmStorageEventTypeUpdate RtmStorageEventType = C.RTM_STORAGE_EVENT_TYPE_UPDATE
+	// RtmStorageEventTypeRemove is RTM_STORAGE_EVENT_TYPE_REMOVE.
+	RtmStorageEventTypeRemove RtmStorageEventType = C.RTM_STORAGE_EVENT_TYPE_REMOVE
+)
+
+// RtmLockEventType preserves the native RTM_LOCK_EVENT_TYPE enumeration.
+type RtmLockEventType int
+
+const (
+	// RtmLockEventTypeNone is RTM_LOCK_EVENT_TYPE_NONE.
+	RtmLockEventTypeNone RtmLockEventType = C.RTM_LOCK_EVENT_TYPE_NONE
+	// RtmLockEventTypeSnapshot is RTM_LOCK_EVENT_TYPE_SNAPSHOT.
+	RtmLockEventTypeSnapshot RtmLockEventType = C.RTM_LOCK_EVENT_TYPE_SNAPSHOT
+	// RtmLockEventTypeLockSet is RTM_LOCK_EVENT_TYPE_LOCK_SET.
+	RtmLockEventTypeLockSet RtmLockEventType = C.RTM_LOCK_EVENT_TYPE_LOCK_SET
+	// RtmLockEventTypeLockRemoved is RTM_LOCK_EVENT_TYPE_LOCK_REMOVED.
+	RtmLockEventTypeLockRemoved RtmLockEventType = C.RTM_LOCK_EVENT_TYPE_LOCK_REMOVED
+	// RtmLockEventTypeLockAcquired is RTM_LOCK_EVENT_TYPE_LOCK_ACQUIRED.
+	RtmLockEventTypeLockAcquired RtmLockEventType = C.RTM_LOCK_EVENT_TYPE_LOCK_ACQUIRED
+	// RtmLockEventTypeLockReleased is RTM_LOCK_EVENT_TYPE_LOCK_RELEASED.
+	RtmLockEventTypeLockReleased RtmLockEventType = C.RTM_LOCK_EVENT_TYPE_LOCK_RELEASED
+	// RtmLockEventTypeLockExpired is RTM_LOCK_EVENT_TYPE_LOCK_EXPIRED.
+	RtmLockEventTypeLockExpired RtmLockEventType = C.RTM_LOCK_EVENT_TYPE_LOCK_EXPIRED
+)
+
+// RtmTopicEventType preserves the native RTM_TOPIC_EVENT_TYPE enumeration.
+type RtmTopicEventType int
+
+const (
+	// RtmTopicEventTypeNone is RTM_TOPIC_EVENT_TYPE_NONE.
+	RtmTopicEventTypeNone RtmTopicEventType = C.RTM_TOPIC_EVENT_TYPE_NONE
+	// RtmTopicEventTypeSnapshot is RTM_TOPIC_EVENT_TYPE_SNAPSHOT.
+	RtmTopicEventTypeSnapshot RtmTopicEventType = C.RTM_TOPIC_EVENT_TYPE_SNAPSHOT
+	// RtmTopicEventTypeRemoteJoinTopic is RTM_TOPIC_EVENT_TYPE_REMOTE_JOIN_TOPIC.
+	RtmTopicEventTypeRemoteJoinTopic RtmTopicEventType = C.RTM_TOPIC_EVENT_TYPE_REMOTE_JOIN_TOPIC
+	// RtmTopicEventTypeRemoteLeaveTopic is RTM_TOPIC_EVENT_TYPE_REMOTE_LEAVE_TOPIC.
+	RtmTopicEventTypeRemoteLeaveTopic RtmTopicEventType = C.RTM_TOPIC_EVENT_TYPE_REMOTE_LEAVE_TOPIC
+)
+
+// RtmPresenceEventType preserves the native RTM_PRESENCE_EVENT_TYPE enumeration.
+type RtmPresenceEventType int
+
+const (
+	// RtmPresenceEventTypeNone is RTM_PRESENCE_EVENT_TYPE_NONE.
+	RtmPresenceEventTypeNone RtmPresenceEventType = C.RTM_PRESENCE_EVENT_TYPE_NONE
+	// RtmPresenceEventTypeSnapshot is RTM_PRESENCE_EVENT_TYPE_SNAPSHOT.
+	RtmPresenceEventTypeSnapshot RtmPresenceEventType = C.RTM_PRESENCE_EVENT_TYPE_SNAPSHOT
+	// RtmPresenceEventTypeInterval is RTM_PRESENCE_EVENT_TYPE_INTERVAL.
+	RtmPresenceEventTypeInterval RtmPresenceEventType = C.RTM_PRESENCE_EVENT_TYPE_INTERVAL
+	// RtmPresenceEventTypeRemoteJoinChannel is RTM_PRESENCE_EVENT_TYPE_REMOTE_JOIN_CHANNEL.
+	RtmPresenceEventTypeRemoteJoinChannel RtmPresenceEventType = C.RTM_PRESENCE_EVENT_TYPE_REMOTE_JOIN_CHANNEL
+	// RtmPresenceEventTypeRemoteLeaveChannel is RTM_PRESENCE_EVENT_TYPE_REMOTE_LEAVE_CHANNEL.
+	RtmPresenceEventTypeRemoteLeaveChannel RtmPresenceEventType = C.RTM_PRESENCE_EVENT_TYPE_REMOTE_LEAVE_CHANNEL
+	// RtmPresenceEventTypeRemoteTimeout is RTM_PRESENCE_EVENT_TYPE_REMOTE_TIMEOUT.
+	RtmPresenceEventTypeRemoteTimeout RtmPresenceEventType = C.RTM_PRESENCE_EVENT_TYPE_REMOTE_TIMEOUT
+	// RtmPresenceEventTypeRemoteStateChanged is RTM_PRESENCE_EVENT_TYPE_REMOTE_STATE_CHANGED.
+	RtmPresenceEventTypeRemoteStateChanged RtmPresenceEventType = C.RTM_PRESENCE_EVENT_TYPE_REMOTE_STATE_CHANGED
+	// RtmPresenceEventTypeErrorOutOfService is RTM_PRESENCE_EVENT_TYPE_ERROR_OUT_OF_SERVICE.
+	RtmPresenceEventTypeErrorOutOfService RtmPresenceEventType = C.RTM_PRESENCE_EVENT_TYPE_ERROR_OUT_OF_SERVICE
+)

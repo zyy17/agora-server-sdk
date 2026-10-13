@@ -29,11 +29,15 @@ type RtmConfig struct {
 	Context           unsafe.Pointer
 	UseStringUserId   bool
 	Multipath         bool
-	EventHandler      *RtmEventHandler
-	LogConfig         *RtmLogConfig
-	ProxyConfig       *RtmProxyConfig
-	EncryptionConfig  *RtmEncryptionConfig
-	PrivateConfig     *RtmPrivateConfig
+	// ISPPolicyEnabled connects through domain names for ISP-restricted devices.
+	ISPPolicyEnabled bool
+	// Parameters is optional JSON configuration applied during creation.
+	Parameters       string
+	EventHandler     *RtmEventHandler
+	LogConfig        *RtmLogConfig
+	ProxyConfig      *RtmProxyConfig
+	EncryptionConfig *RtmEncryptionConfig
+	PrivateConfig    *RtmPrivateConfig
 }
 
 /**
@@ -375,6 +379,7 @@ type rtmClientConfigResources struct {
 	config     *C.struct_C_RtmConfig
 	appID      *C.char
 	userID     *C.char
+	parameters *C.char
 	log        *C.struct_C_RtmLogConfig
 	encryption *C.struct_C_RtmEncryptionConfig
 	proxy      *C.struct_C_RtmProxyConfig
@@ -401,6 +406,11 @@ func (resources *rtmClientConfigResources) populate(config *RtmConfig) {
 	cConfig.heartbeatInterval = C.uint32_t(config.HeartbeatInterval)
 	cConfig.reconnectTimeout = C.uint32_t(config.ReconnectTimeout)
 	cConfig.multipath = C.bool(config.Multipath)
+	cConfig.ispPolicyEnabled = C.bool(config.ISPPolicyEnabled)
+	if config.Parameters != "" {
+		resources.parameters = C.CString(config.Parameters)
+		cConfig.parameters = resources.parameters
+	}
 	cConfig.context = config.Context
 	cConfig.useStringUserId = C.bool(config.UseStringUserId)
 
@@ -441,6 +451,7 @@ func (resources *rtmClientConfigResources) free() {
 	freeRtmProxyConfig(unsafe.Pointer(resources.proxy))
 	freeRtmEncryptionConfig(unsafe.Pointer(resources.encryption))
 	freeRtmLogConfig(unsafe.Pointer(resources.log))
+	C.free(unsafe.Pointer(resources.parameters))
 	C.free(unsafe.Pointer(resources.userID))
 	C.free(unsafe.Pointer(resources.appID))
 	C.C_RtmConfig_Delete(resources.config)
