@@ -70,7 +70,7 @@ func TestEncodedVideoParity(t *testing.T) {
 				t.Fatal(err)
 			}
 			n := f.nativeInfo()
-			if n.FrameType != rtc.VideoFrameType(kind) || n.TrackId != -7 || n.Uid != math.MaxUint32 || n.CodecType != rtc.VideoCodecType(codec) || n.StreamType != -3 {
+			if receivedVideoFrameType(n.FrameType) != kind || n.TrackId != -7 || n.Uid != math.MaxUint32 || n.CodecType != rtc.VideoCodecType(codec) || n.StreamType != -3 {
 				t.Fatalf("lost metadata: %+v", n)
 			}
 		}
@@ -157,6 +157,71 @@ func TestVideoEncoderAndSimulcastBounds(t *testing.T) {
 	for _, c := range []rtc.SimulcastStreamConfig{{}, {Width: 320, Height: 240, Framerate: 241}, {Width: 320, Height: 240, Framerate: 15, Bitrate: math.MaxInt32 + 1}} {
 		if err := validateSimulcast(true, c); !errors.Is(err, ErrInvalidConfig) {
 			t.Fatal(c, err)
+		}
+	}
+}
+
+func TestEncodedVideoFrameTypeDefaultsAndExplicitMapping(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		kind    VideoFrameType
+		key     bool
+		want    rtc.VideoFrameType
+		invalid bool
+	}{
+		{name: "zero delta", want: rtc.VideoFrameTypeDeltaFrame},
+		{name: "zero key", key: true, want: rtc.VideoFrameTypeKeyFrame},
+		{name: "explicit blank", kind: VideoFrameBlank, want: rtc.VideoFrameTypeBlankFrame},
+		{name: "explicit key", kind: VideoFrameKey, want: rtc.VideoFrameTypeKeyFrame},
+		{name: "explicit key convenience", kind: VideoFrameKey, key: true, want: rtc.VideoFrameTypeKeyFrame},
+		{name: "explicit delta", kind: VideoFrameDelta, want: rtc.VideoFrameTypeDeltaFrame},
+		{name: "explicit B", kind: VideoFrameB, want: rtc.VideoFrameTypeBFrame},
+		{name: "explicit droppable", kind: VideoFrameDroppable, want: rtc.VideoFrameTypeDroppableFrame},
+		{name: "explicit unknown", kind: VideoFrameUnknown, want: rtc.VideoFrameTypeUnknown},
+		{name: "blank key conflict", kind: VideoFrameBlank, key: true, invalid: true},
+		{name: "delta key conflict", kind: VideoFrameDelta, key: true, invalid: true},
+		{name: "B key conflict", kind: VideoFrameB, key: true, invalid: true},
+		{name: "droppable key conflict", kind: VideoFrameDroppable, key: true, invalid: true},
+		{name: "unknown key conflict", kind: VideoFrameUnknown, key: true, invalid: true},
+		{name: "invalid enum", kind: 100, invalid: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := EncodedVideoFrame{Data: []byte{1}, Codec: H264, Width: 2, Height: 2, FrameType: tt.kind, KeyFrame: tt.key}
+			err := f.validate()
+			if tt.invalid {
+				if !errors.Is(err, ErrInvalidConfig) {
+					t.Fatal(err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := f.nativeInfo().FrameType; got != tt.want {
+				t.Fatalf("frame type = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEncodedVideoFrameTypeReceiveSendRoundTrip(t *testing.T) {
+	for _, nativeKind := range []rtc.VideoFrameType{rtc.VideoFrameTypeBlankFrame, rtc.VideoFrameTypeKeyFrame, rtc.VideoFrameTypeDeltaFrame, rtc.VideoFrameTypeBFrame, rtc.VideoFrameTypeDroppableFrame, rtc.VideoFrameTypeUnknown} {
+		s := &Session{encodedVideo: newStream[ReceivedEncodedVideo](1)}
+		info := &rtc.EncodedVideoFrameInfo{CodecType: rtc.VideoCodecTypeH264, Width: 2, Height: 2, FrameType: nativeKind}
+		s.encodedVideoObserver().OnEncodedVideoFrame("room", "alice", []byte{1}, info)
+		frame, err := s.encodedVideo.Next(context.Background())
+		s.encodedVideo.close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if frame.Frame.FrameType == VideoFrameAuto {
+			t.Fatal("receive returned send-only automatic type")
+		}
+		if err := frame.Frame.validate(); err != nil {
+			t.Fatal(err)
+		}
+		if got := frame.Frame.nativeInfo().FrameType; got != nativeKind {
+			t.Fatalf("native type %d round-tripped as %d", nativeKind, got)
 		}
 	}
 }

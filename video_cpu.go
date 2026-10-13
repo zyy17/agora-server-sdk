@@ -66,23 +66,74 @@ type CPUVideoFrame struct {
 	ColorSpace      ColorSpace
 }
 
-// VideoFrameType preserves all frame classifications from the native SDK.
+// VideoFrameType selects an encoded-frame classification. These high-level
+// values are independent of rtc.VideoFrameType; do not cast between the enums.
+// VideoFrameAuto is send-only convenience. Received frames use an explicit
+// classification, preserving all types in the pinned native SDK on retransmit.
 type VideoFrameType int
 
 const (
-	// VideoFrameBlank is the native blank/default classification.
-	VideoFrameBlank VideoFrameType = VideoFrameType(rtc.VideoFrameTypeBlankFrame)
+	// VideoFrameAuto selects key when EncodedVideoFrame.KeyFrame is true, and
+	// delta otherwise. It is the zero value and is never returned by reception.
+	VideoFrameAuto VideoFrameType = iota
+	// VideoFrameBlank explicitly selects the native blank classification.
+	VideoFrameBlank
 	// VideoFrameKey is independently decodable.
-	VideoFrameKey VideoFrameType = VideoFrameType(rtc.VideoFrameTypeKeyFrame)
+	VideoFrameKey
 	// VideoFrameDelta depends on prior decoded frames.
-	VideoFrameDelta VideoFrameType = VideoFrameType(rtc.VideoFrameTypeDeltaFrame)
+	VideoFrameDelta
 	// VideoFrameB is a bidirectionally predicted frame.
-	VideoFrameB VideoFrameType = VideoFrameType(rtc.VideoFrameTypeBFrame)
+	VideoFrameB
 	// VideoFrameDroppable is eligible for dropping by the native pipeline.
-	VideoFrameDroppable VideoFrameType = VideoFrameType(rtc.VideoFrameTypeDroppableFrame)
-	// VideoFrameUnknown preserves an unknown frame classification.
-	VideoFrameUnknown VideoFrameType = VideoFrameType(rtc.VideoFrameTypeUnknown)
+	VideoFrameDroppable
+	// VideoFrameUnknown explicitly selects the native unknown classification.
+	// Unrecognized classifications from a newer native SDK are also reported here.
+	VideoFrameUnknown
 )
+
+func receivedVideoFrameType(kind rtc.VideoFrameType) VideoFrameType {
+	switch kind {
+	case rtc.VideoFrameTypeBlankFrame:
+		return VideoFrameBlank
+	case rtc.VideoFrameTypeKeyFrame:
+		return VideoFrameKey
+	case rtc.VideoFrameTypeDeltaFrame:
+		return VideoFrameDelta
+	case rtc.VideoFrameTypeBFrame:
+		return VideoFrameB
+	case rtc.VideoFrameTypeDroppableFrame:
+		return VideoFrameDroppable
+	default:
+		return VideoFrameUnknown
+	}
+}
+
+func (f EncodedVideoFrame) nativeFrameType() (rtc.VideoFrameType, error) {
+	if f.KeyFrame && f.FrameType != VideoFrameAuto && f.FrameType != VideoFrameKey {
+		return 0, invalid("video frame type", "conflicts with KeyFrame")
+	}
+	switch f.FrameType {
+	case VideoFrameAuto:
+		if f.KeyFrame {
+			return rtc.VideoFrameTypeKeyFrame, nil
+		}
+		return rtc.VideoFrameTypeDeltaFrame, nil
+	case VideoFrameBlank:
+		return rtc.VideoFrameTypeBlankFrame, nil
+	case VideoFrameKey:
+		return rtc.VideoFrameTypeKeyFrame, nil
+	case VideoFrameDelta:
+		return rtc.VideoFrameTypeDeltaFrame, nil
+	case VideoFrameB:
+		return rtc.VideoFrameTypeBFrame, nil
+	case VideoFrameDroppable:
+		return rtc.VideoFrameTypeDroppableFrame, nil
+	case VideoFrameUnknown:
+		return rtc.VideoFrameTypeUnknown, nil
+	default:
+		return 0, invalid("video frame type", "is unknown")
+	}
+}
 
 func (f CPUVideoFrame) nativeFrame() rtc.ExternalVideoFrame {
 	kind := rtc.VideoBufferRawData

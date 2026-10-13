@@ -111,9 +111,10 @@ type EncodedVideoFrame struct {
 	// Width and Height are in pixels, each 1–16384. FPS is the declared frame
 	// rate in 0–240; zero is forwarded to the native SDK without a wrapper default.
 	Width, Height, FPS int
-	// FrameType preserves the native frame classification. Its zero value is blank.
-	// KeyFrame is a convenience: true overrides a blank/default FrameType only;
-	// combining true with an explicit non-key FrameType is rejected.
+	// FrameType defaults to VideoFrameAuto: KeyFrame selects key when true,
+	// delta otherwise. Explicit classifications preserve native frame types,
+	// including VideoFrameBlank. KeyFrame=true conflicts with an explicit
+	// non-key classification, including Blank; false does not override FrameType.
 	FrameType VideoFrameType
 	KeyFrame  bool
 	// TrackID is the signed native track identifier. UID is the native numeric
@@ -155,7 +156,7 @@ func (s *Session) encodedVideoObserver() *rtc.VideoEncodedFrameObserver {
 		if i == nil {
 			return true
 		}
-		frame := ReceivedEncodedVideo{channel, uid, EncodedVideoFrame{Data: slices.Clone(data), Codec: VideoCodec(i.CodecType), Width: i.Width, Height: i.Height, FPS: i.FramesPerSecond, FrameType: VideoFrameType(i.FrameType), KeyFrame: i.FrameType == rtc.VideoFrameTypeKeyFrame, TrackID: i.TrackId, UID: i.Uid, TimestampMillis: i.CaptureTimeMs, DecodeTimestampMillis: i.DecodeTimeMs, PresentationMillis: i.PresentTimeMs, Rotation: int(i.Rotation), StreamID: i.StreamType, SEI: slices.Clone(i.SeiData)}}
+		frame := ReceivedEncodedVideo{channel, uid, EncodedVideoFrame{Data: slices.Clone(data), Codec: VideoCodec(i.CodecType), Width: i.Width, Height: i.Height, FPS: i.FramesPerSecond, FrameType: receivedVideoFrameType(i.FrameType), KeyFrame: i.FrameType == rtc.VideoFrameTypeKeyFrame, TrackID: i.TrackId, UID: i.Uid, TimestampMillis: i.CaptureTimeMs, DecodeTimestampMillis: i.DecodeTimeMs, PresentationMillis: i.PresentTimeMs, Rotation: int(i.Rotation), StreamID: i.StreamType, SEI: slices.Clone(i.SeiData)}}
 		accepted := s.processEncodedVideoCallback(frame)
 		s.encodedVideo.push(frame)
 		return accepted
@@ -230,13 +231,8 @@ func (f EncodedVideoFrame) validate() error {
 	if len(f.SEI) != 0 && f.Codec != H264 && f.Codec != H265 {
 		return invalid("SEI", "insertion supports only H264 and H265")
 	}
-	switch f.FrameType {
-	case VideoFrameBlank, VideoFrameKey, VideoFrameDelta, VideoFrameB, VideoFrameDroppable, VideoFrameUnknown:
-	default:
-		return invalid("video frame type", "is unknown")
-	}
-	if f.KeyFrame && f.FrameType != VideoFrameBlank && f.FrameType != VideoFrameKey {
-		return invalid("video frame type", "conflicts with KeyFrame")
+	if _, err := f.nativeFrameType(); err != nil {
+		return err
 	}
 	if int64(f.TrackID) < math.MinInt32 || int64(f.TrackID) > math.MaxInt32 {
 		return invalid("video track ID", "must fit native int32")
@@ -248,10 +244,7 @@ func (f EncodedVideoFrame) validate() error {
 }
 
 func (f EncodedVideoFrame) nativeInfo() *rtc.EncodedVideoFrameInfo {
-	kind := rtc.VideoFrameType(f.FrameType)
-	if f.KeyFrame {
-		kind = rtc.VideoFrameTypeKeyFrame
-	}
+	kind, _ := f.nativeFrameType() // Callers validate before conversion.
 	return &rtc.EncodedVideoFrameInfo{CodecType: rtc.VideoCodecType(f.Codec), Width: f.Width, Height: f.Height, FramesPerSecond: f.FPS, FrameType: kind, TrackId: f.TrackID, Uid: f.UID, CaptureTimeMs: f.TimestampMillis, DecodeTimeMs: f.DecodeTimestampMillis, PresentTimeMs: f.PresentationMillis, Rotation: rtc.VideoOrientation(f.Rotation), StreamType: f.StreamID, SeiData: f.SEI}
 }
 

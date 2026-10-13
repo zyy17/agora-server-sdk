@@ -10,7 +10,7 @@
 - `SendPCMFrame`：显式指定采样数、PCM16 位宽、uint32 范围的采集时间戳及有符号 presentation 值。采样率/声道须匹配 `AudioConfig.Send`，不发送观察回调的统计字段。完整的亚毫秒采样可通过结构校验，实际支持由原生编码器决定。
 - `SendEncodedAudio`：覆盖全部具名原生音频编码，支持 `SendEvenIfEmpty`；`OpusMultiChannel` 支持 3–8 声道，其他编码为单/双声道。连接层将零采集时间戳改为 -1。不解析压缩内容。
 - `SendVideo`：紧凑 CPU 像素；`SendCPUVideo` 增加像素 stride、裁剪、色彩空间 ID、alpha 位置/提取及 raw/array 类型。两者共用原始发送器的布局校验。
-- `SendEncodedVideo`：透传 VP8、H264、H265、GenericVideo、GenericH264、AV1、VP9、JPEG 元数据。`FrameType` 保留 blank/key/delta/B/droppable/unknown，增加 `TrackID` 与数值 `UID`。`KeyFrame=true` 可将默认 blank 转为 key，但不能与显式非 key 类型冲突。SEI 插入仅支持 H264/H265。
+- `SendEncodedVideo`：透传 VP8、H264、H265、GenericVideo、GenericH264、AV1、VP9、JPEG 元数据。`FrameType` 保留 blank/key/delta/B/droppable/unknown，增加 `TrackID` 与数值 `UID`。`FrameType` 默认是 `VideoFrameAuto`：`KeyFrame=true` 选择 key，否则选择 delta；真正的 blank 帧须显式用 `VideoFrameBlank`。`KeyFrame=false` 不覆盖显式类型，true 与所有显式非 key 类型（包括 blank）冲突。高层帧类型值与 raw 枚举不同；接收时逐项映射固定原生类型，转发保持原分类。SEI 插入仅支持 H264/H265。
 - `ReceivedVideoFrame` 保留 Type、AVSyncType、AlphaMode、纹理 ID、变换矩阵及复制的平面。纹理 ID/矩阵仅为描述信息，不代表拥有 GPU 资源；不暴露借用的 shared context。编码视频接收保留原始帧类型、track ID 和 UID。
 
 发送是同步且不节流的，只报告本地原生接收结果；返回前勿修改输入切片。接收切片由 Go 拥有，回调及 Close 后仍有效。Stream 满时可能丢弃旧帧，应查看统计。每条轨道建议只有一个生产者，以保持顺序。
