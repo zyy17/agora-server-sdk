@@ -27,6 +27,7 @@ Run sender and receiver in separate terminals with different `AGORA_USER_ID` val
 | Directory | Scenario |
 | --- | --- |
 | [send_pcm](send_pcm) | Pace a PCM file and estimate send completion |
+| [duplex_pcm](duplex_pcm/README.md) | Numeric UID, mono receive/stereo send, variable PCM chunks and caller PTS |
 | [recv_pcm](recv_pcm) | Save per-user PCM without audio hardware |
 | [loopback](loopback) | Return received PCM to the channel; avoid feedback loops |
 | [ai_audio](ai_audio) | VAD, interruption, volume and token/connection events |
@@ -35,7 +36,9 @@ Run sender and receiver in separate terminals with different `AGORA_USER_ID` val
 | [send_media](send_media) | Decode a local MP4/media file to paced PCM and raw video with a shared timestamp base |
 | [media](media) | Raw video, encoded audio/video and optional decode-and-publish |
 | [process_audio](process_audio) | External audio processing without joining a channel |
+| [external_vad](external_vad/README.md) | Standalone mono/stereo VAD on local 10 ms PCM frames |
 | [messaging](messaging/README.md) | RTM pub/sub, presence, metadata, locks, history and topics |
+| [rtc_rtm](rtc_rtm/README.md) | Numeric RTC and independent RTM identities with opaque binary notifications |
 
 ```sh
 ./scripts/with_agora_env.sh go run ./examples/ai_audio -reply response.pcm
@@ -67,7 +70,7 @@ All receive modes require `-user` to avoid combining unrelated bitstreams and ov
 
 ## Safety and verification
 
-Running a channel-based RTC example joins a live channel and may send or record media; `process_audio` instead runs an external processor without joining. Use dedicated test resources and record only with the participants’ authorization. Build and offline test success do not establish live interoperability. RTM scenarios can mutate remote state; read their [specific operations](messaging/README.md) first.
+Running a channel-based RTC example joins a live channel and may send or record media; `process_audio` and `external_vad` instead process audio locally without joining. Use dedicated test resources and record only with the participants’ authorization. Build and offline test success do not establish live interoperability. RTM scenarios can mutate remote state; read their [specific operations](messaging/README.md) first. `duplex_pcm` and `rtc_rtm` explicitly opt into numeric RTC identities and require matching numeric-UID RTC tokens; see their READMEs before running.
 
 ## Send a media file
 

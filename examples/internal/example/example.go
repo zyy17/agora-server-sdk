@@ -5,15 +5,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	sdk "github.com/zyy17/agora-server-sdk"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	sdk "github.com/zyy17/agora-server-sdk"
 )
 
 func Main(run func() error) {
-	if err := run(); err != nil && !errors.Is(err, context.Canceled) {
+	if err := run(); err != nil && !onlyCanceled(err) {
 		log.Print(err)
 		os.Exit(1)
 	}
@@ -53,4 +54,27 @@ func Run(video bool, configure func(*sdk.ChannelConfig), run func(context.Contex
 		return err
 	}
 	return run(ctx, session)
+}
+
+// onlyCanceled preserves shutdown failures joined with normal cancellation.
+func onlyCanceled(err error) bool {
+	if err == nil {
+		return false
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		children := joined.Unwrap()
+		if len(children) == 0 {
+			return false
+		}
+		for _, child := range children {
+			if !onlyCanceled(child) {
+				return false
+			}
+		}
+		return true
+	}
+	if child := errors.Unwrap(err); child != nil {
+		return onlyCanceled(child)
+	}
+	return errors.Is(err, context.Canceled)
 }

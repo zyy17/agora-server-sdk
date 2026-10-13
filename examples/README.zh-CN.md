@@ -27,6 +27,7 @@ make build-examples
 | 目录 | 用途 |
 | --- | --- |
 | [send_pcm](send_pcm) | 按节奏发送 PCM 文件并估算完成时间 |
+| [duplex_pcm](duplex_pcm/README.zh-CN.md) | 数值 UID、单声道接收/双声道发送、可变 PCM 分块及调用方 PTS |
 | [recv_pcm](recv_pcm) | 保存逐用户 PCM，无需音频设备 |
 | [loopback](loopback) | 将接收到的 PCM 返回频道，注意避免反馈循环 |
 | [ai_audio](ai_audio) | VAD、打断、音量及 Token/连接事件 |
@@ -35,7 +36,9 @@ make build-examples
 | [send_media](send_media) | 将本地 MP4 等文件解码为按节奏发送的 PCM 和原始视频，使用共同时间戳基准 |
 | [media](media) | 原始视频、编码音视频与可选解码发布 |
 | [process_audio](process_audio) | 不入会的外部音频处理 |
+| [external_vad](external_vad/README.zh-CN.md) | 使用本地 10 ms PCM 帧的独立单声道/双声道 VAD |
 | [messaging](messaging/README.zh-CN.md) | RTM 消息、状态、元数据、锁、历史与 Topic |
+| [rtc_rtm](rtc_rtm/README.zh-CN.md) | 数值 RTC 与独立 RTM 身份，以及不透明二进制通知 |
 
 ```sh
 ./scripts/with_agora_env.sh go run ./examples/ai_audio -reply response.pcm
@@ -67,7 +70,7 @@ make build-examples
 
 ## 运行与验证
 
-运行频道类 RTC 示例会加入真实频道，并可能发送或录制媒体；`process_audio` 仅运行外部处理器，不入会。请使用专用测试资源，只在取得参与者授权后录制。构建及离线检查通过不代表已完成真实互通验证。RTM 示例可能修改远端状态，运行前先阅读[对应操作说明](messaging/README.zh-CN.md)。
+运行频道类 RTC 示例会加入真实频道，并可能发送或录制媒体；`process_audio` 和 `external_vad` 仅在本地处理音频，不入会。请使用专用测试资源，只在取得参与者授权后录制。构建及离线检查通过不代表已完成真实互通验证。RTM 示例可能修改远端状态，运行前先阅读[对应操作说明](messaging/README.zh-CN.md)。`duplex_pcm` 和 `rtc_rtm` 显式启用数值 RTC 身份，需要匹配数值 UID 的 RTC Token；运行前请阅读各自的 README。
 
 ## 发送媒体文件
 
