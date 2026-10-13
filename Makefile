@@ -73,4 +73,4 @@ test-avcodec: ## Test optional FFmpeg decoders (requires FFmpeg development pack
 	$(WITH_AGORA) $(GO) test -tags avcodec -count=1 ./...
 
 clean: ## Remove generated example binaries; preserve native SDK/cache.
-	rm -f "$(OUTPUT_BIN_PATH)/send_pcm" "$(OUTPUT_BIN_PATH)/recv_pcm" "$(OUTPUT_BIN_PATH)/loopback" "$(OUTPUT_BIN_PATH)/media" "$(OUTPUT_BIN_PATH)/messages" "$(OUTPUT_BIN_PATH)/multi_sessions" "$(OUTPUT_BIN_PATH)/ai_audio" "$(OUTPUT_BIN_PATH)/process_audio" "$(OUTPUT_BIN_PATH)/messaging" "$(OUTPUT_BIN_PATH)/send_media" "$(OUTPUT_BIN_PATH)/duplex_pcm" "$(OUTPUT_BIN_PATH)/external_vad" "$(OUTPUT_BIN_PATH)/rtc_rtm"
+	rm -f "$(OUTPUT_BIN_PATH)/send_pcm" "$(OUTPUT_BIN_PATH)/recv_pcm" "$(OUTPUT_BIN_PATH)/loopback" "$(OUTPUT_BIN_PATH)/media" "$(OUTPUT_BIN_PATH)/messages" "$(OUTPUT_BIN_PATH)/multi_sessions" "$(OUTPUT_BIN_PATH)/ai_audio" "$(OUTPUT_BIN_PATH)/process_audio" "$(OUTPUT_BIN_PATH)/messaging" "$(OUTPUT_BIN_PATH)/send_media" "$(OUTPUT_BIN_PATH)/duplex_pcm" "$(OUTPUT_BIN_PATH)/external_vad" "$(OUTPUT_BIN_PATH)/rtc_rtm" "$(OUTPUT_BIN_PATH)/voice_agent"
