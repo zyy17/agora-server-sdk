@@ -1,95 +1,95 @@
-# Development and deployment / 开发与部署
+# Development and deployment
 
-[English overview](../README.md) · [中文首页](../README.zh-CN.md)
+[简体中文](development.zh-CN.md) · [Home](../README.md)
 
-## Toolchain / 工具链
+## Toolchain and installation
 
-Use Go 1.27.2 and a native C/C++ toolchain. On Ubuntu, install `build-essential`, `curl`, and `unzip`. On macOS, install the Xcode Command Line Tools. The native SDK must match the headers and platform selected by the repository.
-
-使用 Go 1.27.2 和原生 C/C++ 工具链。Ubuntu 需要 `build-essential`、`curl`、`unzip`；macOS 需要 Xcode Command Line Tools。原生库必须与本仓库的头文件及平台配置匹配。
+Use Go 1.27.2 and a native C/C++ toolchain. Ubuntu requires `build-essential`, `curl`, and `unzip`; macOS requires Xcode Command Line Tools. Keep headers, libraries, OS, and architecture aligned with the repository pin. Linux amd64 is the primary target; upstream limits macOS to development/testing. Linux arm64 and Windows are not installer targets.
 
 ```sh
 make download-agora-libs
 make check
 ```
 
-The installer verifies checksums before replacing an installation. To use an already downloaded official archive:
-
-安装脚本先校验文件，再替换安装目录。使用已经下载的官方压缩包：
+The installer verifies the selected archive’s SHA-256, rejects unsafe/incomplete contents, and replaces an existing installation only after validation. To use an already downloaded matching official archive:
 
 ```sh
 ./scripts/download_agora_libs.sh --archive /path/to/sdk.zip
 ```
 
-- `AGORA_LIBS_DIR`: installed native library directory / 原生库安装目录
-- `AGORA_SDK_CACHE_DIR`: checksum-addressed archive cache / 按校验和保存的压缩包缓存
-- `scripts/sdk_versions.sh`: pinned URLs, versions and hashes / 固定下载地址、版本与校验和
-
-## Checks / 检查
-
-| Command | Purpose / 用途 |
+| Setting / file | Purpose |
 | --- | --- |
-| `make fmt` | Format Go files / 格式化 |
-| `make fmt-check` | Reject unformatted source / 检查格式 |
-| `make test-tooling` | Shell syntax and installer safety / 脚本及安装安全检查 |
-| `make lint` | Pinned Staticcheck on first-party APIs and examples / 高层 API 与示例静态检查 |
-| `make vet` | Vet all packages, including native bindings / 检查全部包 |
-| `make test` | Offline unit tests / 离线单测 |
-| `make race` | Go race detector / Go 竞态检测 |
-| `make build-examples` | Compile runnable examples / 编译示例 |
-| `make native-smoke` | Native lifecycle/linkage without joining a channel / 不入会的原生冒烟检查 |
-| `make check` | All default checks above / 默认完整检查 |
+| `AGORA_LIBS_DIR` | Install/library directory; default `agora_libs` in the checkout |
+| `AGORA_SDK_CACHE_DIR` | Checksum-addressed archive cache; default under the user cache directory |
+| `scripts/sdk_versions.sh` | Pinned toolchain/native versions, official URLs, SHA-256 values |
+| `scripts/with_agora_env.sh` | Validates installation, enables cgo, sets linker and runtime library paths |
+| `OUTPUT_BIN_PATH` | Example binary directory; default `bin` |
+| `GO` | Go executable used by Make; default `go` |
 
-Staticcheck covers the root API, `messaging`, `mediaio`, `token`, and examples; imported native bindings are covered by `go vet` and their tests. The Go race detector does not instrument the native SDK’s C/C++ internals.
+Do not replace a checksum to accept an arbitrary archive or mix an older native package with the vendored headers. Change URL/version/hash together only when intentionally upgrading the distribution and rerun native validation. `make sync-agora-libs-headers` refreshes vendored headers from the pinned Linux SDK; it changes tracked files and is not a normal installation step.
 
-Staticcheck 检查根包 API、`messaging`、`mediaio`、`token` 和示例；引入的原生绑定通过 `go vet` 及对应测试检查。Go race detector 不检测原生 SDK 内部的 C/C++ 竞态。
+## Offline checks
 
-CI runs the default offline checks on Linux amd64. It does not require Agora credentials or join a channel. Offline tests cannot establish real network, codec, token, or remote playback interoperability.
+| Command | Coverage |
+| --- | --- |
+| `make fmt` | Format all Go source; modifies files |
+| `make fmt-check` | Reject unformatted source |
+| `make test-tooling` | Shell syntax, installer transactions, archive safety |
+| `make lint` | Pinned Staticcheck v0.8.2 on first-party APIs and examples |
+| `make vet` | All Go packages, including native bindings |
+| `make test` | Offline unit tests |
+| `make race` | Offline tests with Go race detector |
+| `make build-examples` | Compile all executable examples |
+| `make native-smoke` | Credential-free native lifecycle with `cgocheck2` and race checks |
+| `make check` | All default checks above except mutating `fmt` |
+| `make test-avcodec` | Optional decoder tests; separate from `make check` |
+| `make clean` | Remove generated example binaries; keep SDK and caches |
 
-CI 在 Linux amd64 上运行默认离线检查，不需要 Agora 凭据，也不加入频道。离线测试不能证明真实网络、编解码、Token 或远端播放互通正确。
+Staticcheck covers the root package, `messaging`, `mediaio`, `token`, and examples; native bindings are covered by vet and tests. Go’s race detector does not instrument the C/C++ SDK internals. Tests use fake transports/callbacks and credential-free native lifecycle paths; none require a channel join.
 
-## Optional FFmpeg / 可选 FFmpeg
+CI uses Ubuntu 24.04 / Linux amd64 / Go 1.27.2. One job runs `make check` and verifies default builds do not require system FFmpeg development packages. A separate job runs `go test -race -tags avcodec -count=1 ./...` with FFmpeg dependencies. This does not validate macOS or live service interoperability.
 
-Default builds do not require FFmpeg development libraries. For local decoding helpers on Ubuntu:
+## Optional FFmpeg
 
-默认构建不需要 FFmpeg 开发库。Ubuntu 上启用本地解码辅助能力：
+Default builds do not require FFmpeg development libraries. To enable Session transcoding helpers on Ubuntu:
 
 ```sh
-sudo apt-get install pkg-config libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
+sudo apt-get install pkg-config libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
 make test-avcodec
 ./scripts/with_agora_env.sh go build -tags avcodec ./...
 ```
 
-Installing an `ffmpeg` executable alone is insufficient: headers and pkg-config metadata are required. Validate the optional build and actual media on the target platform separately.
+`-tags avcodec` enables asynchronous decode-and-publish helpers; their input acceptance is not a completion or drain guarantee. Headers and pkg-config metadata are required; installing the `ffmpeg` executable alone is insufficient. Test the optional build and actual media on the target platform.
 
-仅安装 `ffmpeg` 可执行文件并不够，还需要头文件及 pkg-config 信息。可选构建与真实媒体处理应在目标平台分别验证。
+The `examples/send_media` program is different: it launches the `ffmpeg` executable to decode a file at runtime. It does not require `avcodec` or FFmpeg development headers. Installing development libraries alone does not guarantee that executable is present.
 
-## Live integration / 真实联调
+## Live integration
 
-Use a dedicated Agora test project, channel, and user IDs. Obtain RTC and RTM tokens for the correct service, identity, channel and expiration. Pass them through the environment; never commit them or an App Certificate.
-
-使用独立的 Agora 测试项目、频道和用户 ID。RTC 与 RTM Token 必须分别匹配对应服务、身份、频道及有效期。通过环境变量传入，不要提交 Token 或 App Certificate。
+Use a dedicated project, test channels, and distinct user IDs. Provision the required features first. RTC and RTM login tokens are different; RTM Stream Channel join/renewal uses an RTC token. Match App ID, identity, channel, privileges, and expiry. Pass credentials through controlled environment/secret configuration, never source files or command logs.
 
 Validate at least:
 
-至少验证：
+1. Two independent clients joining/logging in, publishing, subscribing, receiving, and leaving.
+2. PCM pacing, per-user routing, producer cancellation plus interruption, video formats, and timestamp alignment.
+3. Compatible AI-server/AI-client behavior, requested codecs, encryption, and optional APM extensions.
+4. RTC/RTM token renewal, duplicate identity behavior, network interruption, and reconnection.
+5. Repeated create/close, concurrent requests, queue overload, and graceful shutdown.
+6. Enabled RTM Presence, storage revisions, locks, history pagination, and Stream publisher subscriptions.
 
-1. Two clients joining, subscribing, receiving and leaving / 双端入会、订阅、接收和离会
-2. PCM timing, per-user routing, interruption and video formats / PCM 节奏、逐用户路由、打断与视频格式
-3. Token renewal, network interruption and reconnection / Token 续期、断网与重连
-4. Repeated create/close, queue overload and shutdown / 重复创建关闭、队列过载与退出
-5. Each enabled RTM feature and its project permissions / 已开通的 RTM 功能与项目权限
+Live examples can publish/record media or mutate messages, state, metadata, and locks. Obtain participant authorization before recording and use disposable test resources. An error or Ctrl+C does not undo completed operations; inspect state before retrying. Build/test success does not establish remote receipt, playback, or application processing.
 
-Some RTM examples publish data or modify presence, metadata and locks. Read their scenario descriptions before running them. Cancellation can stop waiting after an operation was submitted; inspect remote state before retrying a mutating operation.
+## Deployment and troubleshooting
 
-部分 RTM 示例会发送消息，或修改状态、元数据与锁。运行前阅读对应场景说明。操作提交后取消等待不一定撤销远端操作；重试写操作前先检查远端状态。
+Ship the pinned shared libraries with the application and configure `LD_LIBRARY_PATH` on Linux or appropriate macOS loader settings for development/testing. The helper sets `DYLD_LIBRARY_PATH` on macOS; it is not a general production packaging solution. Test on the same OS/architecture/native distribution as deployment; do not substitute an older ARM archive for the pinned x86 package.
 
-## Deployment / 部署
+| Symptom | Check |
+| --- | --- |
+| Missing/incomplete/outdated SDK | Reinstall the pinned archive; verify `AGORA_LIBS_DIR` points to the validated directory |
+| Linker cannot find a library | Build through `with_agora_env.sh`; check architecture and toolchain |
+| Binary builds but loader fails | Deploy required shared libraries; inspect runtime search paths |
+| `ErrServiceActive` | Close the existing RTC Service; RTM clients are separately owned |
+| APM initialization failure | Verify the requested extensions exist; pinned Linux lacks AINS |
+| No media/events | Verify token, role, publisher, subscription/observer settings, peer compatibility, and drop counters |
+| RTM timeout after write | Do not assume rollback; inspect remote state before retrying |
 
-Ship the pinned native shared libraries and configure `LD_LIBRARY_PATH` (Linux) or the appropriate macOS loader configuration. Use `scripts/with_agora_env.sh` during development. Test the same OS/architecture and native distribution as production; do not substitute an older ARM package for the pinned x86 SDK.
-
-部署时携带固定版本的原生动态库，并配置 Linux 的 `LD_LIBRARY_PATH` 或 macOS 对应加载器设置。开发时可使用 `scripts/with_agora_env.sh`。测试环境应与生产使用相同的平台及原生分发包，不要用较旧的 ARM 包替代固定的 x86 SDK。
-
-Agora logs and caches can contain operational data. Set `Config.LogPath`, `Config.ConfigDir` and `Config.DataDir` to application-controlled locations and apply your retention and access policy.
-
-Agora 日志及缓存可能包含运行数据。通过 `Config.LogPath`、`Config.ConfigDir` 和 `Config.DataDir` 指定应用管理的路径，并按业务要求控制权限及保留周期。
+Native logs/caches may contain operational data. Set RTC `Config.LogPath`, `Config.ConfigDir`, and `Config.DataDir`, and configure RTM logging through `Config.Native`. Apply application access/retention controls. Monitor queue drops and token expiry without storing secrets in logs. Native SDK and codec licensing remains separate from the Go wrapper’s MIT license.

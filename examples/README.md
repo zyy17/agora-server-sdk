@@ -33,7 +33,7 @@ Run sender and receiver in separate terminals with different `AGORA_USER_ID` val
 | [messages](messages) | Send and receive RTC data-stream messages |
 | [multi_sessions](multi_sessions) | Multiple receive-only sessions sharing one service |
 | [send_media](send_media) | Decode a local MP4/media file to paced PCM and raw video with a shared timestamp base |
-| [media](media) | Raw video, encoded audio/video and optional decoding |
+| [media](media) | Raw video, encoded audio/video and optional decode-and-publish |
 | [process_audio](process_audio) | External audio processing without joining a channel |
 | [messaging](messaging/README.md) | RTM pub/sub, presence, metadata, locks, history and topics |
 
@@ -61,13 +61,13 @@ Run sender and receiver in separate terminals with different `AGORA_USER_ID` val
 - `send-opus`: length-prefixed 20 ms Opus packets; set actual `-rate` and `-channels`
 - `send-h264` / `recv-h264`: length-prefixed Annex-B encoded access units
 - `recv-encoded-audio`: length-prefixed packets
-- `transcode-h264` / `transcode-opus`: optional `-tags avcodec` build; see [development](../docs/development.md)
+- `transcode-h264` / `transcode-opus`: asynchronous decode-and-publish with `-tags avcodec`; Opus output is 48 kHz mono. Close does not guarantee worker drain; see [RTC transcoding limits](../docs/rtc.md#external-processing-and-optional-decoding) and [development](../docs/development.md)
 
 All receive modes require `-user` to avoid combining unrelated bitstreams and overwrite `-output`. The packet format is a 4-byte big-endian unsigned size followed by that packet’s bytes, limited to 16 MiB. Use `mediaio.WritePacket` when preparing input. It preserves packet boundaries but does not store a full codec/timestamp/container description; it is not MP4, Ogg, or a general recording format. The Opus demo assumes exactly 20 ms per packet. H.264 payloads must use Annex-B start codes and access units must already be correctly framed; splitting on arbitrary read chunks is invalid.
 
 ## Safety and verification
 
-Running an RTC example joins a live channel and may send or record media. Use dedicated test resources and record only with the participants’ authorization. Build and offline test success do not establish live interoperability. RTM scenarios can mutate remote state; read their [specific operations](messaging/README.md) first.
+Running a channel-based RTC example joins a live channel and may send or record media; `process_audio` instead runs an external processor without joining. Use dedicated test resources and record only with the participants’ authorization. Build and offline test success do not establish live interoperability. RTM scenarios can mutate remote state; read their [specific operations](messaging/README.md) first.
 
 ## Send a media file
 

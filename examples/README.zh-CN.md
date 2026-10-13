@@ -33,7 +33,7 @@ make build-examples
 | [messages](messages) | 收发 RTC 数据流消息 |
 | [multi_sessions](multi_sessions) | 一个 Service 管理多个只接收会话 |
 | [send_media](send_media) | 将本地 MP4 等文件解码为按节奏发送的 PCM 和原始视频，使用共同时间戳基准 |
-| [media](media) | 原始视频、编码音视频与可选解码 |
+| [media](media) | 原始视频、编码音视频与可选解码发布 |
 | [process_audio](process_audio) | 不入会的外部音频处理 |
 | [messaging](messaging/README.zh-CN.md) | RTM 消息、状态、元数据、锁、历史与 Topic |
 
@@ -61,13 +61,13 @@ make build-examples
 - `send-opus`：长度前缀的 20 ms Opus 包，通过 `-rate`、`-channels` 指定实际格式
 - `send-h264` / `recv-h264`：长度前缀的 Annex-B 编码访问单元
 - `recv-encoded-audio`：长度前缀编码包
-- `transcode-h264` / `transcode-opus`：需要可选的 `-tags avcodec` 构建，见[开发说明](../docs/development.md)
+- `transcode-h264` / `transcode-opus`：需要 `-tags avcodec`，异步解码并发布；Opus 输出为 48 kHz 单声道。关闭不保证排空处理队列，见 [RTC 转码限制](../docs/rtc.zh-CN.md#外部处理与可选解码)和[开发说明](../docs/development.zh-CN.md)
 
 所有接收模式要求指定 `-user`，避免混合多个独立码流，并会覆盖 `-output` 文件。包格式为 4 字节大端无符号长度，随后是对应包内容，单包上限 16 MiB。可通过 `mediaio.WritePacket` 准备输入。该格式保留包边界，但不存储完整的编解码、时间戳及容器信息，不是 MP4、Ogg 或通用录制格式。Opus 示例假设每包恰好为 20 ms。H.264 载荷需要使用 Annex-B 起始码，并预先正确划分访问单元，不能按任意读取块分帧。
 
 ## 运行与验证
 
-运行 RTC 示例会加入真实频道，并可能发送或录制媒体。请使用专用测试资源，只在取得参与者授权后录制。构建及离线检查通过不代表已完成真实互通验证。RTM 示例可能修改远端状态，运行前先阅读[对应操作说明](messaging/README.zh-CN.md)。
+运行频道类 RTC 示例会加入真实频道，并可能发送或录制媒体；`process_audio` 仅运行外部处理器，不入会。请使用专用测试资源，只在取得参与者授权后录制。构建及离线检查通过不代表已完成真实互通验证。RTM 示例可能修改远端状态，运行前先阅读[对应操作说明](messaging/README.zh-CN.md)。
 
 ## 发送媒体文件
 
