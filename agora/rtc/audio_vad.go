@@ -2,23 +2,25 @@ package agoraservice
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../headers/include/c/api2 -I${SRCDIR}/../headers/include/c/base
-#cgo darwin LDFLAGS: -luap_aed
-#cgo linux LDFLAGS: -lagora_uap_aed
-#include <string.h>
-#include "vad.h"
+#cgo CXXFLAGS: -I${SRCDIR}/../headers/include/c/api2 -std=c++11
+#cgo darwin LDFLAGS: -luap_aed -lc++
+#cgo linux LDFLAGS: -lagora_uap_aed -lstdc++
+#include <stdlib.h>
+#include "audio_vad_bridge.h"
 */
 import "C"
+
 import (
-	"fmt"
-	"os"
+	"math"
+	"sync"
 	"unsafe"
 )
 
 type AudioVadConfig struct {
-	StartRecognizeCount    int     // start recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 10
-	StopRecognizeCount     int     // max recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 6
-	PreStartRecognizeCount int     // pre start recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 10
-	ActivePercent          float32 // active percent, if over this percent, will be recognized as speaking, default value is 0.6
+	StartRecognizeCount    int     // start recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 30
+	StopRecognizeCount     int     // max recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 48
+	PreStartRecognizeCount int     // pre start recognize count, buffer size for 10ms 16KHz 16bit 1channel PCM, default value is 16
+	ActivePercent          float32 // active percent, if over this percent, will be recognized as speaking, default value is 0.8
 	InactivePercent        float32 // inactive percent, if below this percent, will be recognized as non-speaking, default value is 0.2
 	VoiceProb              float32 // voice probability threshold, default value is 0.7; range from 0 to 1
 	RmsThr                 float32 // rms threshold, default value is -40; range from -100 to 0
@@ -26,221 +28,167 @@ type AudioVadConfig struct {
 	Aggressive             float32 // default value is 2.0; range from 0 to 3
 }
 
+// AudioVad owns one standalone native VAD. ProcessPcmFrame and Release are
+// serialized; use separate detectors for independent speakers/channels.
 type AudioVad struct {
+	mu        sync.Mutex
 	vadCfg    *AudioVadConfig
 	cVad      unsafe.Pointer
 	lastOutTs int64
-	// lastStatus int
 }
 
 func NewAudioVad(cfg *AudioVadConfig) *AudioVad {
-	if cfg == nil {
-		cfg = &AudioVadConfig{
-			StartRecognizeCount:    30,
-			StopRecognizeCount:     48,
-			PreStartRecognizeCount: 16,
-			ActivePercent:          0.8,
-			InactivePercent:        0.2,
-			RmsThr:                 -40.0,
-			JointThr:               0.0,
-			Aggressive:             2.0,
-			VoiceProb:              0.7,
-		}
+	settings := AudioVadConfig{StartRecognizeCount: 30, StopRecognizeCount: 48, PreStartRecognizeCount: 16, ActivePercent: 0.8, InactivePercent: 0.2, RmsThr: -40, JointThr: 0, Aggressive: 2, VoiceProb: 0.7}
+	if cfg != nil {
+		settings = *cfg
 	}
-	vad := &AudioVad{
-		vadCfg:    cfg,
-		lastOutTs: 0,
-		cVad:      nil,
-		// lastStatus: VAD_WAIT_SPEEKING,
-	}
-	cVadCfg := C.struct_Vad_Config_{}
-	C.memset((unsafe.Pointer)(&cVadCfg), 0, C.sizeof_struct_Vad_Config_)
-	cVadCfg.fftSz = C.int(1024)
-	cVadCfg.anaWindowSz = C.int(768)
-	cVadCfg.hopSz = C.int(160)
-	cVadCfg.frqInputAvailableFlag = C.int(0)
-	cVadCfg.useCVersionAIModule = C.int(0)
-	cVadCfg.voiceProbThr = C.float(cfg.VoiceProb)
-	cVadCfg.rmsThr = C.float(cfg.RmsThr)
-	cVadCfg.jointThr = C.float(cfg.JointThr)
-	cVadCfg.aggressive = C.float(cfg.Aggressive)
-	cVadCfg.startRecognizeCount = C.int(cfg.StartRecognizeCount)
-	cVadCfg.stopRecognizeCount = C.int(cfg.StopRecognizeCount)
-	cVadCfg.preStartRecognizeCount = C.int(cfg.PreStartRecognizeCount)
-	cVadCfg.activePercent = C.float(cfg.ActivePercent)
-	cVadCfg.inactivePercent = C.float(cfg.InactivePercent)
-	ret := int(C.Agora_UAP_VAD_Create(&vad.cVad, &cVadCfg))
-	if ret != 0 {
+	if !validStandaloneVADConfig(settings) {
 		return nil
 	}
-
+	vad := &AudioVad{vadCfg: &settings}
+	native := C.struct_Vad_Config_{}
+	native.fftSz = 1024
+	native.anaWindowSz = 768
+	native.hopSz = 160
+	native.voiceProbThr = C.float(settings.VoiceProb)
+	native.rmsThr = C.float(settings.RmsThr)
+	native.jointThr = C.float(settings.JointThr)
+	native.aggressive = C.float(settings.Aggressive)
+	native.startRecognizeCount = C.int(settings.StartRecognizeCount)
+	native.stopRecognizeCount = C.int(settings.StopRecognizeCount)
+	native.preStartRecognizeCount = C.int(settings.PreStartRecognizeCount)
+	native.activePercent = C.float(settings.ActivePercent)
+	native.inactivePercent = C.float(settings.InactivePercent)
+	if int(C.agora_go_vad_create(&vad.cVad, &native)) != 0 || vad.cVad == nil {
+		if vad.cVad != nil {
+			C.agora_go_vad_destroy(&vad.cVad)
+		}
+		return nil
+	}
 	return vad
 }
 
+func validStandaloneVADConfig(c AudioVadConfig) bool {
+	for _, count := range []int{c.StartRecognizeCount, c.StopRecognizeCount, c.PreStartRecognizeCount} {
+		if count < 0 || count > 10000 {
+			return false
+		}
+	}
+	for _, value := range []float32{c.ActivePercent, c.InactivePercent, c.VoiceProb, c.JointThr} {
+		if math.IsNaN(float64(value)) || value < 0 || value > 1 {
+			return false
+		}
+	}
+	return !math.IsNaN(float64(c.RmsThr)) && c.RmsThr >= -100 && c.RmsThr <= 0 && !math.IsNaN(float64(c.Aggressive)) && c.Aggressive >= 0 && c.Aggressive <= 3
+}
+
 func (vad *AudioVad) Release() {
-	if vad.cVad == nil {
+	if vad == nil {
 		return
 	}
-	C.Agora_UAP_VAD_Destroy(&vad.cVad)
-	vad.cVad = nil
+	vad.mu.Lock()
+	defer vad.mu.Unlock()
+	if vad.cVad != nil {
+		C.agora_go_vad_destroy(&vad.cVad)
+		vad.cVad = nil
+	}
 }
 
+func validVADFrame(frame *AudioFrame, channels int) bool {
+	return frame != nil && frame.Type == AudioFrameTypePCM16 && frame.SamplesPerSec == 16000 && frame.Channels == channels && frame.BytesPerSample == 2 && len(frame.Buffer) == 320*channels && frame.SamplesPerChannel == 160
+}
+
+// ProcessPcmFrame accepts exactly one 10 ms 16 kHz mono PCM16 frame. Returned
+// speech owns its buffer; a native C++ exception returns -2002 and retires the
+// detector. RenderTimeMs is the detector's cumulative output time.
 func (vad *AudioVad) ProcessPcmFrame(frame *AudioFrame) (*AudioFrame, int) {
-	if frame.SamplesPerSec != 16000 || frame.Channels != 1 || frame.BytesPerSample != 2 {
-		return nil, -1
+	if vad == nil || !validVADFrame(frame, 1) {
+		return nil, -2
 	}
+	vad.mu.Lock()
+	defer vad.mu.Unlock()
 	if vad.cVad == nil {
 		return nil, -1
 	}
-	cData := C.CBytes(frame.Buffer)
-	defer C.free(cData)
-	in := C.Vad_AudioData{
-		audioData: (unsafe.Pointer)(cData),
-		size:      C.int(len(frame.Buffer)),
-	}
-	var vadState C.enum_VAD_STATE = C.enum_VAD_STATE(0)
+	data := C.CBytes(frame.Buffer)
+	defer C.free(data)
+	in := C.Vad_AudioData{audioData: data, size: C.int(len(frame.Buffer))}
+	var state C.enum_VAD_STATE
 	var out C.Vad_AudioData
-	C.memset((unsafe.Pointer)(&out), 0, C.sizeof_struct_Vad_AudioData_)
-	ret := int(C.Agora_UAP_VAD_Proc(vad.cVad, &in, &out, &vadState))
-	if ret < 0 {
-		return nil, ret
+	if code := int(C.agora_go_vad_process(vad.cVad, &in, &out, &state)); code < 0 {
+		if code == int(C.AGORA_GO_VAD_EXCEPTION) {
+			C.agora_go_vad_destroy(&vad.cVad)
+			vad.cVad = nil
+		}
+		return nil, code
 	}
-	samplesPerChannel := int(out.size) / 2 / 1
-	frameDuration := 1000 * samplesPerChannel / 16000
-	outData := C.GoBytes(out.audioData, out.size)
-	outFrame := &AudioFrame{
-		Type:              AudioFrameTypePCM16,
-		Buffer:            outData,
-		RenderTimeMs:      vad.lastOutTs,
-		SamplesPerChannel: samplesPerChannel,
-		BytesPerSample:    2,
-		Channels:          1,
-		SamplesPerSec:     16000,
+	if out.size < 0 || out.size > 64*1024*1024 || out.size%2 != 0 || (out.size > 0 && out.audioData == nil) {
+		return nil, -1
 	}
-	vad.lastOutTs += int64(frameDuration)
-
-	return outFrame, int(vadState)
+	samples := int(out.size) / 2
+	result := &AudioFrame{Type: AudioFrameTypePCM16, Buffer: C.GoBytes(out.audioData, out.size), RenderTimeMs: vad.lastOutTs, SamplesPerChannel: samples, BytesPerSample: 2, Channels: 1, SamplesPerSec: 16000}
+	vad.lastOutTs += int64(samples) * 1000 / 16000
+	return result, int(state)
 }
 
-/*
-* for stero vad
- */
-/*
-* 考虑建立一个针对双声道的vad，用来做双声道的处理
-* 可以放在audio_vad中
-* 在那个里面，可以有函数：
-* steroAudioVad
-* stero pcm--> mono pcm
-* 还是说暂时放在sample里面？但提供stero pcm convert to mono pcm?
- */
+// SteroAudioVad owns independent left/right detectors (the spelling is inherited
+// from the raw binding). Do not replace exported components while methods run.
 type SteroAudioVad struct {
-	LeftVadInstance   *AudioVad
-	RightVadInstance  *AudioVad
-	LeftVadConfigure  *AudioVadConfig
-	RightVadConfigure *AudioVadConfig
+	mu                                  sync.Mutex
+	LeftVadInstance, RightVadInstance   *AudioVad
+	LeftVadConfigure, RightVadConfigure *AudioVadConfig
 }
 
-func NewSteroVad(leftVadConfig *AudioVadConfig, rightVadConfig *AudioVadConfig) *SteroAudioVad {
-	return &SteroAudioVad{
-		LeftVadInstance:   NewAudioVad(leftVadConfig),
-		RightVadInstance:  NewAudioVad(rightVadConfig),
-		LeftVadConfigure:  leftVadConfig,
-		RightVadConfigure: rightVadConfig,
+func NewSteroVad(leftConfig, rightConfig *AudioVadConfig) *SteroAudioVad {
+	left := NewAudioVad(leftConfig)
+	if left == nil {
+		return nil
 	}
+	right := NewAudioVad(rightConfig)
+	if right == nil {
+		left.Release()
+		return nil
+	}
+	leftCopy, rightCopy := *left.vadCfg, *right.vadCfg
+	return &SteroAudioVad{LeftVadInstance: left, RightVadInstance: right, LeftVadConfigure: &leftCopy, RightVadConfigure: &rightCopy}
 }
 
-// chagne frame to unsafe pointer， private function, only for internal use
-func bytesToInt16Array(data []byte) []int16 {
-	// 通过 unsafe 包将 []byte 转换为 []int16
-	//return *(*[]int16)(unsafe.Pointer(&data))
-	return *(*[]int16)(unsafe.Pointer(&data))
+// ProcessAudioFrame splits interleaved stereo PCM16 without changing channel
+// order. Each result uses its own detector state and owns its speech buffer.
+func (vad *SteroAudioVad) ProcessAudioFrame(frame *AudioFrame) (*AudioFrame, int, *AudioFrame, int) {
+	if vad == nil || !validVADFrame(frame, 2) {
+		return nil, -2, nil, -2
+	}
+	vad.mu.Lock()
+	defer vad.mu.Unlock()
+	if vad.LeftVadInstance == nil || vad.RightVadInstance == nil {
+		return nil, -1, nil, -1
+	}
+	left, right := splitStereoVADFrame(frame)
+	l, ls := vad.LeftVadInstance.ProcessPcmFrame(left)
+	r, rs := vad.RightVadInstance.ProcessPcmFrame(right)
+	return l, ls, r, rs
 }
 
-// return value: 1. left vad state, 2. right vad state
-// test for dump stereo pcm to mono
-var (
-	LeftFile     *os.File = nil
-	RightFile    *os.File = nil
-	DebugMonoPcm int      = 0
-)
-
-func (vad *SteroAudioVad) ProcessAudioFrame(inFrame *AudioFrame) (*AudioFrame, int, *AudioFrame, int) {
-	// 0.validity check: only support 16k 2 channel 16 bit pcm
-	if inFrame == nil || inFrame.Buffer == nil || inFrame.SamplesPerSec != 16000 || inFrame.Channels != 2 || inFrame.BytesPerSample != 2 {
-		fmt.Printf("invalid: samplesPerSec: %d, channels: %d, bytesPerSample: %d\n", inFrame.SamplesPerSec, inFrame.Channels, inFrame.BytesPerSample)
-		return nil, 0, nil, 0
+func splitStereoVADFrame(frame *AudioFrame) (*AudioFrame, *AudioFrame) {
+	left, right := *frame, *frame
+	left.Channels, right.Channels = 1, 1
+	left.Buffer = make([]byte, len(frame.Buffer)/2)
+	right.Buffer = make([]byte, len(frame.Buffer)/2)
+	for src, dst := 0, 0; src < len(frame.Buffer); src, dst = src+4, dst+2 {
+		copy(left.Buffer[dst:dst+2], frame.Buffer[src:src+2])
+		copy(right.Buffer[dst:dst+2], frame.Buffer[src+2:src+4])
 	}
-	if DebugMonoPcm > 0 && (nil == LeftFile || nil == RightFile) {
-		LeftFile, _ = os.OpenFile("./left.pcm", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-		RightFile, _ = os.OpenFile("./right.pcm", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-
-	}
-	// split stero pcm to 2 mono pcm
-	// process vad for each mono pcm, and return the vad state
-	// 1. allocate 2 new AudioFrame for 16khz mono and 16bits pcm
-	//1. split stero pcm to 2 mono pcm through unsafe pointer mode to save time
-	inLength := len(inFrame.Buffer)
-	channelDataLen := inLength / 2
-	leftBuffer := make([]byte, channelDataLen)
-	rightBuffer := make([]byte, channelDataLen)
-	dataLen := channelDataLen / 2
-
-	//fmt.Printf("info: samplesPerSec: %d, channels: %d, bytesPerSample: %d, len: %d\n",
-	//inFrame.SamplesPerSec, inFrame.Channels, inFrame.BytesPerSample, inLength)
-
-	lefeFrame := &AudioFrame{
-		Type:              inFrame.Type,
-		SamplesPerChannel: 160,
-		BytesPerSample:    2,
-		Channels:          1,
-		SamplesPerSec:     16000,
-		Buffer:            leftBuffer,
-		RenderTimeMs:      0,
-	}
-	rightFrame := &AudioFrame{
-		Type:              inFrame.Type,
-		SamplesPerChannel: 160,
-		BytesPerSample:    2,
-		Channels:          1,
-		SamplesPerSec:     16000,
-		Buffer:            rightBuffer,
-		RenderTimeMs:      0,
-	}
-	// 2. split stero pcm to 2 mono pcm
-	// 2.1 convert byte to uint16
-	ptrInframe := bytesToInt16Array(inFrame.Buffer)
-	ptrLeftFrame := bytesToInt16Array(lefeFrame.Buffer)
-	ptrRightFrame := bytesToInt16Array(rightFrame.Buffer)
-
-	//2.2 assign stereo pcm to mono pcm
-
-	i := 0
-	for j := 0; j < dataLen; j++ {
-		ptrLeftFrame[j] = ptrInframe[i]
-		ptrRightFrame[j] = ptrInframe[i+1]
-		i += 2
-	}
-
-	//2.3 for debug mono pcm
-	if DebugMonoPcm > 0 && LeftFile != nil && RightFile != nil {
-		LeftFile.Write(lefeFrame.Buffer)
-		RightFile.Write(rightFrame.Buffer)
-	}
-
-	// 3. do vad test for each mono pcm
-	leftVadResultFrame, leftVadState := vad.LeftVadInstance.ProcessPcmFrame(lefeFrame)
-	rightVadResultFrame, rightVadStat := vad.RightVadInstance.ProcessPcmFrame(rightFrame)
-	//fmt.Printf("left vad result: %v, left vad state: %v, right vad result: %v, right vad state: %v\n",leftVadResultFrame, leftVadState, rightVadResultFrame, rightVadStat)
-	// 4. do vad test for each mono pcm
-	return leftVadResultFrame, leftVadState, rightVadResultFrame, rightVadStat
+	return &left, &right
 }
+
 func (vad *SteroAudioVad) Release() {
-	if vad.LeftVadInstance != nil {
-		vad.LeftVadInstance.Release()
+	if vad == nil {
+		return
 	}
-	if vad.RightVadInstance != nil {
-		vad.RightVadInstance.Release()
-	}
-	vad.LeftVadInstance = nil
-	vad.RightVadInstance = nil
+	vad.mu.Lock()
+	defer vad.mu.Unlock()
+	vad.LeftVadInstance.Release()
+	vad.RightVadInstance.Release()
+	vad.LeftVadInstance, vad.RightVadInstance = nil, nil
 }
