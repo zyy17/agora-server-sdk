@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	agorasdk "github.com/zyy17/agora-server-sdk"
+	nativeRTM "github.com/zyy17/agora-server-sdk/agora/rtm"
 	"github.com/zyy17/agora-server-sdk/messaging"
 )
 
@@ -209,5 +210,19 @@ func TestLiveOptInIsRequired(t *testing.T) {
 	out.Reset()
 	if run([]string{"--check"}, &out) != 0 || !strings.Contains(out.String(), "not live authentication proof") {
 		t.Fatal("format check incorrectly reported")
+	}
+}
+
+func TestRTMNativeTimersAndLoggingAreValid(t *testing.T) {
+	dir := t.TempDir()
+	cfg := rtmNativeConfig(dir)
+	// Pinned AgoraRtmBase.h defines reconnectTimeout as 0 or [15,3600].
+	// Go contexts supply our shorter per-operation wait without invalid native
+	// initialization settings. Explicit heartbeat matches the C++ default.
+	if cfg.ReconnectTimeout != 15 || cfg.HeartbeatInterval != 5 || cfg.PresenceTimeout != 30 {
+		t.Fatal("invalid native timing configuration")
+	}
+	if !cfg.UseStringUserId || cfg.LogConfig == nil || cfg.LogConfig.Level != nativeRTM.RtmLogLevelNONE || cfg.LogConfig.FilePath != filepath.Join(dir, "rtm.log") {
+		t.Fatal("unsafe identity/logging configuration")
 	}
 }

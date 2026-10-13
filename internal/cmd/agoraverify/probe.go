@@ -60,18 +60,23 @@ func newRTC(c credentials, dir string) (rtcService, error) {
 	return rtcAdapter{s}, nil
 }
 
-func newRTM(c credentials, user, dir string) (rtmClient, error) {
+func rtmNativeConfig(dir string) *nativeRTM.RtmConfig {
 	// Use the native compatibility config so this harness also builds against
 	// the API already merged on main, before the expanded typed RTM options.
 	cfg := nativeRTM.NewRtmConfig()
 	cfg.UseStringUserId = true
 	cfg.PresenceTimeout = 30
-	cfg.ReconnectTimeout = 10
+	cfg.HeartbeatInterval = 5
+	cfg.ReconnectTimeout = 15
 	cfg.LogConfig = &nativeRTM.RtmLogConfig{
 		FilePath: filepath.Join(dir, "rtm.log"), Level: nativeRTM.RtmLogLevelNONE,
 	}
+	return cfg
+}
+
+func newRTM(c credentials, user, dir string) (rtmClient, error) {
 	return messaging.New(messaging.Config{
-		AppID: c.appID, UserID: user, RequestTimeout: operationTimeout, Native: cfg,
+		AppID: c.appID, UserID: user, RequestTimeout: operationTimeout, Native: rtmNativeConfig(dir),
 	})
 }
 
