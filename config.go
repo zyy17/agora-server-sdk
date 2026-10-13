@@ -1,6 +1,7 @@
 package agorasdk
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -26,10 +27,17 @@ type Config struct {
 	// LogPath, ConfigDir, and DataDir are native SDK filesystem paths.
 	// Empty values leave path selection to the native SDK.
 	LogPath, ConfigDir, DataDir string
+	// IdleMode defers destruction of closed native connection handles briefly.
+	// Session.Close still stops callbacks and releases Go resources immediately;
+	// Service.Close drains all deferred handles before releasing the runtime.
+	IdleMode bool
+	// LocalAccessPoint optionally selects the native local proxy configuration.
+	// The value and its lists are copied. It is applied once after the first connection
+	// is created and before Connect, as required by the pinned SDK.
+	LocalAccessPoint *rtc.LocalAccessPointConfiguration
 	// ConfigureNative optionally adjusts native settings before initialization.
 	// It runs synchronously; return an error to abort creation. Do not retain its
-	// pointer. UseStringUid must agree with IdentityMode and IdleMode must remain
-	// false so Service.Close can deterministically release the runtime.
+	// pointer. UseStringUid must agree with IdentityMode.
 	ConfigureNative func(*rtc.AgoraServiceConfig) error
 }
 
@@ -177,6 +185,16 @@ type AudioConfig struct {
 	// in 0–1, voice thresholds in 0–100, and RMS thresholds in -127–0 dB.
 	// A non-nil zero configuration is not identical to nil; consult rtc.AudioVadConfigV2.
 	VADConfig *rtc.AudioVadConfigV2
+	// Fallback selects the native synchronous AI-QoS compatibility decision.
+	// Nil rejects fallback. The policy is copied; no application function runs
+	// on a native callback thread. SetAudioFallback can change it later.
+	Fallback *AudioFallbackPolicy
+	// ReceiveParameters optionally overrides each mixed/local PCM observation
+	// point independently. Nil entries inherit Receive with 10 ms frames.
+	ReceiveParameters *AudioReceiveParameters
+	// Callbacks optionally handles synchronous native PCM accept/reject decisions.
+	// Prefer Audio() for ordinary asynchronous processing.
+	Callbacks *AudioCallbacks
 }
 
 // VideoConfig selects the video publication format. Receiving is configured
@@ -262,7 +280,8 @@ type ChannelConfig struct {
 	Encryption *rtc.EncryptionConfig
 	// ConfigureNative optionally adjusts native connection and publication settings
 	// before allocation. Return an error to abort Join. Do not retain the pointers
-	// or change ownership assumptions; LargeScale cannot enable auto-subscription.
+	// or change Role, publication modes, or publication enablement. LargeScale
+	// cannot enable auto-subscription. Other native options are passed through.
 	ConfigureNative func(*rtc.RtcConnectionConfig, *rtc.RtcConnectionPublishConfig) error
 }
 
@@ -274,6 +293,9 @@ func normalized(c ChannelConfig) (ChannelConfig, error) {
 		return c, invalid("mode", "is unknown")
 	}
 	if err := c.normalizeDefaults(); err != nil {
+		return c, err
+	}
+	if err := c.validateAudioCallbacks(); err != nil {
 		return c, err
 	}
 	if err := c.validateMediaOptions(); err != nil {
@@ -347,6 +369,7 @@ func (c ChannelConfig) validateMediaOptions() error {
 }
 
 func (c ChannelConfig) copyNativeOptions() ChannelConfig {
+	c.Audio = copyAudioOptions(c.Audio)
 	if c.Audio.VADConfig != nil {
 		v := *c.Audio.VADConfig
 		c.Audio.VADConfig = &v
@@ -380,6 +403,9 @@ func validatePCMFormat(rate, channels int) error {
 }
 
 func validateVAD(v rtc.AudioVadConfigV2) error {
+	if math.IsNaN(float64(v.ActivePercent)) || math.IsNaN(float64(v.InactivePercent)) || math.IsNaN(float64(v.AdaptiveRmsThresholdFactor)) {
+		return invalid("VAD probabilities", "must be finite")
+	}
 	if v.PreStartRecognizeCount < 0 || v.PreStartRecognizeCount > 10000 || v.StartRecognizeCount < 0 || v.StartRecognizeCount > 10000 || v.StopRecognizeCount < 0 || v.StopRecognizeCount > 10000 {
 		return invalid("VAD counts", "must be between 0 and 10000 (zero uses defaults)")
 	}
