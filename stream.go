@@ -23,6 +23,7 @@ type StreamStats struct {
 }
 
 func newStream[T any](capacity int) *Stream[T] { return &Stream[T]{items: make(chan T, capacity)} }
+
 func (s *Stream[T]) push(v T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -45,6 +46,7 @@ func (s *Stream[T]) push(v T) {
 		s.dropped++
 	}
 }
+
 func (s *Stream[T]) close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -73,6 +75,7 @@ func (s *Stream[T]) Next(ctx context.Context) (T, error) {
 		return v, nil
 	}
 }
+
 func (s *Stream[T]) Stats() StreamStats {
 	s.mu.Lock()
 	defer s.mu.Unlock()

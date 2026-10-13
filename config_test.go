@@ -11,6 +11,7 @@ import (
 func validChannel() ChannelConfig {
 	return ChannelConfig{Channel: "room", UserID: "user", Token: "opaque"}
 }
+
 func TestConfigDefaults(t *testing.T) {
 	c, err := normalized(validChannel())
 	if err != nil {
@@ -23,6 +24,7 @@ func TestConfigDefaults(t *testing.T) {
 		t.Fatal("scenario zero is ambiguous")
 	}
 }
+
 func TestInvalidConfig(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -55,6 +57,7 @@ func TestInvalidConfig(t *testing.T) {
 		t.Fatal("empty token is valid for unsecured projects:", err)
 	}
 }
+
 func TestConfigCopiesPointers(t *testing.T) {
 	c := validChannel()
 	c.Encryption = &rtc.EncryptionConfig{EncryptionKdfSalt: []byte{1, 2}}
@@ -72,6 +75,7 @@ func TestConfigCopiesPointers(t *testing.T) {
 		t.Fatal("config retained mutable caller memory")
 	}
 }
+
 func TestPCMValidation(t *testing.T) {
 	for _, rate := range []int{8000, 16000, 32000, 44100, 48000} {
 		for _, channels := range []int{1, 2} {
@@ -90,6 +94,7 @@ func TestPCMValidation(t *testing.T) {
 		}
 	}
 }
+
 func TestVideoValidation(t *testing.T) {
 	for _, f := range []VideoFrame{{Width: 2, Height: 2, Format: I420, Data: make([]byte, 6)}, {Width: 2, Height: 2, Format: NV12, Data: make([]byte, 6)}, {Width: 2, Height: 2, Format: RGBA, Data: make([]byte, 16)}, {Width: 2, Height: 2, Format: BGRA, Data: make([]byte, 16)}} {
 		if err := f.validate(); err != nil {
@@ -102,6 +107,7 @@ func TestVideoValidation(t *testing.T) {
 		}
 	}
 }
+
 func TestParameterValidation(t *testing.T) {
 	for _, v := range []string{"", "null", "[]", "{bad}"} {
 		if validateParameters(v) == nil {
@@ -112,6 +118,7 @@ func TestParameterValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestNativeError(t *testing.T) {
 	err := check("publish", -7)
 	var sdkErr *Error

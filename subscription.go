@@ -13,6 +13,7 @@ func validateUserID(uid string) error {
 	}
 	return nil
 }
+
 func validateParameters(value string) error {
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(value), &obj); err != nil || obj == nil {
@@ -28,18 +29,21 @@ func (s *Session) SubscribeAudio(userID string) error {
 	}
 	return s.withNative("subscribe audio", func(c *rtc.RtcConnection) int { return c.GetLocalUser().SubscribeAudio(userID) })
 }
+
 func (s *Session) UnsubscribeAudio(userID string) error {
 	if err := s.validateRemoteUserID(userID); err != nil {
 		return err
 	}
 	return s.withNative("unsubscribe audio", func(c *rtc.RtcConnection) int { return c.GetLocalUser().UnsubscribeAudio(userID) })
 }
+
 func (s *Session) SubscribeAllAudio() error {
 	if s.cfg.Mode == LargeScale {
 		return ErrUnsupported
 	}
 	return s.withNative("subscribe all audio", func(c *rtc.RtcConnection) int { return c.GetLocalUser().SubscribeAllAudio() })
 }
+
 func (s *Session) UnsubscribeAllAudio() error {
 	return s.withNative("unsubscribe all audio", func(c *rtc.RtcConnection) int { return c.GetLocalUser().UnsubscribeAllAudio() })
 }
@@ -53,24 +57,28 @@ func (v VideoSubscription) native() *rtc.VideoSubscriptionOptions {
 	}
 	return &rtc.VideoSubscriptionOptions{StreamType: stream, EncodedFrameOnly: v.EncodedOnly}
 }
+
 func (s *Session) SubscribeVideo(userID string, options VideoSubscription) error {
 	if err := s.validateRemoteUserID(userID); err != nil {
 		return err
 	}
 	return s.withNative("subscribe video", func(c *rtc.RtcConnection) int { return c.GetLocalUser().SubscribeVideo(userID, options.native()) })
 }
+
 func (s *Session) UnsubscribeVideo(userID string) error {
 	if err := s.validateRemoteUserID(userID); err != nil {
 		return err
 	}
 	return s.withNative("unsubscribe video", func(c *rtc.RtcConnection) int { return c.GetLocalUser().UnsubscribeVideo(userID) })
 }
+
 func (s *Session) SubscribeAllVideo(options VideoSubscription) error {
 	if s.cfg.Mode == LargeScale {
 		return ErrUnsupported
 	}
 	return s.withNative("subscribe all video", func(c *rtc.RtcConnection) int { return c.GetLocalUser().SubscribeAllVideo(options.native()) })
 }
+
 func (s *Session) UnsubscribeAllVideo() error {
 	return s.withNative("unsubscribe all video", func(c *rtc.RtcConnection) int { return c.GetLocalUser().UnsubscribeAllVideo() })
 }

@@ -10,6 +10,7 @@ import (
 )
 
 func main() { example.Main(run) }
+
 func run() error {
 	path := flag.String("input", "examples/testdata/send_audio_16k_1ch.pcm", "PCM16LE file")
 	rate := flag.Int("rate", 16000, "sample rate in Hz")

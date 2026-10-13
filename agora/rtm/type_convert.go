@@ -11,8 +11,10 @@ import "unsafe"
 // duration of the callback. Page probes cannot establish ownership or safety and
 // process-wide SIGSEGV handlers are incompatible with concurrent Go execution.
 func IsValidMemory(ptr unsafe.Pointer) bool { return ptr != nil }
+
 func FastSafeCGoString(cstr *C.char) string { return C.GoString(cstr) }
-func SafeCGoString(cstr *C.char) string     { return C.GoString(cstr) }
+
+func SafeCGoString(cstr *C.char) string { return C.GoString(cstr) }
 
 // nativeSlice checks nil and length overflow before borrowing a native array.
 // Callers must deep-copy pointer-containing elements before the callback ends.

@@ -213,6 +213,7 @@ func (vad *AudioVadV2) isActive(frame *AudioFrame) bool {
 	//fmt.Printf("[vad] voiceProb: %d, rms: %d, pitch: %d, refRms: %d, active: %v\n", frame.VoiceProb, frame.Rms, frame.Pitch, refRms, active)
 	return active
 }
+
 func (vad *AudioVadV2) getRefActiveAvgRms() int {
 	if vad.config.EnableAdaptiveRmsThreshold && vad.refAvgRmsInLastSesseion > 0 {
 		return int(float32(vad.refAvgRmsInLastSesseion) * vad.config.AdaptiveRmsThresholdFactor) // half of avg as threshold value

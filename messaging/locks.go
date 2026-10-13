@@ -32,6 +32,7 @@ func (c *Client) SetLock(ctx context.Context, ch Channel, name string, ttl time.
 		return code, id
 	})
 }
+
 func (c *Client) Locks(ctx context.Context, ch Channel) ([]Lock, error) {
 	if err := ch.validate(); err != nil {
 		return nil, err
@@ -50,6 +51,7 @@ func (c *Client) Locks(ctx context.Context, ch Channel) ([]Lock, error) {
 	}
 	return v.([]Lock), nil
 }
+
 func (c *Client) RemoveLock(ctx context.Context, ch Channel, name string) error {
 	if err := validateLock(ch, name); err != nil {
 		return err
@@ -81,6 +83,7 @@ func (c *Client) AcquireLock(ctx context.Context, ch Channel, name string) error
 		return code, id
 	})
 }
+
 func (c *Client) ReleaseLock(ctx context.Context, ch Channel, name string) error {
 	if err := validateLock(ch, name); err != nil {
 		return err
@@ -95,6 +98,7 @@ func (c *Client) ReleaseLock(ctx context.Context, ch Channel, name string) error
 		return code, id
 	})
 }
+
 func (c *Client) RevokeLock(ctx context.Context, ch Channel, name, owner string) error {
 	if err := validateLock(ch, name); err != nil {
 		return err

@@ -251,6 +251,7 @@ func (localUser *LocalUser) SetAudioScenario(audioScenario AudioScenario) int {
 	}
 	return int(C.agora_local_user_set_audio_scenario(localUser.cLocalUser, C.int(audioScenario)))
 }
+
 func (localUser *LocalUser) SetAudioVolumeIndicationParameters(intervalInMs int, smooth int, reportVad bool) int {
 	if localUser.cLocalUser == nil {
 		return -1000
@@ -259,6 +260,7 @@ func (localUser *LocalUser) SetAudioVolumeIndicationParameters(intervalInMs int,
 	ret := C.agora_local_user_set_audio_volume_indication_parameters(localUser.cLocalUser, C.int(intervalInMs), C.int(smooth), C.bool(reportVad))
 	return int(ret)
 }
+
 func (localUser *LocalUser) sendAudioMetaData(metaData []byte) int {
 	if localUser.cLocalUser == nil {
 		return -1000

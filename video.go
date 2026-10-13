@@ -61,6 +61,7 @@ func (s *Session) videoObserver() *rtc.VideoFrameObserver {
 			Y: slices.Clone(f.YBuffer), U: slices.Clone(f.UBuffer), V: slices.Clone(f.VBuffer), Metadata: slices.Clone(f.MetadataBuffer), Alpha: slices.Clone(f.AlphaBuffer), TimestampMillis: f.RenderTimeMs})
 	}}
 }
+
 func (s *Session) encodedVideoObserver() *rtc.VideoEncodedFrameObserver {
 	return &rtc.VideoEncodedFrameObserver{OnEncodedVideoFrame: func(channel, uid string, data []byte, i *rtc.EncodedVideoFrameInfo) bool {
 		if i == nil {
@@ -70,12 +71,14 @@ func (s *Session) encodedVideoObserver() *rtc.VideoEncodedFrameObserver {
 		return true
 	}}
 }
+
 func validateDimensions(width, height int) error {
 	if width < 1 || height < 1 || width > 16384 || height > 16384 {
 		return invalid("video dimensions", "must be between 1 and 16384")
 	}
 	return nil
 }
+
 func validateRotation(rotation int) error {
 	switch rotation {
 	case 0, 90, 180, 270:
@@ -84,6 +87,7 @@ func validateRotation(rotation int) error {
 		return invalid("rotation", "must be 0, 90, 180, or 270")
 	}
 }
+
 func (f VideoFrame) validate() error {
 	if err := validateDimensions(f.Width, f.Height); err != nil {
 		return err
@@ -111,6 +115,7 @@ func (f VideoFrame) validate() error {
 	}
 	return nil
 }
+
 func (s *Session) SendVideo(frame VideoFrame) error {
 	if err := frame.validate(); err != nil {
 		return err
@@ -129,6 +134,7 @@ func (s *Session) SendVideo(frame VideoFrame) error {
 	native := rtc.ExternalVideoFrame{Type: rtc.VideoBufferRawData, Format: rtc.VideoPixelFormat(frame.Format), Buffer: frame.Data, Stride: frame.Width, Height: frame.Height, Rotation: rtc.VideoOrientation(frame.Rotation), Timestamp: frame.TimestampMillis, MetadataBuffer: frame.Metadata, AlphaBuffer: frame.Alpha}
 	return check("send video", s.native.PushVideoFrame(&native))
 }
+
 func (f EncodedVideoFrame) validate() error {
 	if len(f.SEI) > 1024 {
 		return invalid("SEI", "must not exceed 1024 bytes")
@@ -150,6 +156,7 @@ func (f EncodedVideoFrame) validate() error {
 	}
 	return nil
 }
+
 func (f EncodedVideoFrame) nativeInfo() *rtc.EncodedVideoFrameInfo {
 	kind := rtc.VideoFrameTypeDeltaFrame
 	if f.KeyFrame {
@@ -157,6 +164,7 @@ func (f EncodedVideoFrame) nativeInfo() *rtc.EncodedVideoFrameInfo {
 	}
 	return &rtc.EncodedVideoFrameInfo{CodecType: rtc.VideoCodecType(f.Codec), Width: f.Width, Height: f.Height, FramesPerSecond: f.FPS, FrameType: kind, CaptureTimeMs: f.TimestampMillis, DecodeTimeMs: f.DecodeTimestampMillis, PresentTimeMs: f.PresentationMillis, Rotation: rtc.VideoOrientation(f.Rotation), StreamType: f.StreamID, SeiData: f.SEI}
 }
+
 func (s *Session) SendEncodedVideo(frame EncodedVideoFrame) error {
 	if err := frame.validate(); err != nil {
 		return err
@@ -174,12 +182,14 @@ func (s *Session) SendEncodedVideo(frame EncodedVideoFrame) error {
 	}
 	return check("send encoded video", s.native.PushVideoEncodedData(frame.Data, frame.nativeInfo()))
 }
+
 func (s *Session) RequestKeyFrame(userID string) error {
 	if err := s.validateRemoteUserID(userID); err != nil {
 		return err
 	}
 	return s.withNative("request keyframe", func(c *rtc.RtcConnection) int { return c.SendIntraRequest(userID) })
 }
+
 func (s *Session) SetVideoEncoder(cfg rtc.VideoEncoderConfiguration) error {
 	if err := validateDimensions(cfg.Width, cfg.Height); err != nil {
 		return err
@@ -189,6 +199,7 @@ func (s *Session) SetVideoEncoder(cfg rtc.VideoEncoderConfiguration) error {
 	}
 	return s.withNative("set video encoder", func(c *rtc.RtcConnection) int { return c.SetVideoEncoderConfiguration(&cfg) })
 }
+
 func (s *Session) SetSimulcast(enabled bool, cfg rtc.SimulcastStreamConfig) error {
 	return s.withNative("set simulcast", func(c *rtc.RtcConnection) int { return c.SetSimulcastStream(enabled, &cfg) })
 }

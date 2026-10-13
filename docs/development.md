@@ -54,7 +54,9 @@ CI uses Ubuntu 24.04 / Linux amd64 / Go 1.27.2. One job runs `make check` and ve
 
 `make fmt` and `make fmt-check` use pinned `goimports` v0.51.0 in format-only mode: standard-library imports first, external modules next, and this module last, with blank lines between groups. Imports and aliases are preserved rather than inferred or removed. The formatter covers tests, examples, native Go wrappers, and inactive build-tagged files; it excludes downloaded SDKs, vendored dependencies, binaries, and tool/cache directories. cgo preambles stay attached to `import "C"`. CI enforces the same command through `make check`.
 
-Make installs the pinned formatter into `.tools/bin`; the first installation needs module download access. Formatting and its fixture tests need no native SDK, network access, or runtime dependency changes. For the same editor behavior, use `.tools/bin/goimports -format-only -local github.com/zyy17/agora-server-sdk/`.
+Top-level functions and methods are separated by a blank line. An AST-based spacing check keeps each declaration’s documentation and compiler directives attached to it; it does not change function bodies.
+
+Make installs the pinned formatter into `.tools/bin`; the first installation needs module download access. Formatting and its fixture tests need no native SDK, network access, or runtime dependency changes. For matching import grouping in your editor, use `.tools/bin/goimports -format-only -local github.com/zyy17/agora-server-sdk/`. Run `make fmt` for the complete formatting rules.
 
 Keep functions focused on one step. When setup or event processing grows, extract named helpers around validation, resource creation, and handling a single event; keep cleanup and ownership visible at the call site. Avoid splitting code solely to meet an arbitrary line limit.
 

@@ -17,6 +17,7 @@ func copyState(s *native.UserState) UserState {
 	}
 	return out
 }
+
 func copyStates(in []native.UserState) []UserState {
 	out := make([]UserState, len(in))
 	for i := range in {
@@ -24,6 +25,7 @@ func copyStates(in []native.UserState) []UserState {
 	}
 	return out
 }
+
 func copyStatePointers(in []*native.UserState) []UserState {
 	out := make([]UserState, 0, len(in))
 	for _, s := range in {
@@ -33,15 +35,18 @@ func copyStatePointers(in []*native.UserState) []UserState {
 	}
 	return out
 }
+
 func copyUsers(in *native.UserList) []string {
 	if in == nil {
 		return nil
 	}
 	return append([]string(nil), in.Users...)
 }
+
 func copyLock(in native.LockDetail) Lock {
 	return Lock{Name: in.LockName, Owner: in.Owner, TTL: time.Duration(in.Ttl) * time.Second}
 }
+
 func copyLocks(in []native.LockDetail) []Lock {
 	out := make([]Lock, len(in))
 	for i, v := range in {
@@ -49,6 +54,7 @@ func copyLocks(in []native.LockDetail) []Lock {
 	}
 	return out
 }
+
 func copyMetadata(in *native.IMetadata) Metadata {
 	if in == nil {
 		return Metadata{}

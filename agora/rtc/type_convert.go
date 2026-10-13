@@ -130,6 +130,7 @@ func CLocalUserObserver() *C.struct__local_user_observer {
 func FreeCLocalUserObserver(handler *C.struct__local_user_observer) {
 	C.free(unsafe.Pointer(handler))
 }
+
 func CAudioFrameObserver() *C.struct__audio_frame_observer {
 	ret := (*C.struct__audio_frame_observer)(C.malloc(C.sizeof_struct__audio_frame_observer))
 	C.memset(unsafe.Pointer(ret), 0, C.sizeof_struct__audio_frame_observer)
@@ -323,6 +324,7 @@ func GoLocalAudioStats(stats *C.struct__local_audio_stats) *LocalAudioTrackStats
 	}
 	return ret
 }
+
 func GoRemoteAudioStats(stats *C.struct__remote_audio_track_stats) *RemoteAudioTrackStats {
 	if stats == nil {
 		return nil
@@ -342,6 +344,7 @@ func GoRemoteAudioStats(stats *C.struct__remote_audio_track_stats) *RemoteAudioT
 	}
 	return ret
 }
+
 func GoLocalVideoStats(stats *C.struct__local_video_track_stats) *LocalVideoTrackStats {
 	if stats == nil {
 		return nil
@@ -373,6 +376,7 @@ func GoLocalVideoStats(stats *C.struct__local_video_track_stats) *LocalVideoTrac
 	}
 	return ret
 }
+
 func GoRemoteVideoStats(stats *C.struct__remote_video_track_stats) *RemoteVideoTrackStats {
 	if stats == nil {
 		return nil
@@ -435,6 +439,7 @@ func CAudioEncodedFrameObserver() *C.struct__audio_encoded_frame_rev_observer {
 	C.bind_audio_encoded_frame_rev_observer(ret)
 	return ret
 }
+
 func freeCAudioEncodedFrameObserver(observer *C.struct__audio_encoded_frame_rev_observer) {
 	C.free(unsafe.Pointer(observer))
 }

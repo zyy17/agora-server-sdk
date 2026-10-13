@@ -54,7 +54,9 @@ CI 使用 Ubuntu 24.04 / Linux amd64 / Go 1.27.2。一个任务运行 `make chec
 
 `make fmt` 和 `make fmt-check` 使用固定版本 `goimports` v0.51.0 的仅格式化模式：先标准库，再外部模块，最后本模块，各组之间空一行。保留现有导入及别名，不推断或删除导入。格式化范围包括测试、示例、原生 Go 封装和未启用 build tag 的文件；排除已下载的 SDK、vendor 依赖、二进制及工具/缓存目录。cgo 前导注释保持紧邻 `import "C"`。CI 通过 `make check` 执行同一检查。
 
-Make 将固定版本的格式化工具安装到 `.tools/bin`，首次安装需要访问模块下载源。格式化及其回归测试不需要原生 SDK、网络访问或运行时依赖变更。编辑器可使用 `.tools/bin/goimports -format-only -local github.com/zyy17/agora-server-sdk/` 保持一致。
+顶层函数和方法之间留一个空行。基于 Go 语法树的检查会保留注释、编译指令与声明的关联，不修改函数体。
+
+Make 将固定版本的格式化工具安装到 `.tools/bin`，首次安装需要访问模块下载源。格式化及其回归测试不需要原生 SDK、网络访问或运行时依赖变更。编辑器可使用 `.tools/bin/goimports -format-only -local github.com/zyy17/agora-server-sdk/` 统一导入分组；完整格式化请运行 `make fmt`。
 
 函数应聚焦单一步骤。初始化或事件处理变长时，可按校验、资源创建和单事件处理提取具名辅助函数，并在调用处清楚展示资源归属与清理逻辑；不要仅为满足任意行数限制而拆分代码。
 

@@ -57,17 +57,21 @@ func NewTranscodingWorker(conn *RtcConnection, fps int) *TranscodingWorker {
 	fmt.Printf("0202:200318_v1: NewTranscodingWorker, not implemented\n")
 	return nil
 }
+
 func (worker *TranscodingWorker) Start() int {
 	fmt.Printf("0202:200318_v1: TranscodingWorker Start, not implemented\n")
 	return -10003
 }
+
 func (worker *TranscodingWorker) run() {
 	fmt.Printf("0202:200318_v1: TranscodingWorker run, not implemented\n")
 	return
 }
+
 func (worker *TranscodingWorker) PushEncodedData(data []byte, frameInfo *EncodedVideoFrameInfo) {
 	fmt.Printf("0202:200318_v1: TranscodingWorker PushEncodedData, not implemented\n")
 }
+
 func (worker *TranscodingWorker) Stop() {
 	fmt.Printf("0202:200318_v1: TranscodingWorker Stop, not implemented\n")
 	return

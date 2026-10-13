@@ -20,6 +20,7 @@ func (s *Session) TranscodeVideo(frame EncodedVideoFrame) error {
 	}
 	return check("transcode video", s.native.PushVideoEncodedDataForTranscode(frame.Data, frame.nativeInfo()))
 }
+
 func (s *Session) TranscodeOpus(packet []byte, channels int) error {
 	if len(packet) == 0 || (channels != 1 && channels != 2) {
 		return invalid("Opus packet", "requires nonempty data and 1–2 channels")

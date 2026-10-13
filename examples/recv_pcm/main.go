@@ -14,6 +14,7 @@ import (
 )
 
 func main() { example.Main(run) }
+
 func run() error {
 	dir := flag.String("output", "recordings", "directory for per-user PCM16LE files")
 	rate := flag.Int("rate", 16000, "sample rate")

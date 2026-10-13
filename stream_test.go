@@ -30,6 +30,7 @@ func TestStreamBoundedDropOldest(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
 func TestStreamDrainsAfterClose(t *testing.T) {
 	s := newStream[int](1)
 	s.push(7)
@@ -39,6 +40,7 @@ func TestStreamDrainsAfterClose(t *testing.T) {
 		t.Fatal(v, err)
 	}
 }
+
 func TestStreamCancellation(t *testing.T) {
 	s := newStream[int](1)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -58,6 +60,7 @@ func TestStreamCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestStreamConcurrentClose(t *testing.T) {
 	s := newStream[int](8)
 	var wg sync.WaitGroup

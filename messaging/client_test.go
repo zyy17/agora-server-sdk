@@ -18,6 +18,7 @@ func testClient(t *testing.T, buffer int) *Client {
 	t.Cleanup(func() { _ = c.Close() })
 	return c
 }
+
 func TestRequestCallbackBeforeReturn(t *testing.T) {
 	c := testClient(t, 1)
 	got, err := c.request(context.Background(), "early", nil, func() (int, uint64) { c.complete(9, result{value: "done"}); return 0, 9 })
@@ -30,6 +31,7 @@ func TestRequestCallbackBeforeReturn(t *testing.T) {
 		t.Fatal("retained completed request")
 	}
 }
+
 func TestImmediateFailure(t *testing.T) {
 	c := testClient(t, 1)
 	_, err := c.request(context.Background(), "publish", nil, func() (int, uint64) { return -7, 0 })
@@ -43,6 +45,7 @@ func TestImmediateFailure(t *testing.T) {
 		t.Fatal("immediate failure left waiter")
 	}
 }
+
 func TestAsynchronousFailure(t *testing.T) {
 	c := testClient(t, 1)
 	_, err := c.request(context.Background(), "acquire", nil, func() (int, uint64) { c.complete(11, result{code: -23, details: "locked"}); return 0, 11 })
@@ -51,6 +54,7 @@ func TestAsynchronousFailure(t *testing.T) {
 		t.Fatalf("wrong error: %v", err)
 	}
 }
+
 func TestContextCancellationRemovesWaiter(t *testing.T) {
 	c := testClient(t, 1)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -72,6 +76,7 @@ func TestContextCancellationRemovesWaiter(t *testing.T) {
 		t.Fatal("late result leaked")
 	}
 }
+
 func TestDefaultTimeout(t *testing.T) {
 	c := testClient(t, 1)
 	c.timeout = 5 * time.Millisecond
@@ -80,6 +85,7 @@ func TestDefaultTimeout(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
 func TestCanceledRequestDoesNotStart(t *testing.T) {
 	c := testClient(t, 1)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -89,6 +95,7 @@ func TestCanceledRequestDoesNotStart(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
 func TestWaitingForGateHonorsContext(t *testing.T) {
 	c := testClient(t, 1)
 	<-c.gate
@@ -100,6 +107,7 @@ func TestWaitingForGateHonorsContext(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
 func TestConcurrentCorrelation(t *testing.T) {
 	c := testClient(t, 1)
 	const n = 200
@@ -126,6 +134,7 @@ func TestConcurrentCorrelation(t *testing.T) {
 	}
 	wg.Wait()
 }
+
 func TestCloseUnblocksRequestsAndIsIdempotent(t *testing.T) {
 	c := testClient(t, 1)
 	started := make(chan struct{})
@@ -154,6 +163,7 @@ func TestCloseUnblocksRequestsAndIsIdempotent(t *testing.T) {
 	c.complete(88, result{})
 	c.emit(Event{Kind: EventMessage})
 }
+
 func TestEventQueueNeverBlocksAndCopies(t *testing.T) {
 	c := testClient(t, 1)
 	h := c.handler()
@@ -177,6 +187,7 @@ func TestEventQueueNeverBlocksAndCopies(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestPresenceAndMetadataCopy(t *testing.T) {
 	c := testClient(t, 2)
 	h := c.handler()
@@ -199,6 +210,7 @@ func TestPresenceAndMetadataCopy(t *testing.T) {
 		t.Fatalf("aliased metadata: %+v", ev.Storage.Metadata)
 	}
 }
+
 func TestHistoryAndMultiElementResult(t *testing.T) {
 	c := testClient(t, 1)
 	h := c.handler()
@@ -225,6 +237,7 @@ func TestHistoryAndMultiElementResult(t *testing.T) {
 		t.Fatalf("wrong presence: %+v", p)
 	}
 }
+
 func TestClosedStreamPreventsStart(t *testing.T) {
 	c := testClient(t, 1)
 	s := &Stream{client: c, closed: true}
@@ -233,6 +246,7 @@ func TestClosedStreamPreventsStart(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
 func TestCloseConcurrentWithEventsAndRequests(t *testing.T) {
 	c := testClient(t, 2)
 	var wg sync.WaitGroup
@@ -253,6 +267,7 @@ func TestCloseConcurrentWithEventsAndRequests(t *testing.T) {
 	}
 	wg.Wait()
 }
+
 func TestValidation(t *testing.T) {
 	cases := []Config{{}, {AppID: "a"}, {AppID: "a\x00b", UserID: "u"}, {AppID: "a", UserID: "u", EventBuffer: -1}, {AppID: "a", UserID: "u", RequestTimeout: -1}}
 	for _, cfg := range cases {
@@ -273,6 +288,7 @@ func TestValidation(t *testing.T) {
 		}
 	}
 }
+
 func TestNextCancellationAndClose(t *testing.T) {
 	c := testClient(t, 1)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -306,6 +322,7 @@ func TestPartialTopicSubscriptionPreservesResult(t *testing.T) {
 		t.Fatalf("lost partial result: %+v", result)
 	}
 }
+
 func TestRequestNativeUnavailable(t *testing.T) {
 	c := testClient(t, 1)
 	_, err := c.request(context.Background(), "missing interface", nil, func() (int, uint64) { return unavailableCode, 0 })
@@ -313,6 +330,7 @@ func TestRequestNativeUnavailable(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
 func TestStreamCloseStateOnlyCancelsItsRequests(t *testing.T) {
 	c := testClient(t, 1)
 	owner := &Stream{client: c}

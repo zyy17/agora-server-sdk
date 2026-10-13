@@ -80,6 +80,7 @@ func (s *Session) audioObserver() *rtc.AudioFrameObserver {
 		},
 	}
 }
+
 func copyAudioFrame(f *rtc.AudioFrame) AudioFrame {
 	return AudioFrame{Data: slices.Clone(f.Buffer), SampleRate: f.SamplesPerSec, Channels: f.Channels,
 		SamplesPerChannel: f.SamplesPerChannel, BytesPerSample: f.BytesPerSample, AVSyncType: f.AvsyncType, FarField: f.FarFieldFlag,
@@ -91,6 +92,7 @@ func (s *Session) encodedAudioObserver() *rtc.AudioEncodedFrameObserver {
 		s.encodedAudio.push(ReceivedEncodedAudio{s.cfg.Channel, uid, slices.Clone(data), AudioCodec(codec), ts})
 	}}
 }
+
 func validatePCM(data []byte, rate, channels int) error {
 	if err := validatePCMFormat(rate, channels); err != nil {
 		return err
@@ -155,6 +157,7 @@ func (s *Session) PlayPCM(ctx context.Context, reader io.Reader) error {
 func (s *Session) PlayPCMAt(ctx context.Context, reader io.Reader, presentationMillis int64) error {
 	return playPCM(ctx, reader, s.cfg.Audio.Send.SampleRate, s.cfg.Audio.Send.Channels, presentationMillis, s.SendPCMAt)
 }
+
 func playPCM(ctx context.Context, reader io.Reader, rate, channels int, presentationMillis int64, send func([]byte, int64) error) error {
 	if ctx == nil || reader == nil {
 		return invalid("context/reader", "must not be nil")
@@ -201,6 +204,7 @@ func playPCM(ctx context.Context, reader io.Reader, rate, channels int, presenta
 		}
 	}
 }
+
 func (s *Session) SendEncodedAudio(frame EncodedAudioFrame) error {
 	if len(frame.Data) == 0 {
 		return invalid("encoded audio", "must not be empty")
@@ -228,6 +232,7 @@ func (s *Session) SendEncodedAudio(frame EncodedAudioFrame) error {
 	info := rtc.EncodedAudioFrameInfo{Codec: rtc.AudioCodecType(frame.Codec), SampleRateHz: frame.SampleRate, NumberOfChannels: frame.Channels, SamplesPerChannel: frame.SamplesPerChannel, CaptureTimeMs: frame.TimestampMillis, Speech: frame.Speech}
 	return check("send encoded audio", s.native.PushAudioEncodedData(frame.Data, &info))
 }
+
 func (s *Session) InterruptAudio() error {
 	return s.withNative("interrupt audio", func(c *rtc.RtcConnection) int { return c.InterruptAudio() })
 }
@@ -266,12 +271,14 @@ func (s *Session) WaitPCM(ctx context.Context) error {
 		}
 	}
 }
+
 func (s *Session) SendAudioMetadata(data []byte) error {
 	if len(data) == 0 || len(data) > 1024 {
 		return invalid("audio metadata", "must contain 1–1024 bytes")
 	}
 	return s.withNative("send audio metadata", func(c *rtc.RtcConnection) int { return c.SendAudioMetaData(data) })
 }
+
 func (s *Session) SetVolumeIndication(interval time.Duration, smoothing int, reportVAD bool) error {
 	if interval < 0 || interval > time.Hour || smoothing < 0 || smoothing > 10 {
 		return invalid("volume indication", "requires nonnegative interval and smoothing 0–10")

@@ -28,9 +28,13 @@ func (f *fakeTransport) Connect(_, _, _, _ string) int {
 	}
 	return 0
 }
-func (f *fakeTransport) PublishAudio() int                            { return 0 }
-func (f *fakeTransport) UnpublishAudio() int                          { return 0 }
+
+func (f *fakeTransport) PublishAudio() int { return 0 }
+
+func (f *fakeTransport) UnpublishAudio() int { return 0 }
+
 func (f *fakeTransport) PushAudioPcmData([]byte, int, int, int64) int { return 0 }
+
 func (f *fakeTransport) Disconnect() int {
 	f.disconnects.Add(1)
 	f.mu.Lock()
@@ -38,12 +42,14 @@ func (f *fakeTransport) Disconnect() int {
 	f.mu.Unlock()
 	return f.disconnectCode
 }
+
 func (f *fakeTransport) Release() {
 	f.releases.Add(1)
 	f.mu.Lock()
 	f.order = append(f.order, "release")
 	f.mu.Unlock()
 }
+
 func testSession(t *testing.T) (*Session, *fakeTransport) {
 	t.Helper()
 	cfg, err := normalized(validChannel())
@@ -55,6 +61,7 @@ func testSession(t *testing.T) (*Session, *fakeTransport) {
 	s.transport = f
 	return s, f
 }
+
 func TestJoinWait(t *testing.T) {
 	t.Run("success synchronous callback", func(t *testing.T) {
 		s, f := testSession(t)
@@ -113,6 +120,7 @@ func TestJoinWait(t *testing.T) {
 		}
 	})
 }
+
 func TestCloseConcurrentIdempotent(t *testing.T) {
 	s, f := testSession(t)
 	var wg sync.WaitGroup
@@ -139,6 +147,7 @@ func TestCloseConcurrentIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestCloseReleasesAfterDisconnectError(t *testing.T) {
 	s, f := testSession(t)
 	f.disconnectCode = -3
@@ -149,6 +158,7 @@ func TestCloseReleasesAfterDisconnectError(t *testing.T) {
 		t.Fatal("release skipped")
 	}
 }
+
 func TestServiceOwnsSessions(t *testing.T) {
 	svc := &Service{sessions: make(map[*Session]struct{})}
 	s1, f1 := testSession(t)
@@ -183,6 +193,7 @@ func TestServiceOwnsSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestCopiedAudioCallback(t *testing.T) {
 	s, _ := testSession(t)
 	defer s.Close()
@@ -199,6 +210,7 @@ func TestCopiedAudioCallback(t *testing.T) {
 		t.Fatalf("%+v", got)
 	}
 }
+
 func TestCopiedMessageCallback(t *testing.T) {
 	s, _ := testSession(t)
 	defer s.Close()
@@ -210,6 +222,7 @@ func TestCopiedMessageCallback(t *testing.T) {
 		t.Fatal(got, err)
 	}
 }
+
 func TestCopiedVideoCallback(t *testing.T) {
 	s, _ := testSession(t)
 	defer s.Close()
@@ -222,6 +235,7 @@ func TestCopiedVideoCallback(t *testing.T) {
 		t.Fatal(got, err)
 	}
 }
+
 func TestCallbackQueueNeverBlocksJoin(t *testing.T) {
 	s, f := testSession(t)
 	defer s.Close()
@@ -238,6 +252,7 @@ func TestCallbackQueueNeverBlocksJoin(t *testing.T) {
 		t.Fatal("expected drop metric")
 	}
 }
+
 func TestCallbacksRaceClose(t *testing.T) {
 	s, _ := testSession(t)
 	var wg sync.WaitGroup
@@ -259,6 +274,7 @@ func TestCallbacksRaceClose(t *testing.T) {
 	}
 	wg.Wait()
 }
+
 func TestCapabilityFallbackDoesNotMutateNative(t *testing.T) {
 	s, _ := testSession(t)
 	defer s.Close()
@@ -306,6 +322,7 @@ func TestCanceledConnectDoesNotStartTransport(t *testing.T) {
 		t.Fatal("started canceled join")
 	}
 }
+
 func TestEncodedAudioRejectsInvalidBeforeNative(t *testing.T) {
 	s, _ := testSession(t)
 	defer s.Close()

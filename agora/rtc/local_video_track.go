@@ -133,6 +133,7 @@ func (track *LocalVideoTrack) setVideoEncoderConfiguration(cfg *VideoEncoderConf
 	cCfg.encode_alpha = CIntFromBool(cfg.EncodeAlpha)
 	return int(C.agora_local_video_track_set_video_encoder_config(track.cTrack, &cCfg))
 }
+
 func (track *LocalVideoTrack) setSimulcastStream(enable bool, config *SimulcastStreamConfig) int {
 	if track == nil || track.cTrack == nil {
 		return -2000

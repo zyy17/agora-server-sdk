@@ -19,6 +19,7 @@ func Main(run func() error) {
 		os.Exit(1)
 	}
 }
+
 func Config() (sdk.Config, sdk.ChannelConfig, error) {
 	appID, uid := os.Getenv("AGORA_APP_ID"), os.Getenv("AGORA_USER_ID")
 	if appID == "" || uid == "" {
@@ -30,9 +31,11 @@ func Config() (sdk.Config, sdk.ChannelConfig, error) {
 	}
 	return sdk.Config{AppID: appID}, sdk.ChannelConfig{Channel: channel, UserID: uid, Token: os.Getenv("AGORA_TOKEN")}, nil
 }
+
 func Context() (context.Context, context.CancelFunc) {
 	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 }
+
 func Run(video bool, configure func(*sdk.ChannelConfig), run func(context.Context, *sdk.Session) error) (err error) {
 	cfg, channel, err := Config()
 	if err != nil {

@@ -85,6 +85,7 @@ func (s *Service) NewAudioProcessor(cfg ProcessorConfig) (*AudioProcessor, error
 	s.processors[p] = struct{}{}
 	return p, nil
 }
+
 func (p *AudioProcessor) observer() *rtc.ExternalAudioProcessorObserver {
 	return &rtc.ExternalAudioProcessorObserver{OnProcessedAudioFrame: func(_ *rtc.ExternalAudioProcessor, f *rtc.AudioFrame, v rtc.VadState, speech *rtc.AudioFrame) {
 		if f == nil {
@@ -100,6 +101,7 @@ func (p *AudioProcessor) observer() *rtc.ExternalAudioProcessorObserver {
 }
 
 func (p *AudioProcessor) Output() *Stream[AudioFrame] { return p.output }
+
 func (p *AudioProcessor) SendPCM(data []byte) error {
 	if err := validateProcessorPCM(data, p.rate, p.channels); err != nil {
 		return err
@@ -111,6 +113,7 @@ func (p *AudioProcessor) SendPCM(data []byte) error {
 	}
 	return check("process PCM", p.native.PushAudioPcmData(data, p.rate, p.channels, 0))
 }
+
 func (p *AudioProcessor) Close() error {
 	p.closeOnce.Do(func() {
 		p.mu.Lock()

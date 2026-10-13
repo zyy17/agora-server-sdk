@@ -318,6 +318,7 @@ func timerTask() {
 	//fmt.Printf("timerTask: idle queue size: %d\n", 1)
 	removeIdleItem()
 }
+
 func addIdleItem(handle unsafe.Pointer, lifeCycleInMs int, cleanup func()) {
 	idleItem := newIdleItem(handle, lifeCycleInMs/50)
 	idleItem.cleanup = cleanup
@@ -325,6 +326,7 @@ func addIdleItem(handle unsafe.Pointer, lifeCycleInMs int, cleanup func()) {
 	agoraService.idleQueue = append(agoraService.idleQueue, idleItem)
 	agoraService.idleQueueMutex.Unlock()
 }
+
 func removeIdleItem() {
 	agoraService.idleQueueMutex.Lock()
 	defer agoraService.idleQueueMutex.Unlock()
@@ -352,6 +354,7 @@ func removeIdleItem() {
 	}
 
 }
+
 func releaseAllIdleItems() {
 	agoraService.idleQueueMutex.Lock()
 	defer agoraService.idleQueueMutex.Unlock()
@@ -573,6 +576,7 @@ func (s *AgoraService) setAudioEncObserToMap(item *EncAudioFrameObserverItem) bo
 	s.encAudioFrameObserverItemsMap.Store(item.CObserverHandle, item)
 	return true
 }
+
 func (s *AgoraService) getAudioEncObserverItemFromMap(observerHandle unsafe.Pointer) *EncAudioFrameObserverItem {
 	if observerHandle == nil {
 		return nil
@@ -675,6 +679,7 @@ func getAudioFilterPosition(isLocalTrack bool) int {
 	}
 	return int(2)
 }
+
 func enableAudioFilterByTrack(track unsafe.Pointer, name string, enable bool, isLocalTrack bool) int {
 	if track == nil {
 		return -1000
@@ -711,6 +716,7 @@ func setFilterPropertyByTrack(track unsafe.Pointer, name string, key string, val
 	ret := int(C.agora_audio_track_set_filter_property(track, cName, cKey, cValue, C.int(Position)))
 	return ret
 }
+
 func isSupportExternalAudioProcessor(model int) bool {
 	if model < 1 {
 		return false

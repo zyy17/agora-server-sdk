@@ -28,6 +28,7 @@ func ReadPacket(r io.Reader) ([]byte, error) {
 	}
 	return packet, nil
 }
+
 func WritePacket(w io.Writer, packet []byte) error {
 	if len(packet) == 0 || len(packet) > MaxPacketSize {
 		return ErrInvalidPacket
@@ -39,6 +40,7 @@ func WritePacket(w io.Writer, packet []byte) error {
 	}
 	return writeAll(w, packet)
 }
+
 func writeAll(w io.Writer, data []byte) error {
 	for len(data) > 0 {
 		n, err := w.Write(data)

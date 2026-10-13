@@ -37,6 +37,7 @@ func NewAudioTranscodingWorker(conn *RtcConnection, in_channels int) *AudioTrans
 	}
 	return &AudioTranscodingWorker{encodeDataQueue: make(chan *AudioTransCodeInData, 1000), conn: conn, stopChan: make(chan bool), decoder: d, in_channels: in_channels, out_channels: 1, out_sampleRate: 48000, pushPCM: conn.PushAudioPcmData}
 }
+
 func (worker *AudioTranscodingWorker) Start() int {
 	if worker == nil {
 		return -10001
@@ -54,6 +55,7 @@ func (worker *AudioTranscodingWorker) Start() int {
 	go worker.run()
 	return 0
 }
+
 func (worker *AudioTranscodingWorker) run() {
 	defer worker.wg.Done()
 	channels := worker.in_channels
@@ -92,6 +94,7 @@ func (worker *AudioTranscodingWorker) run() {
 		}
 	}
 }
+
 func (worker *AudioTranscodingWorker) PushEncodedData(data []byte, channels int, codecType int) {
 	if channels == 0 {
 		channels = 1
@@ -113,6 +116,7 @@ func (worker *AudioTranscodingWorker) PushEncodedData(data []byte, channels int,
 	case <-worker.stopChan:
 	}
 }
+
 func (worker *AudioTranscodingWorker) Stop() {
 	if worker == nil {
 		return

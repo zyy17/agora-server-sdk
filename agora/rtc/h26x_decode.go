@@ -131,6 +131,7 @@ func NewTranscodingWorker(conn *RtcConnection, fps int) *TranscodingWorker {
 	}
 	return &TranscodingWorker{encodeDataQueue: make(chan *TransCodeInData, 1000), interval: time.Second / time.Duration(fps), conn: conn, decoder: d, stopChan: make(chan bool), status: &TransCodeStatus{}}
 }
+
 func (worker *TranscodingWorker) Start() int {
 	if worker == nil {
 		return -10001
@@ -149,6 +150,7 @@ func (worker *TranscodingWorker) Start() int {
 	go worker.run()
 	return 0
 }
+
 func (worker *TranscodingWorker) run() {
 	defer worker.wg.Done()
 	for {
@@ -179,6 +181,7 @@ func (worker *TranscodingWorker) run() {
 		}
 	}
 }
+
 func (worker *TranscodingWorker) PushEncodedData(data []byte, info *EncodedVideoFrameInfo) {
 	if worker == nil || len(data) == 0 || info == nil {
 		return
@@ -199,6 +202,7 @@ func (worker *TranscodingWorker) PushEncodedData(data []byte, info *EncodedVideo
 	case <-worker.stopChan:
 	}
 }
+
 func (worker *TranscodingWorker) Stop() {
 	if worker == nil {
 		return

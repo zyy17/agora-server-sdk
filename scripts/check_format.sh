@@ -20,10 +20,19 @@ while IFS= read -r -d '' file; do files+=("$file"); done < <(
 options=(-format-only -local "${module_path}/")
 if [[ "${2:-}" == --write ]]; then
     "$goimports" "${options[@]}" -w "${files[@]}"
+    "$go_command" run ./internal/cmd/funcspacing -w "${files[@]}"
+    # The new gaps end gofmt alignment groups between adjacent one-line functions.
+    "$goimports" "${options[@]}" -w "${files[@]}"
     exit 0
 fi
 unformatted=$("$goimports" "${options[@]}" -l "${files[@]}")
 if [[ -n "$unformatted" ]]; then
     printf 'Run make fmt; these Go files need formatting:\n%s\n' "$unformatted" >&2
+    exit 1
+fi
+# Go's standard formatter permits adjacent one-line functions and methods.
+# Parse declarations separately so their attached docs and directives stay intact.
+if ! unspaced=$("$go_command" run ./internal/cmd/funcspacing "${files[@]}"); then
+    printf 'Run make fmt; these Go files need function spacing:\n%s\n' "$unspaced" >&2
     exit 1
 fi

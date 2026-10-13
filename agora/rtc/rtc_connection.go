@@ -1211,6 +1211,7 @@ func (conn *RtcConnection) EnableEncryption(enable int, config *EncryptionConfig
 	ret := C.agora_rtc_conn_enable_encryption(conn.cConnection, C.int(enable), &cConfig)
 	return int(ret)
 }
+
 func (conn *RtcConnection) handleCapabilitiesChanged(caps *C.struct__capabilities, size C.int) int {
 	if conn == nil || conn.cConnection == nil || conn.cCapabilitiesObserver == nil {
 		return -1
@@ -1298,6 +1299,7 @@ func (conn *RtcConnection) PublishAudio() int {
 	ret := conn.localUser.publishAudio(conn.audioTrack)
 	return int(ret)
 }
+
 func (conn *RtcConnection) UnpublishAudio() int {
 	if conn == nil {
 		return -2000
@@ -1334,6 +1336,7 @@ func (conn *RtcConnection) UnpublishVideo() int {
 	ret := conn.localUser.unpublishVideo(conn.videoTrack)
 	return int(ret)
 }
+
 func (conn *RtcConnection) InterruptAudio() int {
 	if conn == nil {
 		return -2000
@@ -1403,6 +1406,7 @@ func (conn *RtcConnection) PushAudioPcmData(data []byte, sampleRate int, channel
 	}
 	return ret
 }
+
 func (conn *RtcConnection) PushAudioEncodedData(data []byte, frameInfo *EncodedAudioFrameInfo) int {
 	if conn == nil {
 		return -2000
@@ -1419,12 +1423,14 @@ func (conn *RtcConnection) PushAudioEncodedData(data []byte, frameInfo *EncodedA
 	}
 	return conn.encodedAudioSender.SendEncodedAudioFrame(data, frameInfo)
 }
+
 func (conn *RtcConnection) PushVideoFrame(frame *ExternalVideoFrame) int {
 	if conn == nil || conn.cConnection == nil || conn.videoSender == nil {
 		return -2000
 	}
 	return conn.videoSender.SendVideoFrame(frame)
 }
+
 func (conn *RtcConnection) PushVideoEncodedData(data []byte, frameInfo *EncodedVideoFrameInfo) int {
 	if conn == nil || conn.cConnection == nil || conn.encodedVideoSender == nil || frameInfo == nil || len(data) == 0 {
 		return -2000
@@ -1516,6 +1522,7 @@ func (conn *RtcConnection) IsPushToRtcCompleted() bool {
 	}
 	return conn.pcmConsumeStats.isPushCompleted(conn.audioScenario)
 }
+
 func (consumer *PcmConsumeStats) addPcmData(len int, samplerate int, channels int) {
 	isNewRound := consumer.isNewRound(samplerate, channels)
 	if isNewRound {
@@ -1542,6 +1549,7 @@ func (consumer *PcmConsumeStats) isNewRound(samplerate int, channels int) bool {
 	}
 	return false
 }
+
 func (consumer *PcmConsumeStats) getCurrentPosition() int {
 	if consumer == nil || consumer.startTime == 0 {
 		return 0
@@ -1565,11 +1573,13 @@ func (consumer *PcmConsumeStats) isPushCompleted(scenario AudioScenario) bool {
 	}
 	return false
 }
+
 func (consumer *PcmConsumeStats) reset() {
 	consumer.startTime = 0
 	consumer.totalLength = 0
 	consumer.duration = 0
 }
+
 func (conn *RtcConnection) SetVideoEncoderConfiguration(cfg *VideoEncoderConfiguration) int {
 	// validate the connection
 	if conn == nil || conn.cConnection == nil || conn.videoTrack == nil || conn.videoTrack.cTrack == nil {
@@ -1594,6 +1604,7 @@ func (conn *RtcConnection) SetVideoEncoderConfiguration(cfg *VideoEncoderConfigu
 	cCfg.encode_alpha = CIntFromBool(cfg.EncodeAlpha)
 	return int(C.agora_local_video_track_set_video_encoder_config(conn.videoTrack.cTrack, &cCfg))
 }
+
 func (conn *RtcConnection) SendAudioMetaData(metaData []byte) int {
 	if conn == nil {
 		return -2000
@@ -1620,6 +1631,7 @@ func (conn *RtcConnection) isEnable3A() bool {
 	}
 	return true
 }
+
 func (conn *RtcConnection) setApmFilterProperties(uid *C.char, cRemoteAudioTrack unsafe.Pointer) int {
 	if conn == nil || conn.cConnection == nil || conn.localUser == nil || conn.localUser.cLocalUser == nil {
 		return -2000
@@ -1683,6 +1695,7 @@ func (conn *RtcConnection) setExtraSendFrameSpeed(sendExternalAudioParameters *S
 	setDeliverMuteData(sendExternalAudioParameters.DeliverMuteDataForFakeAdm)
 	return 0
 }
+
 func (conn *RtcConnection) setTotalExtraSendMs() int {
 	// note: for internal call only, so do not need to check the connection
 	// only check the model from parameters
@@ -1775,6 +1788,7 @@ func (conn *RtcConnection) PushVideoEncodedDataForTranscode(data []byte, frameIn
 
 	return 0
 }
+
 func (conn *RtcConnection) handleDecodedVideoFrameForTranscode(frame *ExternalVideoFrame) int {
 	if conn == nil {
 		return -2000
@@ -1783,6 +1797,7 @@ func (conn *RtcConnection) handleDecodedVideoFrameForTranscode(frame *ExternalVi
 
 	return ret
 }
+
 func (conn *RtcConnection) startTranscodingWorker() int {
 	if conn.transcodingWorker != nil {
 		return -1000
@@ -1805,6 +1820,7 @@ func (conn *RtcConnection) startTranscodingWorker() int {
 	}
 	return conn.transcodingWorker.Start()
 }
+
 func (conn *RtcConnection) stopTranscodingWorker() int {
 	if conn.transcodingWorker == nil {
 		return -1000
@@ -1842,6 +1858,7 @@ func (conn *RtcConnection) unregAudioEncFrameObserverItem(item *EncAudioFrameObs
 	fmt.Printf("unregAudioEncFrameObserverItem, uid: %s, cTrack: %p, cObserverHandle: %p\n", item.Uid, item.CTrack, item.CObserverHandle)
 	return int(ret)
 }
+
 func (conn *RtcConnection) unregisterAudioEncodedFrameObserver() int {
 	conn.callbacks.pause()
 	defer conn.callbacks.resume()
@@ -1901,6 +1918,7 @@ func (conn *RtcConnection) doUnregisterAudioEncodedFrameObserver(uid string) int
 	})
 	return 0
 }
+
 func (conn *RtcConnection) initEncodedAudioFrameReceived(uid *C.char, cRemoteAudioTrack unsafe.Pointer) int {
 	conn.encodedObserverMu.Lock()
 	defer conn.encodedObserverMu.Unlock()
@@ -1970,6 +1988,7 @@ func (conn *RtcConnection) GetSid() string {
 	//note: do not free the c_sid, it is a const string
 	return C.GoString(c_sid)
 }
+
 func (conn *RtcConnection) setBestPractice(channel_type ChannelType) int {
 	if conn == nil || conn.cConnection == nil {
 		return -2000
@@ -1982,6 +2001,7 @@ func (conn *RtcConnection) setBestPractice(channel_type ChannelType) int {
 	}
 	return -2002
 }
+
 func (conn *RtcConnection) setBestPracticeForLargeScale(channel_type ChannelType) int {
 	if conn == nil || conn.cConnection == nil {
 		return -2000
@@ -2082,6 +2102,7 @@ func (conn *RtcConnection) setBestPracticeForLargeScale(channel_type ChannelType
 
 	return 0
 }
+
 func (conn *RtcConnection) setBestPracticeForStandard(channel_type ChannelType) int {
 	if conn == nil || conn.cConnection == nil {
 		return -2000
@@ -2178,6 +2199,7 @@ func (conn *RtcConnection) setBestPracticeForStandard(channel_type ChannelType) 
 
 	return 0
 }
+
 func (conn *RtcConnection) startAudioTranscodingWorker(in_channels int) int {
 	if conn.audioTranscodingWorker != nil {
 		return -1000
@@ -2192,6 +2214,7 @@ func (conn *RtcConnection) startAudioTranscodingWorker(in_channels int) int {
 	}
 	return ret
 }
+
 func (conn *RtcConnection) stopAudioTranscodingWorker() int {
 	if conn.audioTranscodingWorker == nil {
 		return -1000

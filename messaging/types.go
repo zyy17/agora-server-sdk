@@ -38,13 +38,16 @@ func (e *Error) Error() string {
 	}
 	return fmt.Sprintf("messaging: %s: RTM error %d", e.Op, e.Code)
 }
+
 func sdkError(op string, code int) error {
 	if code == 0 {
 		return nil
 	}
 	return &Error{Op: op, Code: ErrorCode(code)}
 }
+
 func invalid(field string) error { return fmt.Errorf("%w: %s", ErrInvalidArgument, field) }
+
 func validText(field, s string, required bool) error {
 	if (required && s == "") || strings.IndexByte(s, 0) >= 0 || !utf8.ValidString(s) {
 		return invalid(field)

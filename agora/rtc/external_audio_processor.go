@@ -300,6 +300,7 @@ func newAudioSink(processor *ExternalAudioProcessor) *AudioSink {
 	}
 	return sink
 }
+
 func (s *AudioSink) release() {
 	if s == nil {
 		return
@@ -335,6 +336,7 @@ func (p *ExternalAudioProcessor) removeAudioSink() int {
 	}
 	return int(C.agora_audio_track_remove_audio_sink(p.audioTrack.cTrack, p.audioSinks.cSink))
 }
+
 func (p *ExternalAudioProcessor) doResultFrame(frame *AudioFrame) int {
 	// TODO: implement the logic to process the audio frame
 	//fmt.Printf("[ExternalAudioProcessor] doResultFrame, voice prob: %d, rms: %d, pitch: %d\n", frame.VoiceProb, frame.Rms, frame.Pitch)

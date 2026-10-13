@@ -29,6 +29,7 @@ func (c *Client) OnlineUsers(ctx context.Context, ch Channel, o PresenceOptions)
 	}
 	return v.(PresencePage), nil
 }
+
 func (c *Client) UserChannels(ctx context.Context, userID string) ([]Channel, error) {
 	if err := validText("user ID", userID, true); err != nil {
 		return nil, err
@@ -47,6 +48,7 @@ func (c *Client) UserChannels(ctx context.Context, userID string) ([]Channel, er
 	}
 	return v.([]Channel), nil
 }
+
 func (c *Client) SetState(ctx context.Context, ch Channel, state map[string]string) error {
 	if err := ch.validate(); err != nil {
 		return err
@@ -109,6 +111,7 @@ func (c *Client) RemoveState(ctx context.Context, ch Channel, keys ...string) er
 		return code, id
 	})
 }
+
 func (c *Client) State(ctx context.Context, ch Channel, userID string) (UserState, error) {
 	if err := ch.validate(); err != nil {
 		return UserState{}, err

@@ -92,7 +92,8 @@ func Version() string { return native.GetVersion() }
 // Events returns a bounded, receive-only event queue. Events own their data and
 // remain valid after Close. When full, the newest event is dropped; request
 // completions never use this queue. Close closes the queue after queued events.
-func (c *Client) Events() <-chan Event  { return c.events }
+func (c *Client) Events() <-chan Event { return c.events }
+
 func (c *Client) DroppedEvents() uint64 { c.mu.Lock(); defer c.mu.Unlock(); return c.dropped }
 
 // Next waits for an event or cancellation. Consumers can instead range Events.
@@ -115,6 +116,7 @@ func (c *Client) Next(ctx context.Context) (Event, error) {
 		return Event{}, ctx.Err()
 	}
 }
+
 func (c *Client) emit(e Event) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -127,6 +129,7 @@ func (c *Client) emit(e Event) {
 		c.dropped++
 	}
 }
+
 func (c *Client) complete(id uint64, r result) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -144,6 +147,7 @@ func (c *Client) complete(id uint64, r result) {
 		c.early[id] = r
 	}
 }
+
 func (c *Client) lock(ctx context.Context) error {
 	if ctx == nil {
 		return invalid("nil context")
@@ -169,6 +173,7 @@ func (c *Client) lock(ctx context.Context) error {
 	}
 	return nil
 }
+
 func (c *Client) unlock() { c.gate <- struct{}{} }
 
 func (c *Client) request(ctx context.Context, op string, owner *Stream, start func() (int, uint64)) (any, error) {
@@ -216,6 +221,7 @@ func (c *Client) request(ctx context.Context, op string, owner *Stream, start fu
 		return nil, ctx.Err()
 	}
 }
+
 func unpack(op string, r result) (any, error) {
 	if r.err != nil {
 		return nil, r.err
@@ -225,10 +231,12 @@ func unpack(op string, r result) (any, error) {
 	}
 	return r.value, nil
 }
+
 func (c *Client) call(ctx context.Context, op string, start func() (int, uint64)) error {
 	_, err := c.request(ctx, op, nil, start)
 	return err
 }
+
 func (c *Client) closeState(owner *Stream) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -267,27 +275,33 @@ func (c *Client) Close() error {
 	})
 	return c.closeErr
 }
+
 func (c *Client) Login(ctx context.Context, token string) error {
 	if err := validText("token", token, false); err != nil {
 		return err
 	}
 	return c.call(ctx, "login", func() (int, uint64) { return c.native.Login(token) })
 }
+
 func (c *Client) Logout(ctx context.Context) error {
 	return c.call(ctx, "logout", func() (int, uint64) { return c.native.Logout() })
 }
+
 func (c *Client) RenewToken(ctx context.Context, token string) error {
 	if err := validText("token", token, false); err != nil {
 		return err
 	}
 	return c.call(ctx, "renew token", func() (int, uint64) { return c.native.RenewToken(token) })
 }
+
 func (c *Client) Publish(ctx context.Context, channel string, data []byte, options PublishOptions) error {
 	return c.publish(ctx, channel, MessageChannel, data, options)
 }
+
 func (c *Client) PublishToUser(ctx context.Context, userID string, data []byte, options PublishOptions) error {
 	return c.publish(ctx, userID, UserChannel, data, options)
 }
+
 func (c *Client) publish(ctx context.Context, target string, kind ChannelType, data []byte, o PublishOptions) error {
 	if err := validText("publish target", target, true); err != nil {
 		return err
@@ -309,6 +323,7 @@ func (c *Client) publish(ctx context.Context, target string, kind ChannelType, d
 	payload := append([]byte(nil), data...)
 	return c.call(ctx, "publish", func() (int, uint64) { return c.native.Publish(target, payload, options) })
 }
+
 func (c *Client) Subscribe(ctx context.Context, channel string, o SubscribeOptions) error {
 	if err := validText("channel", channel, true); err != nil {
 		return err
@@ -316,6 +331,7 @@ func (c *Client) Subscribe(ctx context.Context, channel string, o SubscribeOptio
 	options := &native.SubscribeOptions{WithMessage: true, WithPresence: o.Presence, WithMetadata: o.Metadata, WithLock: o.Locks, BeQuiet: o.Quiet}
 	return c.call(ctx, "subscribe", func() (int, uint64) { return c.native.Subscribe(channel, options) })
 }
+
 func (c *Client) Unsubscribe(ctx context.Context, channel string) error {
 	if err := validText("channel", channel, true); err != nil {
 		return err

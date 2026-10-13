@@ -20,10 +20,10 @@ WITH_AGORA := ./scripts/with_agora_env.sh
 help: ## Show available targets.
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "%-25s %s\n", $$1, $$2}'
 
-fmt: install-goimports ## Format Go source and group standard, external, and local imports.
+fmt: install-goimports ## Format Go source, import groups, and function spacing.
 	GOIMPORTS="$(TOOLS_BIN)/goimports" ./scripts/check_format.sh "$(GO)" --write
 
-fmt-check: install-goimports ## Fail if Go source or import groups need formatting.
+fmt-check: install-goimports ## Fail if Go source, import groups, or function spacing need formatting.
 	GOIMPORTS="$(TOOLS_BIN)/goimports" ./scripts/check_format.sh "$(GO)"
 
 install-goimports: ## Install the checksum-verified, pinned import formatter.
@@ -65,6 +65,7 @@ sync-agora-libs-headers: ## Refresh vendored C headers from the pinned Linux SDK
 	./scripts/sync_agora_libs_headers.sh
 
 test-tooling: install-goimports ## Check installer and formatter behavior with offline fixtures.
+	$(GO) test ./internal/cmd/funcspacing
 	./scripts/test_tooling.sh
 	GOIMPORTS="$(TOOLS_BIN)/goimports" ./scripts/test_format.sh "$(GO)"
 

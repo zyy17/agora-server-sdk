@@ -30,9 +30,11 @@ func NewAudioVadManager(config *AudioVadConfigV2) *AudioVadManager {
 		vadInstance:   sync.Map{},
 	}
 }
+
 func (m *AudioVadManager) makeKey(channel string, uid string) string {
 	return channel + "\x00" + uid
 }
+
 func (m *AudioVadManager) Process(channel string, uid string, frame *AudioFrame) (*AudioFrame, VadState) {
 	if m == nil {
 		return nil, VadStateInvalid
@@ -58,6 +60,7 @@ func (m *AudioVadManager) Process(channel string, uid string, frame *AudioFrame)
 	// 3. do process
 	return vad.(*AudioVadV2).Process(frame)
 }
+
 func (m *AudioVadManager) Release() {
 	if m == nil {
 		return

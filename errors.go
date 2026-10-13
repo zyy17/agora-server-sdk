@@ -20,12 +20,14 @@ type Error struct {
 }
 
 func (e *Error) Error() string { return fmt.Sprintf("agora: %s failed (native code %d)", e.Op, e.Code) }
+
 func check(op string, code int) error {
 	if code == 0 {
 		return nil
 	}
 	return &Error{Op: op, Code: code}
 }
+
 func invalid(field, problem string) error {
 	return fmt.Errorf("%w: %s %s", ErrInvalidConfig, field, problem)
 }

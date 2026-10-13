@@ -130,6 +130,7 @@ func (s *Service) Join(ctx context.Context, cfg ChannelConfig) (*Session, error)
 	}
 	return session, nil
 }
+
 func (s *Service) Close() error {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
@@ -155,6 +156,7 @@ func (s *Service) Close() error {
 	})
 	return s.closeErr
 }
+
 func (s *Service) remove(c *Session) { s.mu.Lock(); delete(s.sessions, c); s.mu.Unlock() }
 
 // SetParameters applies a native process-level JSON parameter object while the

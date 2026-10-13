@@ -25,6 +25,7 @@ func TestPacketRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestPacketRejectsSizeAndTruncation(t *testing.T) {
 	for _, n := range []uint32{0, MaxPacketSize + 1} {
 		var b [4]byte
@@ -40,6 +41,7 @@ func TestPacketRejectsSizeAndTruncation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestADTS(t *testing.T) {
 	frame := []byte{0xff, 0xf1, 0x60, 0x40, 0x01, 0x5f, 0xfc, 1, 2, 3}
 	got, err := ReadADTS(bytes.NewReader(frame))
@@ -55,6 +57,7 @@ func TestADTS(t *testing.T) {
 		}
 	}
 }
+
 func FuzzPacket(f *testing.F) {
 	f.Add([]byte{0, 0, 0, 1, 1})
 	f.Fuzz(func(t *testing.T, b []byte) {
@@ -64,6 +67,7 @@ func FuzzPacket(f *testing.F) {
 		_, _ = ReadPacket(bytes.NewReader(b))
 	})
 }
+
 func FuzzADTS(f *testing.F) {
 	f.Add([]byte{0xff, 0xf1, 0x60, 0x40, 0x01, 0x5f, 0xfc, 1, 2, 3})
 	f.Fuzz(func(t *testing.T, b []byte) { _, _ = ReadADTS(bytes.NewReader(b)) })

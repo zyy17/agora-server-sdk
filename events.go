@@ -67,6 +67,7 @@ func (s *Session) event(e Event) {
 	}
 	s.events.push(e)
 }
+
 func (s *Session) state(kind EventKind, info *rtc.RtcConnectionInfo, reason int) {
 	copy := s.Info()
 	copy.Reason = reason
@@ -79,6 +80,7 @@ func (s *Session) state(kind EventKind, info *rtc.RtcConnectionInfo, reason int)
 	s.info.Store(&copy)
 	s.event(Event{Kind: kind, Reason: reason, State: copy.State})
 }
+
 func (s *Session) connectionObserver() *rtc.RtcConnectionObserver {
 	return &rtc.RtcConnectionObserver{
 		OnConnected: func(_ *rtc.RtcConnection, i *rtc.RtcConnectionInfo, r int) {

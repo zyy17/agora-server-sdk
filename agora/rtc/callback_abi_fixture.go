@@ -130,26 +130,33 @@ func (f *callbackABIFixture) subscribe(uid string) {
 	defer C.free(unsafe.Pointer(cuid))
 	C.callback_test_subscribe(f.local, f.audio, f.video, cuid)
 }
+
 func (f *callbackABIFixture) stats(nilStats bool) {
 	C.callback_test_stats(f.local, f.audio, f.video, CIntFromBool(nilStats))
 }
+
 func (f *callbackABIFixture) state(uid string, state int) {
 	cuid := C.CString(uid)
 	defer C.free(unsafe.Pointer(cuid))
 	C.callback_test_state(f.local, f.audio, f.video, cuid, C.int(state))
 }
+
 func (f *callbackABIFixture) left(uid string) {
 	cuid := C.CString(uid)
 	defer C.free(unsafe.Pointer(cuid))
 	C.callback_test_left(f.local, cuid)
 }
+
 func (f *callbackABIFixture) disconnect() { C.callback_test_disconnected(f.local) }
+
 func (f *callbackABIFixture) videoFrameFor(uid string) {
 	cuid := C.CString(uid)
 	defer C.free(unsafe.Pointer(cuid))
 	C.callback_test_video(f.video, cuid)
 }
+
 func (f *callbackABIFixture) videoFrame() { f.videoFrameFor("speaker-alpha") }
+
 func (f *callbackABIFixture) encodedAudio(nilInfo bool) int {
 	return int(C.callback_test_encoded_audio(f.encoded, CIntFromBool(nilInfo)))
 }

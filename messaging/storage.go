@@ -31,6 +31,7 @@ func metadataInput(m Metadata) (*native.IMetadata, error) {
 	}
 	return out, nil
 }
+
 func metadataOptions(o MetadataOptions) (*native.MetadataOptions, error) {
 	if err := validText("metadata lock name", o.LockName, false); err != nil {
 		return nil, err
@@ -42,12 +43,15 @@ func metadataOptions(o MetadataOptions) (*native.MetadataOptions, error) {
 func (c *Client) SetChannelMetadata(ctx context.Context, ch Channel, m Metadata, o MetadataOptions) error {
 	return c.channelMetadata(ctx, "set", ch, m, o)
 }
+
 func (c *Client) UpdateChannelMetadata(ctx context.Context, ch Channel, m Metadata, o MetadataOptions) error {
 	return c.channelMetadata(ctx, "update", ch, m, o)
 }
+
 func (c *Client) RemoveChannelMetadata(ctx context.Context, ch Channel, m Metadata, o MetadataOptions) error {
 	return c.channelMetadata(ctx, "remove", ch, m, o)
 }
+
 func (c *Client) channelMetadata(ctx context.Context, action string, ch Channel, m Metadata, o MetadataOptions) error {
 	if err := ch.validate(); err != nil {
 		return err
@@ -78,6 +82,7 @@ func (c *Client) channelMetadata(ctx context.Context, action string, ch Channel,
 		return code, id
 	})
 }
+
 func (c *Client) ChannelMetadata(ctx context.Context, ch Channel) (Metadata, error) {
 	if err := ch.validate(); err != nil {
 		return Metadata{}, err
@@ -96,15 +101,19 @@ func (c *Client) ChannelMetadata(ctx context.Context, ch Channel) (Metadata, err
 	}
 	return v.(Metadata), nil
 }
+
 func (c *Client) SetUserMetadata(ctx context.Context, userID string, m Metadata, o MetadataOptions) error {
 	return c.userMetadata(ctx, "set", userID, m, o)
 }
+
 func (c *Client) UpdateUserMetadata(ctx context.Context, userID string, m Metadata, o MetadataOptions) error {
 	return c.userMetadata(ctx, "update", userID, m, o)
 }
+
 func (c *Client) RemoveUserMetadata(ctx context.Context, userID string, m Metadata, o MetadataOptions) error {
 	return c.userMetadata(ctx, "remove", userID, m, o)
 }
+
 func (c *Client) userMetadata(ctx context.Context, action, userID string, m Metadata, o MetadataOptions) error {
 	if err := validText("user ID", userID, true); err != nil {
 		return err
@@ -138,6 +147,7 @@ func (c *Client) userMetadata(ctx context.Context, action, userID string, m Meta
 		return code, id
 	})
 }
+
 func (c *Client) UserMetadata(ctx context.Context, userID string) (Metadata, error) {
 	if err := validText("user ID", userID, true); err != nil {
 		return Metadata{}, err
@@ -156,6 +166,7 @@ func (c *Client) UserMetadata(ctx context.Context, userID string) (Metadata, err
 	}
 	return v.(Metadata), nil
 }
+
 func (c *Client) SubscribeUserMetadata(ctx context.Context, userID string) error {
 	if err := validText("user ID", userID, true); err != nil {
 		return err
@@ -170,6 +181,7 @@ func (c *Client) SubscribeUserMetadata(ctx context.Context, userID string) error
 		return code, id
 	})
 }
+
 func (c *Client) UnsubscribeUserMetadata(ctx context.Context, userID string) error {
 	if err := validText("user ID", userID, true); err != nil {
 		return err

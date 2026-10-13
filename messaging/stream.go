@@ -61,14 +61,18 @@ func (c *Client) NewStream(ctx context.Context, name string) (*Stream, error) {
 	c.streams[s] = struct{}{}
 	return s, nil
 }
+
 func (s *Stream) Name() string { return s.name }
+
 func (s *Stream) request(ctx context.Context, op string, fn func() (int, uint64)) (any, error) {
 	return s.client.request(ctx, op, s, fn)
 }
+
 func (s *Stream) call(ctx context.Context, op string, fn func() (int, uint64)) error {
 	_, err := s.request(ctx, op, fn)
 	return err
 }
+
 func (s *Stream) Close() error {
 	c := s.client
 	<-c.gate
@@ -81,6 +85,7 @@ func (s *Stream) Close() error {
 	c.closeState(s)
 	return sdkError("close stream", s.native.Release())
 }
+
 func (s *Stream) Join(ctx context.Context, o JoinOptions) error {
 	if err := validText("stream token", o.Token, false); err != nil {
 		return err
@@ -88,15 +93,18 @@ func (s *Stream) Join(ctx context.Context, o JoinOptions) error {
 	options := &native.JoinChannelOptions{Token: o.Token, WithPresence: o.Presence, WithMetadata: o.Metadata, WithLock: o.Locks, BeQuiet: o.Quiet}
 	return s.call(ctx, "join stream", func() (int, uint64) { var id uint64; code := s.native.Join(options, &id); return code, id })
 }
+
 func (s *Stream) Leave(ctx context.Context) error {
 	return s.call(ctx, "leave stream", func() (int, uint64) { var id uint64; code := s.native.Leave(&id); return code, id })
 }
+
 func (s *Stream) RenewToken(ctx context.Context, token string) error {
 	if err := validText("stream token", token, false); err != nil {
 		return err
 	}
 	return s.call(ctx, "renew stream token", func() (int, uint64) { return s.native.RenewToken(token) })
 }
+
 func (s *Stream) JoinTopic(ctx context.Context, topic string, o TopicOptions) error {
 	if err := validText("topic", topic, true); err != nil {
 		return err
@@ -124,12 +132,14 @@ func (s *Stream) JoinTopic(ctx context.Context, topic string, o TopicOptions) er
 	}
 	return s.call(ctx, "join topic", func() (int, uint64) { var id uint64; code := s.native.JoinTopic(topic, options, &id); return code, id })
 }
+
 func (s *Stream) LeaveTopic(ctx context.Context, topic string) error {
 	if err := validText("topic", topic, true); err != nil {
 		return err
 	}
 	return s.call(ctx, "leave topic", func() (int, uint64) { var id uint64; code := s.native.LeaveTopic(topic, &id); return code, id })
 }
+
 func (s *Stream) Publish(ctx context.Context, topic string, data []byte, o TopicMessageOptions) error {
 	if err := validText("topic", topic, true); err != nil {
 		return err
@@ -150,6 +160,7 @@ func (s *Stream) Publish(ctx context.Context, topic string, data []byte, o Topic
 	payload := string(data)
 	return s.call(ctx, "publish topic", func() (int, uint64) { return s.native.PublishTopicMessage(topic, payload, uint(len(payload)), options) })
 }
+
 func topicUsers(topic string, users []string) (*native.TopicOptions, error) {
 	if err := validText("topic", topic, true); err != nil {
 		return nil, err
@@ -180,6 +191,7 @@ func (s *Stream) SubscribeTopic(ctx context.Context, topic string, users ...stri
 	}
 	return TopicSubscription{}, err
 }
+
 func (s *Stream) UnsubscribeTopic(ctx context.Context, topic string, users ...string) error {
 	options, err := topicUsers(topic, users)
 	if err != nil {
@@ -187,6 +199,7 @@ func (s *Stream) UnsubscribeTopic(ctx context.Context, topic string, users ...st
 	}
 	return s.call(ctx, "unsubscribe topic", func() (int, uint64) { return s.native.UnsubscribeTopic(topic, options) })
 }
+
 func (s *Stream) Subscribers(ctx context.Context, topic string) ([]string, error) {
 	if err := validText("topic", topic, true); err != nil {
 		return nil, err

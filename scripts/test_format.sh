@@ -11,6 +11,8 @@ fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 
 mkdir -p "${sandbox}/scripts" "${sandbox}/agora" "${sandbox}/examples/with spaces"
 cp "${root}/scripts/check_format.sh" "${sandbox}/scripts/"
+mkdir -p "${sandbox}/internal/cmd/funcspacing"
+cp "${root}/internal/cmd/funcspacing/main.go" "${sandbox}/internal/cmd/funcspacing/"
 printf 'module example.org/sdk\n' > "${sandbox}/go.mod"
 cat > "${sandbox}/source.in" <<'GO'
 //go:build formatfixture
@@ -34,6 +36,11 @@ import (
 )
 
 func number()int{return int(C.int(1))}
+// next keeps its directive attached.
+//
+//go:noinline
+func next()int{return 2}
+func lastNumber()int{return 3}
 GO
 cat > "${sandbox}/expected.out" <<'GO'
 //go:build formatfixture
@@ -59,6 +66,13 @@ import (
 )
 
 func number() int { return int(C.int(1)) }
+
+// next keeps its directive attached.
+//
+//go:noinline
+func next() int { return 2 }
+
+func lastNumber() int { return 3 }
 GO
 
 # Include native wrappers, tests, inactive tags, and paths containing spaces.
@@ -87,6 +101,17 @@ done
 for file in "${files[@]}"; do
     cmp -s "${sandbox}/expected.out" "${sandbox}/${file}" || fail 'Formatting is not idempotent'
 done
+
+# A gofmt-clean file must still fail when adjacent one-line functions lack a gap.
+printf 'package spacing\n\nfunc one() {}\nfunc two() {}\n' > "${sandbox}/spacing.go"
+cp "${sandbox}/spacing.go" "${sandbox}/spacing.in"
+if "${check[@]}" >"${sandbox}/spacing.log" 2>&1; then
+    fail 'Missing function spacing was accepted'
+fi
+grep -Fq 'spacing.go' "${sandbox}/spacing.log" || fail 'Missing spacing diagnostic'
+cmp -s "${sandbox}/spacing.in" "${sandbox}/spacing.go" || fail 'Check mode changed spacing'
+"${check[@]}" --write
+"${check[@]}"
 
 printf 'package broken\nfunc {\n' > "${sandbox}/broken.go"
 if "${check[@]}" >"${sandbox}/syntax.log" 2>&1; then fail 'Invalid Go syntax was accepted'; fi

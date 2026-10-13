@@ -57,6 +57,7 @@ func emptySession(service *Service, cfg ChannelConfig) *Session {
 	s.info.Store(&ConnectionInfo{Channel: cfg.Channel, UserID: cfg.UserID})
 	return s
 }
+
 func newSession(service *Service, cfg ChannelConfig) (*Session, error) {
 	s := emptySession(service, cfg)
 	connCfg, pub, err := sessionNativeConfig(cfg)
@@ -77,6 +78,7 @@ func newSession(service *Service, cfg ChannelConfig) (*Session, error) {
 	}
 	return s, nil
 }
+
 func sessionNativeConfig(cfg ChannelConfig) (*rtc.RtcConnectionConfig, *rtc.RtcConnectionPublishConfig, error) {
 	connCfg := &rtc.RtcConnectionConfig{
 		AutoSubscribeAudio: !cfg.Receive.Disabled && !cfg.Receive.ManualSubscriptions,
@@ -200,15 +202,25 @@ func (s *Session) connect(ctx context.Context) error {
 		return ctx.Err()
 	}
 }
-func (s *Session) signalReady(err error)                       { s.readyOnce.Do(func() { s.ready <- err }) }
-func (s *Session) Events() *Stream[Event]                      { return s.events }
-func (s *Session) Audio() *Stream[AudioFrame]                  { return s.audio }
-func (s *Session) Video() *Stream[ReceivedVideoFrame]          { return s.video }
+
+func (s *Session) signalReady(err error) { s.readyOnce.Do(func() { s.ready <- err }) }
+
+func (s *Session) Events() *Stream[Event] { return s.events }
+
+func (s *Session) Audio() *Stream[AudioFrame] { return s.audio }
+
+func (s *Session) Video() *Stream[ReceivedVideoFrame] { return s.video }
+
 func (s *Session) EncodedAudio() *Stream[ReceivedEncodedAudio] { return s.encodedAudio }
+
 func (s *Session) EncodedVideo() *Stream[ReceivedEncodedVideo] { return s.encodedVideo }
-func (s *Session) Messages() *Stream[Message]                  { return s.messages }
-func (s *Session) Done() <-chan struct{}                       { return s.done }
-func (s *Session) Info() ConnectionInfo                        { return *s.info.Load() }
+
+func (s *Session) Messages() *Stream[Message] { return s.messages }
+
+func (s *Session) Done() <-chan struct{} { return s.done }
+
+func (s *Session) Info() ConnectionInfo { return *s.info.Load() }
+
 func (s *Session) closeStreams() {
 	s.events.close()
 	s.audio.close()
@@ -217,6 +229,7 @@ func (s *Session) closeStreams() {
 	s.encodedVideo.close()
 	s.messages.close()
 }
+
 func (s *Session) Close() error {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
@@ -237,6 +250,7 @@ func (s *Session) Close() error {
 	})
 	return s.closeErr
 }
+
 func (s *Session) withNative(op string, f func(*rtc.RtcConnection) int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -260,6 +274,7 @@ func (s *Session) WithNative(fn func(*rtc.RtcConnection) error) error {
 	}
 	return fn(s.native)
 }
+
 func (s *Session) RenewToken(token string) error {
 	if token == "" {
 		return invalid("token", "must not be empty")
@@ -274,6 +289,7 @@ func (s *Session) SetParameters(parameters string) error {
 	}
 	return s.withNative("set parameters", func(c *rtc.RtcConnection) int { return c.GetAgoraParameter().SetParameters(parameters) })
 }
+
 func (s *Session) publishAudioLocked() error {
 	if s.cfg.Role == Audience || s.cfg.Audio.Mode == NoAudio {
 		return ErrNotPublishing
@@ -287,6 +303,7 @@ func (s *Session) publishAudioLocked() error {
 	s.audioPublished = true
 	return nil
 }
+
 func (s *Session) publishVideoLocked() error {
 	if s.cfg.Role == Audience || s.cfg.Video.Mode == NoVideo {
 		return ErrNotPublishing
@@ -300,6 +317,7 @@ func (s *Session) publishVideoLocked() error {
 	s.videoPublished = true
 	return nil
 }
+
 func (s *Session) PublishAudio() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -308,6 +326,7 @@ func (s *Session) PublishAudio() error {
 	}
 	return s.publishAudioLocked()
 }
+
 func (s *Session) PublishVideo() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -316,6 +335,7 @@ func (s *Session) PublishVideo() error {
 	}
 	return s.publishVideoLocked()
 }
+
 func (s *Session) UnpublishAudio() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -331,6 +351,7 @@ func (s *Session) UnpublishAudio() error {
 	s.audioPublished = false
 	return nil
 }
+
 func (s *Session) UnpublishVideo() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

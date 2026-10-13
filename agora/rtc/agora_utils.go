@@ -69,6 +69,7 @@ func NewAudioConsumer(pcmSender *AudioPcmDataSender, sampleRate int, channels in
 
 	return consumer
 }
+
 func (ac *AudioConsumer) IsDirectMode() bool {
 	return ac.pcmSender.audioScenario == AudioScenarioAiServer
 }
@@ -372,6 +373,7 @@ func (v *VadDump) newVadFile() *os.File {
 	}
 	return v.vadFile
 }
+
 func (v *VadDump) closeVadFile() int {
 	if v.vadFile != nil {
 		v.vadFile.Close()
@@ -423,6 +425,7 @@ func (v *VadDump) Open() int {
 
 	return 0
 }
+
 func (v *VadDump) fillItemData(value int16, leninBytes int) {
 	if leninBytes <= 0 {
 		v.itemData = nil
@@ -439,6 +442,7 @@ func (v *VadDump) fillItemData(value int16, leninBytes int) {
 		*elem = int16(value)
 	}
 }
+
 func (v *VadDump) Write(frame *AudioFrame, vadFrame *AudioFrame, state VadState) int {
 	//len := len(frame.Buffer)
 

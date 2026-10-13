@@ -66,6 +66,7 @@ func TestOptionalVideoDecodeAndCodecSwitch(t *testing.T) {
 		}
 	}
 }
+
 func TestOptionalVideoInvalidAndClosed(t *testing.T) {
 	var absent *VideoDecoder
 	absent.Close()
@@ -91,6 +92,7 @@ func TestOptionalVideoInvalidAndClosed(t *testing.T) {
 		t.Fatal("closed decoder accepted input")
 	}
 }
+
 func TestOptionalVideoConcurrentClose(t *testing.T) {
 	d, e := NewVideoDecoder()
 	if e != nil {
@@ -111,6 +113,7 @@ func TestOptionalVideoConcurrentClose(t *testing.T) {
 	go func() { defer wg.Done(); d.Close(); d.Close() }()
 	wg.Wait()
 }
+
 func TestOptionalOpusDecode(t *testing.T) {
 	packet := fixture(t, testOpus)
 	for _, tc := range []struct{ in, rate, out, bytes int }{{0, 0, 0, 1920}, {1, 48000, 1, 1920}, {1, 48000, 2, 3840}, {1, 16000, 1, 608}} {
@@ -139,6 +142,7 @@ func TestOptionalOpusDecode(t *testing.T) {
 		}
 	}
 }
+
 func TestOptionalOpusInvalidAndConcurrentRelease(t *testing.T) {
 	for _, p := range [][3]int{{-1, 48000, 1}, {3, 48000, 1}, {1, -1, 1}, {1, 1000000, 1}, {1, 48000, 3}} {
 		if d := NewOpusDecoder(p[0], p[1], p[2]); d != nil {
@@ -173,6 +177,7 @@ func TestOptionalOpusInvalidAndConcurrentRelease(t *testing.T) {
 	go func() { defer wg.Done(); d.Release(); d.Release() }()
 	wg.Wait()
 }
+
 func waitOptional(t *testing.T, done <-chan struct{}) {
 	t.Helper()
 	select {
@@ -181,6 +186,7 @@ func waitOptional(t *testing.T, done <-chan struct{}) {
 		t.Fatal("worker shutdown blocked")
 	}
 }
+
 func TestOptionalWorkersLifecycle(t *testing.T) {
 	a := NewAudioTranscodingWorker(nil, 1)
 	v := NewTranscodingWorker(nil, 15)
@@ -227,6 +233,7 @@ func TestOptionalWorkersLifecycle(t *testing.T) {
 	a.PushEncodedData(audio, 1, 1)
 	v.PushEncodedData(video, nil)
 }
+
 func TestOptionalWorkersCopyInputsAndUnblockOnStop(t *testing.T) {
 	a := &AudioTranscodingWorker{isRunning: true, in_channels: 1, encodeDataQueue: make(chan *AudioTransCodeInData, 1), stopChan: make(chan bool)}
 	v := &TranscodingWorker{isRunning: true, encodeDataQueue: make(chan *TransCodeInData, 1), stopChan: make(chan bool)}

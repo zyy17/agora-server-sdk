@@ -17,6 +17,7 @@ func TestRTC(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestRTCValidation(t *testing.T) {
 	base := Config{AppID: strings.Repeat("a", 32), Certificate: strings.Repeat("b", 32), Channel: "room", UserID: "user"}
 	for _, change := range []func(*Config){func(c *Config) { c.AppID = "bad" }, func(c *Config) { c.Certificate = strings.Repeat("g", 32) }, func(c *Config) { c.Channel = "" }, func(c *Config) { c.UserID = "" }, func(c *Config) { c.Lifetime = -time.Second }, func(c *Config) { c.Role = 99 }} {

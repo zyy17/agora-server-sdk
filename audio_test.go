@@ -27,6 +27,7 @@ func TestPlayPCMPaddingAndTimestamp(t *testing.T) {
 		t.Fatal("incorrect paced frames", timestamps)
 	}
 }
+
 func TestPlayPCMCancellationStopsFutureFrames(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -36,6 +37,7 @@ func TestPlayPCMCancellationStopsFutureFrames(t *testing.T) {
 		t.Fatal(sent, err)
 	}
 }
+
 func TestPlayPCMRejectsIncompleteSample(t *testing.T) {
 	err := playPCM(context.Background(), bytes.NewReader([]byte{1}), 16000, 1, 0, func([]byte, int64) error { t.Fatal("sent partial sample"); return nil })
 	if !errors.Is(err, ErrInvalidConfig) {
@@ -54,6 +56,7 @@ type pcmCaptureTransport struct {
 }
 
 func (f *pcmCaptureTransport) PublishAudio() int { return f.publishCode }
+
 func (f *pcmCaptureTransport) PushAudioPcmData(data []byte, rate, channels int, pts int64) int {
 	f.sends = append(f.sends, struct {
 		data           []byte
