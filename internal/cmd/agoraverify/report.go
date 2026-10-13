@@ -81,16 +81,13 @@ func readReport(dir, component string) (report, error) {
 }
 
 func validReport(r report, component string) bool {
-	allowed := map[string]bool{"prepare": true, "initialize": true, "close": true}
-	if component == "rtc" {
-		allowed["join"], allowed["leave"] = true, true
-	} else if component == "rtm" {
-		allowed["login"], allowed["logout"] = true, true
-	} else {
+	planned := operations(component)
+	if len(planned) == 0 || len(r.Results) == 0 || len(r.Results) > len(planned) {
 		return false
 	}
-	if len(r.Results) == 0 || len(r.Results) > 5 {
-		return false
+	allowed := make(map[string]bool)
+	for _, operation := range planned {
+		allowed[operation] = true
 	}
 	seen := make(map[string]bool)
 	for _, v := range r.Results {
@@ -99,7 +96,7 @@ func validReport(r report, component string) bool {
 		}
 		seen[v.Operation] = true
 		switch v.Status {
-		case "passed", "failed", "timed_out", "canceled":
+		case "passed", "failed", "timed_out", "canceled", "not_run":
 		default:
 			return false
 		}
@@ -111,10 +108,7 @@ func validReport(r report, component string) bool {
 }
 
 func (r report) passed(component string) bool {
-	required := []string{"prepare", "initialize", "close", "join", "leave"}
-	if component == "rtm" {
-		required = []string{"prepare", "initialize", "close", "login", "logout"}
-	}
+	required := operations(component)
 	if !validReport(r, component) || len(r.Results) != len(required) {
 		return false
 	}
@@ -127,6 +121,59 @@ func (r report) passed(component string) bool {
 	}
 	for _, operation := range required {
 		if !seen[operation] {
+			return false
+		}
+	}
+	return true
+}
+
+var rtmFeatureOperations = []string{
+	"prepare", "initialize", "peer_initialize", "login", "peer_login", "subscribe", "peer_subscribe",
+	"publish", "receive", "renew_token", "presence_set", "presence_get", "presence_remove",
+	"metadata_read", "locks_read", "history_read", "unsubscribe", "peer_unsubscribe",
+	"logout", "peer_logout", "close", "peer_close",
+}
+
+func operations(component string) []string {
+	switch component {
+	case "rtc":
+		return []string{"prepare", "initialize", "join", "leave", "close"}
+	case "rtm":
+		return []string{"prepare", "initialize", "login", "logout", "close"}
+	case "rtc_features":
+		return rtcFeatureOperations
+	case "rtm_features":
+		return rtmFeatureOperations
+	default:
+		return nil
+	}
+}
+
+func (r *report) fillMissing(component string) {
+	seen := make(map[string]bool)
+	for _, v := range r.Results {
+		seen[v.Operation] = true
+	}
+	for _, operation := range operations(component) {
+		if !seen[operation] {
+			r.Results = append(r.Results, result{Operation: operation, Status: "not_run"})
+		}
+	}
+}
+
+func (r report) authenticated(component string) bool {
+	needed := []string{"join", "peer_join"}
+	if component == "rtm_features" {
+		needed = []string{"login", "peer_login"}
+	}
+	for _, operation := range needed {
+		found := false
+		for _, v := range r.Results {
+			if v.Operation == operation && v.Status == "passed" {
+				found = true
+			}
+		}
+		if !found {
 			return false
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"path/filepath"
+	"sync"
 	"time"
 
 	agorasdk "github.com/zyy17/agora-server-sdk"
@@ -112,8 +113,11 @@ func checkRTM(ctx context.Context, create func() (rtmClient, error), value strin
 
 func probe(ctx context.Context, c credentials, component, dir string) int {
 	var r report
+	var mu sync.Mutex
 	writeFailed := false
 	note := func(op string, err error) {
+		mu.Lock()
+		defer mu.Unlock()
 		r.add(op, err)
 		if r.save(dir) != nil {
 			writeFailed = true
@@ -142,8 +146,16 @@ func probe(ctx context.Context, c credentials, component, dir string) int {
 			return 1
 		}
 		checkRTM(ctx, func() (rtmClient, error) { return newRTM(c, identity, dir) }, value, note)
+	case "rtc_features":
+		runRTCFeatures(ctx, c, dir, identity, note)
+	case "rtm_features":
+		runRTMFeatures(ctx, c, dir, identity, note)
 	default:
 		return 2
+	}
+	r.fillMissing(component)
+	if r.save(dir) != nil {
+		writeFailed = true
 	}
 	if writeFailed || !r.passed(component) {
 		return 1

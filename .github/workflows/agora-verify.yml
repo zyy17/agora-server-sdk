@@ -1,10 +1,19 @@
-# Auth-only verification. See docs/credential-verification.md.
+# Bounded live verification. See docs/credential-verification.md.
 # This does not certify the full SDK feature surface.
 # Dispatch the reviewed main commit explicitly; no automatic live runs.
-name: Agora credential verification
+name: Agora live verification
 
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: 'integration: synthetic RTC media/data + RTM; auth: authentication only'
+        type: choice
+        required: true
+        default: integration
+        options:
+          - integration
+          - auth
 
 permissions:
   contents: read
@@ -15,7 +24,7 @@ concurrency:
 
 jobs:
   auth:
-    name: RTC and RTM authentication only
+    name: Bounded RTC and RTM verification
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -60,7 +69,7 @@ jobs:
           actual=$(git rev-parse HEAD)
           [[ "$actual" == "$GITHUB_SHA" ]] || { echo '::error::Checkout SHA does not match dispatch SHA.'; exit 1; }
           printf 'Evaluated main commit: %s\n' "$actual"
-          printf 'Auth-only verification of main commit `%s`.\n' "$actual" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Agora verification of main commit `%s`.\n' "$actual" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -83,24 +92,31 @@ jobs:
           ./scripts/with_agora_env.sh go test -race -count=1 ./internal/cmd/agoraverify
           ./scripts/with_agora_env.sh go build -o "$RUNNER_TEMP/agora-verify-bin" ./internal/cmd/agoraverify
 
-      - name: Verify RTC join/leave and RTM login/logout (90-second hard limit)
+      - name: Run selected Agora checks (90-second hard limit)
         timeout-minutes: 2
         shell: bash
         env:
           AGORA_APP_ID: ${{ secrets.AGORA_APP_ID || vars.AGORA_APP_ID }}
           AGORA_APP_CERTIFICATE: ${{ secrets.AGORA_APP_CERTIFICATE }}
           AGORA_VERIFY_LIVE: '1'
+          VERIFY_SCOPE: ${{ inputs.scope }}
         run: |
           set -euo pipefail
           umask 077
           ulimit -c 0
+          args=(--live)
+          case "$VERIFY_SCOPE" in
+            integration) args+=(--features) ;;
+            auth) ;;
+            *) echo '::error::Unknown verification scope.'; exit 1 ;;
+          esac
           AGORA_VERIFY_TEMP="$RUNNER_TEMP/agora-auth-private"
           mkdir -p "$AGORA_VERIFY_TEMP"
           export TMPDIR="$AGORA_VERIFY_TEMP"
           trap 'rm -rf -- "$AGORA_VERIFY_TEMP"' EXIT
           # 85s graceful termination + 5s kill grace bounds native hangs to 90s.
           # Do not enable shell tracing, capture native diagnostics, or upload logs.
-          timeout --signal=TERM --kill-after=5s 85s ./scripts/with_agora_env.sh "$RUNNER_TEMP/agora-verify-bin" --live
+          timeout --signal=TERM --kill-after=5s 85s ./scripts/with_agora_env.sh "$RUNNER_TEMP/agora-verify-bin" "${args[@]}"
 
       - name: Remove private logs and verifier binary
         if: ${{ always() }}
