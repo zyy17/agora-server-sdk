@@ -2,7 +2,6 @@ package messaging
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -29,18 +28,19 @@ type waiter struct {
 // results. Call Close to release native resources even if login or another
 // operation fails.
 type Client struct {
-	native    *native.IRtmClient
-	gate      chan struct{}
-	mu        sync.Mutex
-	closed    bool
-	pending   map[uint64]waiter
-	early     map[uint64]result
-	events    chan Event
-	dropped   uint64
-	timeout   time.Duration
-	streams   map[*Stream]struct{}
-	closeOnce sync.Once
-	closeErr  error
+	native       *native.IRtmClient
+	gate         chan struct{}
+	mu           sync.Mutex
+	closed       bool
+	pending      map[uint64]waiter
+	early        map[uint64]result
+	events       chan Event
+	dropped      uint64
+	timeout      time.Duration
+	resultEvents bool
+	streams      map[*Stream]struct{}
+	closeOnce    sync.Once
+	closeErr     error
 }
 
 func newClient(buffer int, timeout time.Duration) *Client {
@@ -58,10 +58,8 @@ func newClient(buffer int, timeout time.Duration) *Client {
 // invalid inputs. Native initialization failures return *Error or ErrUnavailable.
 // The linked native SDK and its shared libraries must be available.
 func New(cfg Config) (*Client, error) {
-	if err := validText("app ID", cfg.AppID, true); err != nil {
-		return nil, err
-	}
-	if err := validText("user ID", cfg.UserID, true); err != nil {
+	nc, err := cfg.nativeConfig()
+	if err != nil {
 		return nil, err
 	}
 	if cfg.EventBuffer < 0 || cfg.EventBuffer > 65536 {
@@ -77,13 +75,7 @@ func New(cfg Config) (*Client, error) {
 		cfg.RequestTimeout = 15 * time.Second
 	}
 	c := newClient(cfg.EventBuffer, cfg.RequestTimeout)
-	nc := native.NewRtmConfig()
-	if cfg.Native != nil {
-		*nc = *cfg.Native
-	}
-	nc.AppId = cfg.AppID
-	nc.UserId = cfg.UserID
-	nc.UseStringUserId = true
+	c.resultEvents = cfg.ResultEvents
 	nc.EventHandler = c.handler()
 	var code int
 	c.native, code = native.NewRtmClientWithError(nc)
@@ -168,7 +160,9 @@ func (c *Client) complete(id uint64, r result) {
 	// Initiation is serialized. A callback may run before the SDK returns its ID.
 	// Keep only this initiation window; late canceled callbacks cannot accumulate.
 	if c.early != nil && len(c.early) < 1024 {
-		c.early[id] = r
+		if _, alreadyCompleted := c.early[id]; !alreadyCompleted {
+			c.early[id] = r
+		}
 	}
 }
 
@@ -384,14 +378,14 @@ func (c *Client) publish(ctx context.Context, target string, kind ChannelType, d
 }
 
 // Subscribe subscribes to a message channel and waits for the SDK result.
-// Messages are always enabled; presence, metadata, and lock events are opt-in
-// through o. The channel must be nonempty UTF-8 without NUL. Received events
+// Messages are enabled unless o.DisableMessages; presence, metadata, and lock
+// events are opt-in through o. The channel must be nonempty UTF-8 without NUL. Received events
 // arrive through Events or Next and are subject to the queue's overflow policy.
 func (c *Client) Subscribe(ctx context.Context, channel string, o SubscribeOptions) error {
 	if err := validText("channel", channel, true); err != nil {
 		return err
 	}
-	options := &native.SubscribeOptions{WithMessage: true, WithPresence: o.Presence, WithMetadata: o.Metadata, WithLock: o.Locks, BeQuiet: o.Quiet}
+	options := o.nativeOptions()
 	return c.call(ctx, "subscribe", func() (int, uint64) { return c.native.Subscribe(channel, options) })
 }
 
@@ -411,9 +405,8 @@ func (c *Client) Unsubscribe(ctx context.Context, channel string) error {
 // bounds waiting for access but cannot interrupt the synchronous native call.
 // Config.RequestTimeout does not apply.
 func (c *Client) SetParameters(ctx context.Context, parameters string) error {
-	var object map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(parameters), &object); err != nil || object == nil {
-		return invalid("parameters must be a JSON object")
+	if err := validateParameters(parameters); err != nil {
+		return err
 	}
 	return c.WithNative(ctx, func(n *native.IRtmClient) error { return sdkError("set parameters", n.SetParameters(parameters)) })
 }

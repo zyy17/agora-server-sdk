@@ -62,8 +62,12 @@
 // The default queue holds 128 events. When full, the incoming newest event is
 // discarded and [Client.DroppedEvents] increases. This includes token, link,
 // presence, metadata, and lock events. Request completions use a separate path
-// and are not lost because of queue overflow. Monitor drops and query state
-// again when correctness depends on an uninterrupted sequence of notifications.
+// and are not lost because of queue overflow. [Config.ResultEvents] optionally
+// adds [EventRequestResult] for every native result, including late/repeated
+// callbacks, with independent typed copies of query data and callback context.
+// These result events can overflow; waiting requests remain independent.
+// Monitor drops and query state again when correctness depends on an
+// uninterrupted sequence of notifications.
 //
 // Closing the client closes its queue without discarding buffered events.
 // A live context can continue draining them through Next, which returns
@@ -99,8 +103,11 @@
 // In contrast, [Client.RemoveState] with no keys removes all presence state.
 //
 // [Client.SetLock] defines a lock; [Client.AcquireLock] separately requests
-// ownership. Automatic native acquisition retry is disabled, but cancellation
-// can still race with a successful submitted acquisition. Lock event delivery
+// ownership. AcquireLock disables native retry; [Client.AcquireLockWithOptions]
+// exposes it. Cancellation never cancels native retry, and a late successful
+// acquisition can require ReleaseLock using a fresh context. Enable
+// [Config.ResultEvents] to observe late/repeated completions. A snapshot query
+// does not prove an in-flight retry cannot acquire later. Lock event delivery
 // alone is not proof of ownership because events can be dropped.
 //
 // [Client.History] supports [MessageChannel] and [UserChannel], not stream
@@ -113,7 +120,7 @@
 // [Stream.SubscribeTopic] can return both a nonempty [TopicSubscription] and an
 // error. Always inspect the successful and failed publisher lists; successful
 // subscriptions are not rolled back by a partial failure. Other query methods
-// return zero or nil results on error rather than partial callback data.
+// return zero or nil results on error; optional result events preserve partial data.
 //
 // # Native escape hatch
 //

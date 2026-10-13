@@ -22,10 +22,6 @@ var (
 	ErrUnavailable = errors.New("messaging: native interface unavailable")
 )
 
-// ErrorCode is an unmodified native RTM error code, including its sign.
-// Consult the linked SDK's RTM error definitions when interpreting a value.
-type ErrorCode int
-
 // Error describes an immediate or asynchronous native SDK rejection.
 // Use errors.As to inspect it. Context cancellation and wrapper validation are
 // reported separately and are not converted to Error.
@@ -70,9 +66,27 @@ type Config struct {
 	// AppID identifies the Agora project. It must be nonempty UTF-8 without NUL;
 	// the native SDK validates its format and project permissions.
 	AppID string
-	// UserID is the client's string RTM identity within AppID. It must be
+	// UserID is the client's RTM identity within AppID. It must be
 	// nonempty UTF-8 without NUL; native identity restrictions still apply.
 	UserID string
+	// Identity selects string or numeric SDK identity interpretation. Zero uses
+	// string IDs, except that Native.UseStringUserId is honored when Native is set.
+	Identity IdentityMode
+	// Connection configures transport and native presence/reconnection timers.
+	// Nil preserves the native binding defaults or Native settings.
+	Connection *ConnectionConfig
+	// Log, Proxy, Encryption, and Private replace the corresponding Native
+	// configuration when non-nil. Values are copied during New.
+	Log        *LogConfig
+	Proxy      *ProxyConfig
+	Encryption *EncryptionConfig
+	Private    *PrivateConfig
+	// Parameters is a JSON object applied at creation; empty preserves Native.
+	Parameters string
+	// ResultEvents adds EventRequestResult notifications for every asynchronous
+	// result, including late/repeated results after cancellation or timeout.
+	// These events share the bounded queue; request waits never rely on it.
+	ResultEvents bool
 	// EventBuffer is the capacity of the event queue. Zero selects 128 events;
 	// explicit capacities must be 1 through 65536. Overflow drops the newest event.
 	EventBuffer int
@@ -83,7 +97,8 @@ type Config struct {
 	RequestTimeout time.Duration
 	// Native supplies advanced configuration such as logging, region, proxy,
 	// and encryption. Nil uses native.NewRtmConfig defaults. New overrides
-	// AppId, UserId, UseStringUserId, and EventHandler. Start with
+	// AppId, UserId, and EventHandler. Identity and the typed configuration above
+	// override only their explicitly supplied settings. Start with
 	// native.NewRtmConfig when customizing the remaining settings.
 	Native *native.RtmConfig
 }
@@ -151,9 +166,12 @@ type PublishOptions struct {
 }
 
 // SubscribeOptions controls a message-channel subscription.
-// Messages are always enabled. The zero value disables the other event families,
+// The zero value enables messages and disables the other event families,
 // which differs from some native defaults.
 type SubscribeOptions struct {
+	// DisableMessages permits presence/metadata/lock-only subscriptions. False
+	// preserves the default message subscription (native withMessage=true).
+	DisableMessages bool
 	// Presence requests channel presence events.
 	Presence bool
 	// Metadata requests channel metadata events.
@@ -166,8 +184,12 @@ type SubscribeOptions struct {
 }
 
 // PresenceOptions selects one page of an online-user query.
-// User IDs are always included by Client.OnlineUsers.
+// User IDs are included unless ExcludeUserID is true.
 type PresenceOptions struct {
+	// ExcludeUserID forwards includeUserId=false for queries that do not need
+	// identities. The pinned C callback does not expose total occupancy; do not
+	// infer a channel-wide count from the length of the returned Users slice.
+	ExcludeUserID bool
 	// IncludeState requests each user's channel-scoped state in the result.
 	IncludeState bool
 	// Page is the opaque cursor returned as PresencePage.NextPage.
@@ -312,6 +334,8 @@ type TopicSubscription struct {
 type EventKind string
 
 const (
+	// EventRequestResult identifies an optional Event.RequestResult payload.
+	EventRequestResult EventKind = "request_result"
 	// EventMessage identifies an Event.Message payload.
 	EventMessage EventKind = "message"
 	// EventPresence identifies an Event.Presence payload.
@@ -331,12 +355,14 @@ const (
 	EventLink EventKind = "link"
 )
 
-// Event is one unsolicited native notification copied into the client queue.
+// Event is one native notification or optional request result copied into the client queue.
 // Kind identifies its payload; unrelated pointer fields are nil. EventTokenExpiring
 // uses Channel rather than a pointer payload. Nested data is Go-owned and remains
 // valid after callbacks return and after Client.Close. A full queue can drop any
 // event kind, including token and connection notifications.
 type Event struct {
+	// RequestResult is populated for EventRequestResult when ResultEvents is enabled.
+	RequestResult *RequestResult
 	// Kind identifies the notification and the payload to inspect.
 	Kind EventKind
 	// Message is populated for EventMessage.
@@ -382,7 +408,7 @@ type Message struct {
 // only the state carried by this notification, and queued events can be dropped.
 type PresenceEvent struct {
 	// Type is the unmodified native RTM_PRESENCE_EVENT_TYPE value.
-	Type int
+	Type PresenceEventType
 	// Channel identifies the message or stream channel.
 	Channel Channel
 	// Publisher identifies the user associated with an individual change.
@@ -423,7 +449,7 @@ type TopicInfo struct {
 // Interpret Topics according to Type; an update is not necessarily a full snapshot.
 type TopicEvent struct {
 	// Type is the unmodified native RTM_TOPIC_EVENT_TYPE value.
-	Type int
+	Type TopicEventType
 	// Channel identifies the stream channel.
 	Channel string
 	// Publisher is the user associated with the topic event.
@@ -436,7 +462,7 @@ type TopicEvent struct {
 // Events can be dropped; do not treat the event queue alone as proof of ownership.
 type LockEvent struct {
 	// Type is the unmodified native RTM_LOCK_EVENT_TYPE value.
-	Type int
+	Type LockEventType
 	// Channel identifies the message or stream channel.
 	Channel Channel
 	// Locks contains the lock records supplied by the SDK.
@@ -448,9 +474,9 @@ type LockEvent struct {
 // Interpret Metadata according to Type; a change need not contain the entire store.
 type StorageEvent struct {
 	// Type is the unmodified native RTM_STORAGE_EVENT_TYPE value.
-	Type int
+	Type StorageEventType
 	// StorageType is the native RTM_STORAGE_TYPE identifying user or channel storage.
-	StorageType int
+	StorageType StorageType
 	// ChannelType identifies the channel kind for channel-storage events.
 	ChannelType ChannelType
 	// Target is the affected channel name or user ID, according to StorageType.
@@ -464,15 +490,15 @@ type StorageEvent struct {
 // Go state machine. The application is responsible for any recovery decisions.
 type LinkEvent struct {
 	// CurrentState is the new native RTM_LINK_STATE value.
-	CurrentState int
+	CurrentState LinkState
 	// PreviousState is the preceding native RTM_LINK_STATE value.
-	PreviousState int
+	PreviousState LinkState
 	// ServiceType is the native RTM_SERVICE_TYPE for the affected service.
-	ServiceType int
+	ServiceType ServiceType
 	// Operation is the native RTM_LINK_OPERATION that caused the transition.
-	Operation int
+	Operation LinkOperation
 	// ReasonCode is the native RTM_LINK_STATE_CHANGE_REASON value.
-	ReasonCode int
+	ReasonCode LinkReason
 	// Reason contains the SDK's explanatory text.
 	Reason string
 	// AffectedChannels lists the channels affected by this transition.
@@ -491,11 +517,19 @@ type LinkEvent struct {
 // the event queue because overflow can drop these notifications.
 type TokenEvent struct {
 	// Type is the unmodified native RTM_TOKEN_EVENT_TYPE value.
-	Type int
+	Type TokenEventType
 	// Reason contains the SDK's explanatory text.
 	Reason string
 	// MessageChannels lists the message channels affected by the token event.
 	MessageChannels []string
 	// Timestamp is the native event timestamp without unit conversion.
 	Timestamp uint64
+}
+
+func (o SubscribeOptions) nativeOptions() *native.SubscribeOptions {
+	return &native.SubscribeOptions{WithMessage: !o.DisableMessages, WithPresence: o.Presence, WithMetadata: o.Metadata, WithLock: o.Locks, BeQuiet: o.Quiet}
+}
+
+func (o PresenceOptions) nativeOptions() *native.GetOnlineUsersOptions {
+	return &native.GetOnlineUsersOptions{IncludeUserId: !o.ExcludeUserID, IncludeState: o.IncludeState, Page: o.Page}
 }
