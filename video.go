@@ -52,13 +52,12 @@ type ReceivedEncodedVideo struct {
 }
 
 func (s *Session) videoObserver() *rtc.VideoFrameObserver {
-	return &rtc.VideoFrameObserver{OnFrame: func(channel, uid string, f *rtc.VideoFrame) bool {
+	return &rtc.VideoFrameObserver{OnFrame: func(channel, uid string, f *rtc.VideoFrame) {
 		if f == nil {
-			return true
+			return
 		}
 		s.video.push(ReceivedVideoFrame{Channel: channel, UserID: uid, Width: f.Width, Height: f.Height, YStride: f.YStride, UStride: f.UStride, VStride: f.VStride, Rotation: int(f.Rotation),
 			Y: slices.Clone(f.YBuffer), U: slices.Clone(f.UBuffer), V: slices.Clone(f.VBuffer), Metadata: slices.Clone(f.MetadataBuffer), Alpha: slices.Clone(f.AlphaBuffer), TimestampMillis: f.RenderTimeMs})
-		return true
 	}}
 }
 func (s *Session) encodedVideoObserver() *rtc.VideoEncodedFrameObserver {

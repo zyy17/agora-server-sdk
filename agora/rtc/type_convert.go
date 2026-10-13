@@ -13,6 +13,7 @@ package agoraservice
 #include "rtc_callbacks_cgo.h"
 #include "audio_observer_cgo.h"
 #include "video_observer_cgo.h"
+#include "observer_bindings.h"
 */
 import "C"
 import (
@@ -110,20 +111,8 @@ func GoRtcConnectionInfo(cInfo *C.struct__rtc_conn_info, info *RtcConnectionInfo
 func CRtcConnectionObserver() *C.struct__rtc_conn_observer {
 	ret := (*C.struct__rtc_conn_observer)(C.malloc(C.sizeof_struct__rtc_conn_observer))
 	C.memset(unsafe.Pointer(ret), 0, C.sizeof_struct__rtc_conn_observer)
-	ret.on_connected = (*[0]byte)(C.cgo_on_connected)
-	ret.on_disconnected = (*[0]byte)(C.cgo_on_disconnected)
-	ret.on_connecting = (*[0]byte)(C.cgo_on_connecting)
-	ret.on_reconnecting = (*[0]byte)(C.cgo_on_reconnecting)
-	ret.on_reconnected = (*[0]byte)(C.cgo_on_reconnected)
-	ret.on_connection_lost = (*[0]byte)(C.cgo_on_connection_lost)
-	ret.on_connection_failure = (*[0]byte)(C.cgo_on_connection_failure)
-	ret.on_token_privilege_will_expire = (*[0]byte)(C.cgo_on_token_privilege_will_expire)
-	ret.on_token_privilege_did_expire = (*[0]byte)(C.cgo_on_token_privilege_did_expire)
-	ret.on_user_joined = (*[0]byte)(C.cgo_on_user_joined)
-	ret.on_user_left = (*[0]byte)(C.cgo_on_user_left)
-	ret.on_error = (*[0]byte)(C.cgo_on_error)
-	ret.on_stream_message_error = (*[0]byte)(C.cgo_on_stream_message_error)
-	ret.on_encryption_error = (*[0]byte)(C.cgo_on_encryption_error)
+	C.bind_rtc_conn_observer(ret)
+
 	return ret
 }
 
@@ -134,33 +123,7 @@ func FreeCRtcConnectionObserver(handler *C.struct__rtc_conn_observer) {
 func CLocalUserObserver() *C.struct__local_user_observer {
 	ret := (*C.struct__local_user_observer)(C.malloc(C.sizeof_struct__local_user_observer))
 	C.memset(unsafe.Pointer(ret), 0, C.sizeof_struct__local_user_observer)
-	ret.on_stream_message = (*[0]byte)(C.cgo_on_stream_message)
-
-	ret.on_user_info_updated = (*[0]byte)(C.cgo_on_user_info_updated)
-	ret.on_user_audio_track_subscribed = (*[0]byte)(C.cgo_on_user_audio_track_subscribed)
-	ret.on_user_video_track_subscribed = (*[0]byte)(C.cgo_on_user_video_track_subscribed)
-	ret.on_user_audio_track_state_changed = (*[0]byte)(C.cgo_on_user_audio_track_state_changed)
-	ret.on_user_video_track_state_changed = (*[0]byte)(C.cgo_on_user_video_track_state_changed)
-	ret.on_audio_publish_state_changed = (*[0]byte)(C.cgo_on_audio_publish_state_changed)
-	// todo: check if need to use this, still can not work now,should check why can not work
-	ret.on_audio_volume_indication = (*[0]byte)(C.cgo_on_audio_volume_indication)
-	// not finished ,only a title
-	// void (*on_audio_meta_data_received)(AGORA_HANDLE agora_local_user, user_id_t userId, const char* meta_data, size_t length);
-	ret.on_audio_meta_data_received = (*[0]byte)(C.cgo_on_audio_meta_data_received)
-	// version 2.2.2 to expore statistics
-	ret.on_local_audio_track_statistics = (*[0]byte)(C.cgo_on_local_audio_track_statistics)
-	ret.on_remote_audio_track_statistics = (*[0]byte)(C.cgo_on_remote_audio_track_statistics)
-	ret.on_local_video_track_statistics = (*[0]byte)(C.cgo_on_local_video_track_statistics)
-	ret.on_remote_video_track_statistics = (*[0]byte)(C.cgo_on_remote_video_track_statistics)
-	// added on 2025-06-09
-	ret.on_audio_track_publish_success = (*[0]byte)(C.cgo_on_audio_track_publish_success)
-	ret.on_audio_track_unpublished = (*[0]byte)(C.cgo_on_audio_track_unpublished)
-
-	// Video track publish callbacks
-	ret.on_video_track_publish_success = (*[0]byte)(C.cgo_on_video_track_publish_success)
-	ret.on_video_track_unpublished = (*[0]byte)(C.cgo_on_video_track_unpublished)
-	ret.on_intra_request_received = (*[0]byte)(C.cgo_on_intra_request_received)
-
+	C.bind_local_user_observer(ret)
 	return ret
 }
 
@@ -170,16 +133,8 @@ func FreeCLocalUserObserver(handler *C.struct__local_user_observer) {
 func CAudioFrameObserver() *C.struct__audio_frame_observer {
 	ret := (*C.struct__audio_frame_observer)(C.malloc(C.sizeof_struct__audio_frame_observer))
 	C.memset(unsafe.Pointer(ret), 0, C.sizeof_struct__audio_frame_observer)
-	ret.on_record_audio_frame = (*[0]byte)(C.cgo_on_record_audio_frame)
-	ret.on_playback_audio_frame = (*[0]byte)(C.cgo_on_playback_audio_frame)
-	ret.on_mixed_audio_frame = (*[0]byte)(C.cgo_on_mixed_audio_frame)
-	ret.on_ear_monitoring_audio_frame = (*[0]byte)(C.cgo_on_ear_monitoring_audio_frame)
-	ret.on_playback_audio_frame_before_mixing = (*[0]byte)(C.cgo_on_playback_audio_frame_before_mixing)
-	ret.on_get_audio_frame_position = (*[0]byte)(C.cgo_on_get_audio_frame_position)
-	ret.on_get_playback_audio_frame_param = (*[0]byte)(C.cgo_on_get_playback_audio_frame_param)
-	ret.on_get_record_audio_frame_param = (*[0]byte)(C.cgo_on_get_record_audio_frame_param)
-	ret.on_get_mixed_audio_frame_param = (*[0]byte)(C.cgo_on_get_mixed_audio_frame_param)
-	ret.on_get_ear_monitoring_audio_frame_param = (*[0]byte)(C.cgo_on_get_ear_monitoring_audio_frame_param)
+	C.bind_audio_frame_observer(ret)
+
 	return ret
 }
 
@@ -241,7 +196,7 @@ func CVideoFrameObserver() unsafe.Pointer {
 	// ret := (*C.struct__video_frame_observer2)(C.malloc(C.sizeof_struct__video_frame_observer2))
 	ret := C.struct__video_frame_observer2{}
 	C.memset(unsafe.Pointer(&ret), 0, C.sizeof_struct__video_frame_observer2)
-	ret.on_frame = (*[0]byte)(C.cgo_on_video_frame)
+	C.bind_video_frame_observer2(&ret)
 	obs := C.agora_video_frame_observer2_create(&ret)
 	return obs
 }
@@ -253,7 +208,7 @@ func FreeCVideoFrameObserver(observer unsafe.Pointer) {
 func CVideoEncodedFrameObserver() unsafe.Pointer {
 	ret := C.struct__video_encoded_frame_observer{}
 	C.memset(unsafe.Pointer(&ret), 0, C.sizeof_struct__video_encoded_frame_observer)
-	ret.on_encoded_video_frame = (*[0]byte)(C.cgo_on_encoded_video_frame)
+	C.bind_video_encoded_frame_observer(&ret)
 	obs := C.agora_video_encoded_frame_observer_create(&ret)
 	return obs
 }
@@ -356,6 +311,9 @@ func GoAudioVolumeInfo(frame *C.struct__audio_volume_info) *AudioVolumeInfo {
 }
 
 func GoLocalAudioStats(stats *C.struct__local_audio_stats) *LocalAudioTrackStats {
+	if stats == nil {
+		return nil
+	}
 	ret := &LocalAudioTrackStats{
 		NumChannels:    int(stats.num_channels),
 		SentSampleRate: int(stats.sent_sample_rate),
@@ -365,7 +323,10 @@ func GoLocalAudioStats(stats *C.struct__local_audio_stats) *LocalAudioTrackStats
 	}
 	return ret
 }
-func GoRemoteAudioStats(stats *C.struct__remote_audio_stats) *RemoteAudioTrackStats {
+func GoRemoteAudioStats(stats *C.struct__remote_audio_track_stats) *RemoteAudioTrackStats {
+	if stats == nil {
+		return nil
+	}
 	ret := &RemoteAudioTrackStats{
 		Uid:                   uint(stats.uid),
 		Quality:               int(stats.quality),
@@ -377,13 +338,14 @@ func GoRemoteAudioStats(stats *C.struct__remote_audio_stats) *RemoteAudioTrackSt
 		ReceivedBitrate:       int(stats.received_bitrate),
 		TotalFrozenTime:       int(stats.total_frozen_time), // ms
 		FrozenRate:            int(stats.frozen_rate),
-		MosValue:              int(stats.mos_value),
-		TotalActiveTime:       int(stats.total_active_time), // ms
-		PublishDuration:       int(stats.publish_duration),  // ms
+		ReceivedBytes:         int64(stats.received_bytes),
 	}
 	return ret
 }
 func GoLocalVideoStats(stats *C.struct__local_video_track_stats) *LocalVideoTrackStats {
+	if stats == nil {
+		return nil
+	}
 	ret := &LocalVideoTrackStats{
 		NumberOfStreams:           uint64(stats.number_of_streams),
 		BytesMajorStream:          uint64(stats.bytes_major_stream),
@@ -412,6 +374,9 @@ func GoLocalVideoStats(stats *C.struct__local_video_track_stats) *LocalVideoTrac
 	return ret
 }
 func GoRemoteVideoStats(stats *C.struct__remote_video_track_stats) *RemoteVideoTrackStats {
+	if stats == nil {
+		return nil
+	}
 	ret := &RemoteVideoTrackStats{
 		Uid:                     uint(stats.uid),
 		Delay:                   int(stats.delay),
@@ -438,7 +403,7 @@ func GoRemoteVideoStats(stats *C.struct__remote_video_track_stats) *RemoteVideoT
 func CCapatilitiesObserver() *C.struct__capabilites_observer {
 	ret := (*C.struct__capabilites_observer)(C.malloc(C.sizeof_struct__capabilites_observer))
 	C.memset(unsafe.Pointer(ret), 0, C.sizeof_struct__capabilites_observer)
-	ret.on_capabilities_changed = (*[0]byte)(C.cgo_on_capabilities_changed)
+	C.bind_capabilites_observer(ret)
 	return ret
 }
 
@@ -467,7 +432,7 @@ type EncAudioFrameObserverItem struct {
 func CAudioEncodedFrameObserver() *C.struct__audio_encoded_frame_rev_observer {
 	ret := (*C.struct__audio_encoded_frame_rev_observer)(C.malloc(C.sizeof_struct__audio_encoded_frame_rev_observer))
 	C.memset(unsafe.Pointer(ret), 0, C.sizeof_struct__audio_encoded_frame_rev_observer)
-	ret.on_encoded_audio_frame_received = (*[0]byte)(C.cgo_on_encoded_audio_frame_received)
+	C.bind_audio_encoded_frame_rev_observer(ret)
 	return ret
 }
 func freeCAudioEncodedFrameObserver(observer *C.struct__audio_encoded_frame_rev_observer) {

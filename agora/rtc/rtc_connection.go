@@ -147,19 +147,6 @@ type RemoteAudioTrackStats struct {
 	 * The number of audio bytes received.
 	 */
 	ReceivedBytes int64
-	/**
-	 * The MOS value of the received audio stream.
-	 */
-	MosValue int
-	/**
-	 * The total time (ms) when the remote us	er neither stops sending the audio
-	 * stream nor disables the audio module after joining the channel.
-	 */
-	TotalActiveTime int
-	/**
-	 * The total publish duration (ms) of the remote audio stream.
-	 */
-	PublishDuration int
 }
 type LocalVideoTrackStats struct {
 	NumberOfStreams           uint64
@@ -305,7 +292,7 @@ type AudioFrameObserver struct {
 }
 
 type VideoFrameObserver struct {
-	OnFrame func(channelId string, userId string, frame *VideoFrame) bool
+	OnFrame func(channelId string, userId string, frame *VideoFrame)
 }
 
 type VideoEncodedFrameObserver struct {
@@ -407,6 +394,7 @@ type SendExternalAudioParameters struct {
 
 type RtcConnection struct {
 	callbacks         callbackGate
+	remoteTracks      remoteTrackRegistry
 	audioMu           sync.Mutex
 	infoMu            sync.RWMutex
 	encodedObserverMu sync.Mutex
@@ -670,6 +658,7 @@ func (conn *RtcConnection) Release() {
 	conn.callbacks.pause()
 	conn.audioMu.Lock()
 	defer conn.audioMu.Unlock()
+	conn.remoteTracks.clear()
 	conn.unregisterAudioEncodedFrameObserver()
 	conn.unregisterAudioFrameObserver()
 	conn.unregisterObserver()
@@ -889,6 +878,7 @@ func (conn *RtcConnection) Disconnect() int {
 
 	conn.unregisterLocalUserObserver()
 
+	conn.remoteTracks.clear()
 	conn.callbacks.resume()
 	//3 and then do really disconnect
 	ret := int(C.agora_rtc_conn_disconnect(conn.cConnection))
@@ -1949,13 +1939,12 @@ func (conn *RtcConnection) doUnregisterAudioEncodedFrameObserver(uid string) int
 				if _, loaded := agoraService.encAudioFrameObserverItemsMap.LoadAndDelete(item.CObserverHandle); !loaded {
 					return true
 				}
-				// unregister the observer
-				if ret := conn.unregAudioEncFrameObserverItem(item); ret == 0 {
-					freeAudioEncodedFrameObserverItem(item)
-				} else {
-					retainedItem := item
-					conn.retiredObservers = append(conn.retiredObservers, func() { freeAudioEncodedFrameObserverItem(retainedItem) })
-				}
+				// This path runs inside a subscription/state callback, while other
+				// encoded callbacks may still be in flight. Keep native storage
+				// alive until connection destruction even after unregistration.
+				conn.unregAudioEncFrameObserverItem(item)
+				retainedItem := item
+				conn.retiredObservers = append(conn.retiredObservers, func() { freeAudioEncodedFrameObserverItem(retainedItem) })
 				item = nil
 
 				fmt.Printf("doUnregisterAudioEncodedFrameObserver, uid: %s", uid)
@@ -2002,7 +1991,9 @@ func (conn *RtcConnection) initEncodedAudioFrameReceived(uid *C.char, cRemoteAud
 
 	if ret != 0 {
 		agoraService.encAudioFrameObserverItemsMap.Delete(item.CObserverHandle)
-		freeAudioEncodedFrameObserverItem(item)
+		// Registration may have started delivering callbacks before failing.
+		// As above, retain native storage until the connection is destroyed.
+		conn.retiredObservers = append(conn.retiredObservers, func() { freeAudioEncodedFrameObserverItem(item) })
 	}
 	return int(ret)
 }

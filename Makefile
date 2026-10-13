@@ -14,7 +14,7 @@ OUTPUT_BIN_PATH ?= $(CURDIR)/bin
 WITH_AGORA := ./scripts/with_agora_env.sh
 
 .PHONY: help fmt fmt-check vet lint install-tools test race build-examples check native-smoke \
-        download-agora-libs sync-agora-libs-headers test-tooling test-avcodec clean
+        download-agora-libs sync-agora-libs-headers test-tooling test-avcodec test-callbacks clean
 
 help: ## Show available targets.
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "%-25s %s\n", $$1, $$2}'
@@ -46,10 +46,13 @@ build-examples: ## Build all examples from the root module.
 		$(WITH_AGORA) $(GO) build -o "$(OUTPUT_BIN_PATH)/$${package##*/}" "$$package" || exit $$?; \
 	done
 
+test-callbacks: ## Exercise registered C callbacks with synthetic data, race and cgo checks.
+	GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -tags agora_test -count=1 -run '^TestNativeCallback' ./agora/rtc
+
 native-smoke: ## Check credential-free native lifecycle with strict cgo pointer checks.
 	AGORA_NATIVE_SMOKE=1 GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -count=1 -run '^TestNative' ./...
 
-check: fmt-check test-tooling lint vet test race build-examples native-smoke ## Run all default offline checks after SDK installation.
+check: fmt-check test-tooling lint vet test race build-examples native-smoke test-callbacks ## Run all default offline checks after SDK installation.
 
 download-agora-libs: ## Install the checksum-pinned SDK for this OS/architecture.
 	./scripts/download_agora_libs.sh

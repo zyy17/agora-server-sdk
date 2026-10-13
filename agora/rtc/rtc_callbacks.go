@@ -53,6 +53,7 @@ func goOnDisconnected(cCon unsafe.Pointer, cConInfo *C.struct__rtc_conn_info, re
 		return
 	}
 	defer con.callbacks.end()
+	con.remoteTracks.clear()
 	if con == nil || con.handler == nil || con.handler.OnDisconnected == nil {
 		return
 	}
@@ -265,6 +266,7 @@ func goOnUserOffline(cCon unsafe.Pointer, uid *C.char, reason C.int) {
 		return
 	}
 	defer con.callbacks.end()
+	con.remoteTracks.removeUser(C.GoString(uid))
 	if con == nil || con.handler == nil || con.handler.OnUserLeft == nil {
 		return
 	}
@@ -366,6 +368,7 @@ func goOnUserAudioTrackSubscribed(cLocalUser unsafe.Pointer, uid *C.char, cRemot
 		return
 	}
 	defer con.callbacks.end()
+	con.remoteTracks.store(remoteAudioTrack, cRemoteAudioTrack, C.GoString(uid))
 	// date: 20251028 for set apm filter properties
 	// if con set to enable 3a, then open apm filter else do nothing!
 	// Whether the OnUserAudioTrackSubscribed method is registered or not, the following operations should be performed!
@@ -374,7 +377,7 @@ func goOnUserAudioTrackSubscribed(cLocalUser unsafe.Pointer, uid *C.char, cRemot
 		con.setApmFilterProperties(uid, cRemoteAudioTrack)
 	}
 	// for encoded audio frame received, if needed
-	if con != nil {
+	if con.encodedAudioFrameObserver != nil {
 		ret := con.initEncodedAudioFrameReceived(uid, cRemoteAudioTrack)
 		if ret != 0 {
 			fmt.Printf("initEncodedAudioFrameReceived failed, ret: %d, uid: %s, cRemoteAudioTrack: %p\n", ret, C.GoString(uid), cRemoteAudioTrack)
@@ -400,6 +403,7 @@ func goOnUserVideoTrackSubscribed(cLocalUser unsafe.Pointer, uid *C.char, info *
 		return
 	}
 	defer con.callbacks.end()
+	con.remoteTracks.store(remoteVideoTrack, cRemoteVideoTrack, C.GoString(uid))
 	if con == nil || con.localUserObserver == nil || con.localUserObserver.OnUserVideoTrackSubscribed == nil {
 		return
 	}
@@ -420,13 +424,14 @@ func goOnUserAudioTrackStateChanged(cLocalUser unsafe.Pointer, uid *C.char, cRem
 		return
 	}
 	defer con.callbacks.end()
-	if con == nil || con.localUserObserver == nil || con.localUserObserver.OnUserAudioTrackStateChanged == nil {
-		return
-	}
+	con.remoteTracks.stateChanged(remoteAudioTrack, cRemoteAudioTrack, C.GoString(uid), int(state))
 	// for encoded audio frame received, if needed
 	if con != nil {
 		// inner to do track state changed
 		con.doAudioTrackStateChanged(uid, cRemoteAudioTrack, int(state), int(reason))
+	}
+	if con == nil || con.localUserObserver == nil || con.localUserObserver.OnUserAudioTrackStateChanged == nil {
+		return
 	}
 	// note： best practise is never reelase handler until app is exiting
 	con.localUserObserver.OnUserAudioTrackStateChanged(con.GetLocalUser(), C.GoString(uid), NewRemoteAudioTrack(cRemoteAudioTrack), int(state), int(reason), int(elapsed))
@@ -445,6 +450,7 @@ func goOnUserVideoTrackStateChanged(cLocalUser unsafe.Pointer, uid *C.char, cRem
 		return
 	}
 	defer con.callbacks.end()
+	con.remoteTracks.stateChanged(remoteVideoTrack, cRemoteVideoTrack, C.GoString(uid), int(state))
 	if con == nil || con.localUserObserver == nil || con.localUserObserver.OnUserVideoTrackStateChanged == nil {
 		return
 	}
@@ -530,7 +536,7 @@ func goOnAudioMetadataReceived(cLocalUser unsafe.Pointer, uid *C.char, metaData 
 //export goOnLocalAudioTrackStatistics
 func goOnLocalAudioTrackStatistics(cLocalUser unsafe.Pointer, stats *C.struct__local_audio_stats) {
 	//validity check
-	if cLocalUser == nil {
+	if cLocalUser == nil || stats == nil {
 		return
 	}
 	// get conn from handle
@@ -547,7 +553,7 @@ func goOnLocalAudioTrackStatistics(cLocalUser unsafe.Pointer, stats *C.struct__l
 }
 
 //export goOnRemoteAudioTrackStatistics
-func goOnRemoteAudioTrackStatistics(cLocalUser unsafe.Pointer, uid *C.char, stats *C.struct__remote_audio_stats) {
+func goOnRemoteAudioTrackStatistics(cLocalUser unsafe.Pointer, track unsafe.Pointer, stats *C.struct__remote_audio_track_stats) {
 	//validity check
 	if cLocalUser == nil {
 		return
@@ -562,13 +568,17 @@ func goOnRemoteAudioTrackStatistics(cLocalUser unsafe.Pointer, uid *C.char, stat
 	if con == nil || con.localUserObserver == nil || con.localUserObserver.OnRemoteAudioTrackStatistics == nil {
 		return
 	}
-	con.localUserObserver.OnRemoteAudioTrackStatistics(con.GetLocalUser(), C.GoString(uid), GoRemoteAudioStats(stats))
+	uid, ok := con.remoteTracks.lookup(remoteAudioTrack, track)
+	if !ok || stats == nil {
+		return
+	}
+	con.localUserObserver.OnRemoteAudioTrackStatistics(con.GetLocalUser(), uid, GoRemoteAudioStats(stats))
 }
 
 //export goOnLocalVideoTrackStatistics
-func goOnLocalVideoTrackStatistics(cLocalUser unsafe.Pointer, stats *C.struct__local_video_track_stats) {
+func goOnLocalVideoTrackStatistics(cLocalUser unsafe.Pointer, track unsafe.Pointer, stats *C.struct__local_video_track_stats) {
 	//validity check
-	if cLocalUser == nil {
+	if cLocalUser == nil || stats == nil {
 		return
 	}
 	// get conn from handle
@@ -585,7 +595,7 @@ func goOnLocalVideoTrackStatistics(cLocalUser unsafe.Pointer, stats *C.struct__l
 }
 
 //export goOnRemoteVideoTrackStatistics
-func goOnRemoteVideoTrackStatistics(cLocalUser unsafe.Pointer, uid *C.char, stats *C.struct__remote_video_track_stats) {
+func goOnRemoteVideoTrackStatistics(cLocalUser unsafe.Pointer, track unsafe.Pointer, stats *C.struct__remote_video_track_stats) {
 	//validity check
 	if cLocalUser == nil {
 		return
@@ -600,7 +610,11 @@ func goOnRemoteVideoTrackStatistics(cLocalUser unsafe.Pointer, uid *C.char, stat
 	if con == nil || con.localUserObserver == nil || con.localUserObserver.OnRemoteVideoTrackStatistics == nil {
 		return
 	}
-	con.localUserObserver.OnRemoteVideoTrackStatistics(con.GetLocalUser(), C.GoString(uid), GoRemoteVideoStats(stats))
+	uid, ok := con.remoteTracks.lookup(remoteVideoTrack, track)
+	if !ok || stats == nil {
+		return
+	}
+	con.localUserObserver.OnRemoteVideoTrackStatistics(con.GetLocalUser(), uid, GoRemoteVideoStats(stats))
 }
 
 //export goOnEncryptionError
@@ -698,41 +712,33 @@ func goOnIntraRequestReceived(cLocalUser unsafe.Pointer) {
 }
 
 //export goOnEncodedAudioFrameReceived
-func goOnEncodedAudioFrameReceived(cObserverHandle unsafe.Pointer, packet *C.uint8_t, length C.size_t, encodedAudioFrameInfo *C.struct__encoded_audio_frame_rev_info) {
-	//fmt.Printf("goOnEncodedAudioFrameReceived, cObserverHandle: %p, packet: %p, length: %d, encodedAudioFrameInfo: %p\n", cObserverHandle, packet, length, encodedAudioFrameInfo)
+func goOnEncodedAudioFrameReceived(cObserverHandle unsafe.Pointer, packet *C.uint8_t, length C.size_t, encodedAudioFrameInfo *C.struct__encoded_audio_frame_rev_info) C.int {
 	//validity check
-	if cObserverHandle == nil {
-		fmt.Printf("goOnEncodedAudioFrameReceived, cObserverHandle is nil\n")
-		return
+	if cObserverHandle == nil || encodedAudioFrameInfo == nil || length > C.size_t(1<<31-1) || (packet == nil && length != 0) {
+		return 0
 	}
 
 	// get item from map
 	item := agoraService.getAudioEncObserverItemFromMap(cObserverHandle)
 	if item == nil {
-		fmt.Printf("goOnEncodedAudioFrameReceived, item is nil\n")
-		return
+		return 0
 	}
 
 	con := item.Con
 
 	if con == nil || !con.callbacks.begin() {
-		return
+		return 0
 	}
 	defer con.callbacks.end()
-	if con == nil {
-		fmt.Printf("goOnEncodedAudioFrameReceived, con is nil\n")
-		return
-	}
-
 	if con.encodedAudioFrameObserver == nil || con.encodedAudioFrameObserver.OnEncodedAudioFrameReceived == nil || encodedAudioFrameInfo == nil {
-		fmt.Printf("goOnEncodedAudioFrameReceived, encodedAudioFrameObserver is nil\n")
-		return
+		return 0
 	}
 	// conver C.uint8_t to []byte
 	packetBytes := C.GoBytes(unsafe.Pointer(packet), C.int(length))
 
 	con.encodedAudioFrameObserver.OnEncodedAudioFrameReceived(item.Uid, packetBytes,
 		int64(encodedAudioFrameInfo.sendTs), int(encodedAudioFrameInfo.codec))
+	return 1
 }
 
 //export goOnVideoTrackPublishSuccess
