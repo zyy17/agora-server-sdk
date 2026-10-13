@@ -34,6 +34,11 @@ func goOnRecordAudioFrame(cLocalUser unsafe.Pointer, channelId *C.char, frame *C
 	goFrame := GoPcmAudioFrame(frame)
 	ret := con.audioObserver.OnRecordAudioFrame(con.GetLocalUser(), goChannelId, goFrame)
 	if ret {
+		if parameters := con.audioObserver.OnGetRecordAudioFrameParam; parameters != nil && parameters(con.localUser).Mode == RawAudioFrameOpModeReadWrite {
+			if !writeBackPCMFrame(frame, goFrame) {
+				return C.int(0)
+			}
+		}
 		return C.int(1)
 	}
 	return C.int(0)
@@ -60,6 +65,11 @@ func goOnPlaybackAudioFrame(cLocalUser unsafe.Pointer, channelId *C.char, frame 
 	goFrame := GoPcmAudioFrame(frame)
 	ret := con.audioObserver.OnPlaybackAudioFrame(con.GetLocalUser(), goChannelId, goFrame)
 	if ret {
+		if parameters := con.audioObserver.OnGetPlaybackAudioFrameParam; parameters != nil && parameters(con.localUser).Mode == RawAudioFrameOpModeReadWrite {
+			if !writeBackPCMFrame(frame, goFrame) {
+				return C.int(0)
+			}
+		}
 		return C.int(1)
 	}
 	return C.int(0)
@@ -86,6 +96,11 @@ func goOnMixedAudioFrame(cLocalUser unsafe.Pointer, channelId *C.char, frame *C.
 	goFrame := GoPcmAudioFrame(frame)
 	ret := con.audioObserver.OnMixedAudioFrame(con.GetLocalUser(), goChannelId, goFrame)
 	if ret {
+		if parameters := con.audioObserver.OnGetMixedAudioFrameParam; parameters != nil && parameters(con.localUser).Mode == RawAudioFrameOpModeReadWrite {
+			if !writeBackPCMFrame(frame, goFrame) {
+				return C.int(0)
+			}
+		}
 		return C.int(1)
 	}
 	return C.int(0)
@@ -111,6 +126,11 @@ func goOnEarMonitoringAudioFrame(cLocalUser unsafe.Pointer, frame *C.struct__aud
 	goFrame := GoPcmAudioFrame(frame)
 	ret := con.audioObserver.OnEarMonitoringAudioFrame(con.GetLocalUser(), goFrame)
 	if ret {
+		if parameters := con.audioObserver.OnGetEarMonitoringAudioFrameParam; parameters != nil && parameters(con.localUser).Mode == RawAudioFrameOpModeReadWrite {
+			if !writeBackPCMFrame(frame, goFrame) {
+				return C.int(0)
+			}
+		}
 		return C.int(1)
 	}
 	return C.int(0)
@@ -280,4 +300,18 @@ func goOnGetEarMonitoringAudioFrameParam(cLocalUser unsafe.Pointer) C.struct__au
 	cAudioParam.mode = C.RAW_AUDIO_FRAME_OP_MODE_TYPE(goAudioParam.Mode)
 	cAudioParam.samples_per_call = C.int(goAudioParam.SamplesPerCall)
 	return cAudioParam
+}
+
+// writeBackPCMFrame copies only samples into the original C allocation. It never
+// replaces a native buffer or accepts format/size changes from application code.
+func writeBackPCMFrame(frame *C.struct__audio_frame, edited *AudioFrame) bool {
+	if frame == nil || edited == nil || frame.buffer == nil || edited.SamplesPerChannel != int(frame.samples_per_channel) || edited.BytesPerSample != int(frame.bytes_per_sample) || edited.Channels != int(frame.channels) || edited.SamplesPerSec != int(frame.samples_per_sec) {
+		return false
+	}
+	length := int64(frame.samples_per_channel) * int64(frame.bytes_per_sample) * int64(frame.channels)
+	if length <= 0 || length != int64(len(edited.Buffer)) {
+		return false
+	}
+	C.memcpy(unsafe.Pointer(frame.buffer), unsafe.Pointer(&edited.Buffer[0]), C.size_t(length))
+	return true
 }
