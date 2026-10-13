@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
+
 	sdk "github.com/zyy17/agora-server-sdk"
 	"github.com/zyy17/agora-server-sdk/examples/internal/example"
-	"log"
 )
 
 func main() {

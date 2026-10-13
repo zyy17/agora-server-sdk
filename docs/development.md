@@ -32,9 +32,9 @@ Do not replace a checksum to accept an arbitrary archive or mix an older native 
 
 | Command | Coverage |
 | --- | --- |
-| `make fmt` | Format all Go source; modifies files |
-| `make fmt-check` | Reject unformatted source |
-| `make test-tooling` | Shell syntax, installer transactions, archive safety |
+| `make fmt` | Format all Go source and import groups; modifies files |
+| `make fmt-check` | Reject unformatted source or import groups |
+| `make test-tooling` | Shell syntax, installer transactions, archive safety, formatter regressions |
 | `make lint` | Pinned Staticcheck v0.8.2 on first-party APIs and examples |
 | `make vet` | All Go packages, including native bindings |
 | `make test` | Offline unit tests |
@@ -49,6 +49,14 @@ Do not replace a checksum to accept an arbitrary archive or mix an older native 
 Staticcheck covers the root package, `messaging`, `mediaio`, `token`, and examples; native bindings are covered by vet and tests. Go’s race detector does not instrument the C/C++ SDK internals. Tests use fake transports/callbacks and credential-free native lifecycle paths; none require a channel join.
 
 CI uses Ubuntu 24.04 / Linux amd64 / Go 1.27.2. One job runs `make check` and verifies default builds do not require system FFmpeg development packages. A separate job runs `go test -race -tags avcodec -count=1 ./...` with FFmpeg dependencies. This does not validate macOS or live service interoperability.
+
+## Go style
+
+`make fmt` and `make fmt-check` use pinned `goimports` v0.51.0 in format-only mode: standard-library imports first, external modules next, and this module last, with blank lines between groups. Imports and aliases are preserved rather than inferred or removed. The formatter covers tests, examples, native Go wrappers, and inactive build-tagged files; it excludes downloaded SDKs, vendored dependencies, binaries, and tool/cache directories. cgo preambles stay attached to `import "C"`. CI enforces the same command through `make check`.
+
+Make installs the pinned formatter into `.tools/bin`; the first installation needs module download access. Formatting and its fixture tests need no native SDK, network access, or runtime dependency changes. For the same editor behavior, use `.tools/bin/goimports -format-only -local github.com/zyy17/agora-server-sdk/`.
+
+Keep functions focused on one step. When setup or event processing grows, extract named helpers around validation, resource creation, and handling a single event; keep cleanup and ownership visible at the call site. Avoid splitting code solely to meet an arbitrary line limit.
 
 ## Optional FFmpeg
 

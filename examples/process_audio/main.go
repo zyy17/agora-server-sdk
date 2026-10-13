@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"flag"
-	sdk "github.com/zyy17/agora-server-sdk"
-	"github.com/zyy17/agora-server-sdk/examples/internal/example"
 	"io"
 	"os"
 	"time"
+
+	sdk "github.com/zyy17/agora-server-sdk"
+	"github.com/zyy17/agora-server-sdk/examples/internal/example"
 )
 
 func main() { example.Main(run) }

@@ -1,8 +1,9 @@
 package agorasdk
 
 import (
-	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 	"slices"
+
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
 type PixelFormat int

@@ -5,9 +5,10 @@ package token
 import (
 	"encoding/hex"
 	"fmt"
-	builder "github.com/AgoraIO/Tools/DynamicKey/AgoraDynamicKey/go/src/rtctokenbuilder2"
 	"strings"
 	"time"
+
+	builder "github.com/AgoraIO/Tools/DynamicKey/AgoraDynamicKey/go/src/rtctokenbuilder2"
 )
 
 type Role uint8

@@ -32,9 +32,9 @@ make check
 
 | 命令 | 范围 |
 | --- | --- |
-| `make fmt` | 格式化全部 Go 源码，会修改文件 |
-| `make fmt-check` | 检查源码格式 |
-| `make test-tooling` | Shell 语法、安装事务和压缩包安全 |
+| `make fmt` | 格式化全部 Go 源码及导入分组，会修改文件 |
+| `make fmt-check` | 检查源码格式及导入分组 |
+| `make test-tooling` | Shell 语法、安装事务、压缩包安全及格式化回归测试 |
 | `make lint` | 固定 Staticcheck v0.8.2，检查高层 API 与示例 |
 | `make vet` | 全部 Go 包，包括原生绑定 |
 | `make test` | 离线单元测试 |
@@ -49,6 +49,14 @@ make check
 Staticcheck 检查根包、`messaging`、`mediaio`、`token` 和示例；原生绑定由 vet 和测试覆盖。Go race detector 不检测 C/C++ SDK 内部竞态。测试使用模拟传输和回调，以及无凭据的原生生命周期路径，不要求加入频道。
 
 CI 使用 Ubuntu 24.04 / Linux amd64 / Go 1.27.2。一个任务运行 `make check`，并确认默认构建不依赖系统 FFmpeg 开发包；另一个任务安装 FFmpeg 依赖，执行 `go test -race -tags avcodec -count=1 ./...`。这些检查不验证 macOS 或真实服务互通。
+
+## Go 代码风格
+
+`make fmt` 和 `make fmt-check` 使用固定版本 `goimports` v0.51.0 的仅格式化模式：先标准库，再外部模块，最后本模块，各组之间空一行。保留现有导入及别名，不推断或删除导入。格式化范围包括测试、示例、原生 Go 封装和未启用 build tag 的文件；排除已下载的 SDK、vendor 依赖、二进制及工具/缓存目录。cgo 前导注释保持紧邻 `import "C"`。CI 通过 `make check` 执行同一检查。
+
+Make 将固定版本的格式化工具安装到 `.tools/bin`，首次安装需要访问模块下载源。格式化及其回归测试不需要原生 SDK、网络访问或运行时依赖变更。编辑器可使用 `.tools/bin/goimports -format-only -local github.com/zyy17/agora-server-sdk/` 保持一致。
+
+函数应聚焦单一步骤。初始化或事件处理变长时，可按校验、资源创建和单事件处理提取具名辅助函数，并在调用处清楚展示资源归属与清理逻辑；不要仅为满足任意行数限制而拆分代码。
 
 ## 可选 FFmpeg
 

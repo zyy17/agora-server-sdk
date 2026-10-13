@@ -4,9 +4,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
+
 	sdk "github.com/zyy17/agora-server-sdk"
 	"github.com/zyy17/agora-server-sdk/examples/internal/example"
-	"os"
 )
 
 func main() {
