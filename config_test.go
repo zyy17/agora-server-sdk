@@ -2,6 +2,7 @@ package agorasdk
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
@@ -58,13 +59,16 @@ func TestConfigCopiesPointers(t *testing.T) {
 	c := validChannel()
 	c.Encryption = &rtc.EncryptionConfig{EncryptionKdfSalt: []byte{1, 2}}
 	c.Audio.VADConfig = &rtc.AudioVadConfigV2{StartRecognizeCount: 7}
+	c.Video.Encoder = &rtc.VideoEncoderConfiguration{Width: 640}
+	c.Video.EncodedSender = &rtc.VideoEncodedImageSenderOptions{}
 	got, err := normalized(c)
 	if err != nil {
 		t.Fatal(err)
 	}
 	c.Encryption.EncryptionKdfSalt[0] = 9
 	c.Audio.VADConfig.StartRecognizeCount = 99
-	if got.Encryption.EncryptionKdfSalt[0] != 1 || got.Audio.VADConfig.StartRecognizeCount != 7 {
+	c.Video.Encoder.Width = 1280
+	if got.Encryption.EncryptionKdfSalt[0] != 1 || got.Audio.VADConfig.StartRecognizeCount != 7 || got.Video.Encoder.Width != 640 || got.Video.EncodedSender == c.Video.EncodedSender {
 		t.Fatal("config retained mutable caller memory")
 	}
 }
@@ -135,5 +139,57 @@ func TestIndependentAudioDefaultsAndVAD(t *testing.T) {
 	c.Receive.AudioPositions = AudioMixed
 	if _, err := normalized(c); !errors.Is(err, ErrInvalidConfig) {
 		t.Fatal(err)
+	}
+}
+
+func TestConfigValidationOrder(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(*ChannelConfig)
+		want   string
+	}{
+		{"identity before mode", func(c *ChannelConfig) { c.Channel = ""; c.Role = 99 }, "channel must"},
+		{"mode before format", func(c *ChannelConfig) { c.Role = 99; c.Audio.Send.SampleRate = -1 }, "mode is unknown"},
+		{"send before receive", func(c *ChannelConfig) { c.Audio.Send.Channels = 3; c.Audio.Receive.SampleRate = -1 }, "channels must"},
+		{"positions before queue", func(c *ChannelConfig) { c.Receive.AudioPositions = 32; c.QueueCapacity = -1 }, "audio positions"},
+		{"queue before timeout", func(c *ChannelConfig) { c.QueueCapacity = -1; c.JoinTimeout = -1 }, "queue capacity"},
+		{"timeout before mode constraints", func(c *ChannelConfig) { c.JoinTimeout = -1; c.Mode = LargeScale }, "join timeout"},
+		{"mode constraints before scenario", func(c *ChannelConfig) { c.Mode = LargeScale; c.Audio.Scenario = 99 }, "large-scale channel"},
+		{"scenario before VAD", func(c *ChannelConfig) { c.Audio.Scenario = 99; c.Audio.VAD = true; c.Receive.Disabled = true }, "audio scenario"},
+		{"VAD format before position", func(c *ChannelConfig) {
+			c.Audio.VAD = true
+			c.Audio.Receive.SampleRate = 48000
+			c.Receive.Disabled = true
+		}, "requires 16 kHz"},
+		{"VAD position before thresholds", func(c *ChannelConfig) {
+			c.Audio.VAD = true
+			c.Receive.Disabled = true
+			c.Audio.VADConfig = &rtc.AudioVadConfigV2{StartRecognizeCount: -1}
+		}, "requires received PCM"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validChannel()
+			tt.mutate(&cfg)
+			if _, err := normalized(cfg); !errors.Is(err, ErrInvalidConfig) || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("got %v, want invalid %s", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfigFailurePreservesPartialDefaults(t *testing.T) {
+	cfg := validChannel()
+	cfg.QueueCapacity = -1
+	cfg.Audio.VADConfig = &rtc.AudioVadConfigV2{StartRecognizeCount: 7}
+	got, err := normalized(cfg)
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Fatal(err)
+	}
+	if got.Audio.Send != (PCMFormat{16000, 1}) || got.Audio.Receive != (PCMFormat{16000, 1}) || got.Receive.AudioPositions != AudioBeforeMixing {
+		t.Fatalf("earlier defaults were lost: %+v", got)
+	}
+	if got.JoinTimeout != 0 || got.Audio.VADConfig != cfg.Audio.VADConfig {
+		t.Fatal("normalization continued past the validation error")
 	}
 }

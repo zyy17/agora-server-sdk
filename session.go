@@ -59,6 +59,25 @@ func emptySession(service *Service, cfg ChannelConfig) *Session {
 }
 func newSession(service *Service, cfg ChannelConfig) (*Session, error) {
 	s := emptySession(service, cfg)
+	connCfg, pub, err := sessionNativeConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	s.native = rtc.NewRtcConnection(connCfg, pub)
+	if s.native == nil {
+		return nil, &Error{Op: "create connection", Code: -1}
+	}
+	s.transport = s.native
+	// A failed setup must release every native object before returning.
+	if err := s.configure(); err != nil {
+		s.transport.Disconnect()
+		s.transport.Release()
+		s.closeStreams()
+		return nil, err
+	}
+	return s, nil
+}
+func sessionNativeConfig(cfg ChannelConfig) (*rtc.RtcConnectionConfig, *rtc.RtcConnectionPublishConfig, error) {
 	connCfg := &rtc.RtcConnectionConfig{
 		AutoSubscribeAudio: !cfg.Receive.Disabled && !cfg.Receive.ManualSubscriptions,
 		AutoSubscribeVideo: (cfg.Receive.Video || cfg.Receive.EncodedVideo) && !cfg.Receive.ManualSubscriptions,
@@ -86,89 +105,66 @@ func newSession(service *Service, cfg ChannelConfig) (*Session, error) {
 	}
 	if cfg.ConfigureNative != nil {
 		if err := cfg.ConfigureNative(connCfg, pub); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if connCfg.ChannelType == rtc.ChannelTypeLargeScale && (connCfg.AutoSubscribeAudio || connCfg.AutoSubscribeVideo) {
-		return nil, invalid("large-scale channel", "cannot auto-subscribe")
+		return nil, nil, invalid("large-scale channel", "cannot auto-subscribe")
 	}
-	s.native = rtc.NewRtcConnection(connCfg, pub)
-	if s.native == nil {
-		return nil, &Error{Op: "create connection", Code: -1}
-	}
-	s.transport = s.native
-	// A failed setup must release every native object before returning.
-	if err := s.configure(); err != nil {
-		s.transport.Disconnect()
-		s.transport.Release()
-		s.closeStreams()
-		return nil, err
-	}
-	return s, nil
+	return connCfg, pub, nil
 }
+
 func (s *Session) configure() error {
-	steps := []struct {
-		op  string
-		run func() int
-	}{
-		{"register connection observer", func() int { return s.native.RegisterObserver(s.connectionObserver()) }},
-		{"register local user observer", func() int { return s.native.RegisterLocalUserObserver(s.localObserver()) }},
+	if err := check("register connection observer", s.native.RegisterObserver(s.connectionObserver())); err != nil {
+		return err
 	}
-	if !s.cfg.Receive.Disabled {
-		steps = append(steps, struct {
-			op  string
-			run func() int
-		}{"configure received PCM", func() int {
-			return s.native.GetLocalUser().SetPlaybackAudioFrameBeforeMixingParameters(s.cfg.Audio.Receive.Channels, s.cfg.Audio.Receive.SampleRate)
-		}})
-		steps = append(steps, struct {
-			op  string
-			run func() int
-		}{"register audio observer", func() int {
-			enabled := 0
-			if s.cfg.Audio.VAD {
-				enabled = 1
-			}
-			return s.native.RegisterAudioFrameObserver(s.audioObserver(), enabled, s.cfg.Audio.VADConfig)
-		}})
+	if err := check("register local user observer", s.native.RegisterLocalUserObserver(s.localObserver())); err != nil {
+		return err
+	}
+	if err := s.configurePCMReception(); err != nil {
+		return err
 	}
 	if s.cfg.Receive.Video {
-		steps = append(steps, struct {
-			op  string
-			run func() int
-		}{"register video observer", func() int { return s.native.RegisterVideoFrameObserver(s.videoObserver()) }})
-	}
-	if s.cfg.Receive.EncodedVideo {
-		steps = append(steps, struct {
-			op  string
-			run func() int
-		}{"register encoded video observer", func() int { return s.native.RegisterVideoEncodedFrameObserver(s.encodedVideoObserver()) }})
-	}
-	if s.cfg.Receive.EncodedAudio {
-		steps = append(steps, struct {
-			op  string
-			run func() int
-		}{"register encoded audio observer", func() int { return s.native.RegisterAudioEncodedFrameObserver(s.encodedAudioObserver()) }})
-	}
-	if s.cfg.Video.Encoder != nil {
-		steps = append(steps, struct {
-			op  string
-			run func() int
-		}{"configure video encoder", func() int { return s.native.SetVideoEncoderConfiguration(s.cfg.Video.Encoder) }})
-	}
-	if s.cfg.Encryption != nil {
-		steps = append(steps, struct {
-			op  string
-			run func() int
-		}{"enable encryption", func() int { return s.native.EnableEncryption(1, s.cfg.Encryption) }})
-	}
-	for _, step := range steps {
-		if err := check(step.op, step.run()); err != nil {
+		if err := check("register video observer", s.native.RegisterVideoFrameObserver(s.videoObserver())); err != nil {
 			return err
 		}
 	}
+	if s.cfg.Receive.EncodedVideo {
+		if err := check("register encoded video observer", s.native.RegisterVideoEncodedFrameObserver(s.encodedVideoObserver())); err != nil {
+			return err
+		}
+	}
+	if s.cfg.Receive.EncodedAudio {
+		if err := check("register encoded audio observer", s.native.RegisterAudioEncodedFrameObserver(s.encodedAudioObserver())); err != nil {
+			return err
+		}
+	}
+	if s.cfg.Video.Encoder != nil {
+		if err := check("configure video encoder", s.native.SetVideoEncoderConfiguration(s.cfg.Video.Encoder)); err != nil {
+			return err
+		}
+	}
+	if s.cfg.Encryption != nil {
+		return check("enable encryption", s.native.EnableEncryption(1, s.cfg.Encryption))
+	}
 	return nil
 }
+
+func (s *Session) configurePCMReception() error {
+	if s.cfg.Receive.Disabled {
+		return nil
+	}
+	format := s.cfg.Audio.Receive
+	if err := check("configure received PCM", s.native.GetLocalUser().SetPlaybackAudioFrameBeforeMixingParameters(format.Channels, format.SampleRate)); err != nil {
+		return err
+	}
+	enabled := 0
+	if s.cfg.Audio.VAD {
+		enabled = 1
+	}
+	return check("register audio observer", s.native.RegisterAudioFrameObserver(s.audioObserver(), enabled, s.cfg.Audio.VADConfig))
+}
+
 func (s *Session) connect(ctx context.Context) error {
 	if ctx == nil {
 		return invalid("context", "must not be nil")

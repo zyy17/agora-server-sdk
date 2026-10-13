@@ -27,7 +27,7 @@ type AudioProcessor struct {
 	closeOnce      sync.Once
 }
 
-func (s *Service) NewAudioProcessor(cfg ProcessorConfig) (*AudioProcessor, error) {
+func normalizedProcessorConfig(cfg ProcessorConfig) (ProcessorConfig, error) {
 	if cfg.SampleRate == 0 {
 		cfg.SampleRate = 16000
 	}
@@ -38,14 +38,14 @@ func (s *Service) NewAudioProcessor(cfg ProcessorConfig) (*AudioProcessor, error
 		cfg.QueueCapacity = 64
 	}
 	if err := validatePCMFormat(cfg.SampleRate, cfg.Channels); err != nil {
-		return nil, err
+		return cfg, err
 	}
 	if cfg.QueueCapacity < 1 || cfg.QueueCapacity > 65536 {
-		return nil, invalid("processor queue capacity", "must be 1–65536")
+		return cfg, invalid("processor queue capacity", "must be 1–65536")
 	}
 	if cfg.VAD != nil {
 		if err := validateVAD(*cfg.VAD); err != nil {
-			return nil, err
+			return cfg, err
 		}
 		v := *cfg.VAD
 		cfg.VAD = &v
@@ -54,7 +54,15 @@ func (s *Service) NewAudioProcessor(cfg ProcessorConfig) (*AudioProcessor, error
 		cfg.APM = rtc.NewAPMConfig()
 	}
 	if cfg.APM.AiNsConfig == nil || cfg.APM.AiAecConfig == nil || cfg.APM.BghvsCConfig == nil || cfg.APM.AgcConfig == nil {
-		return nil, invalid("APM configuration", "requires all component configurations")
+		return cfg, invalid("APM configuration", "requires all component configurations")
+	}
+	return cfg, nil
+}
+
+func (s *Service) NewAudioProcessor(cfg ProcessorConfig) (*AudioProcessor, error) {
+	cfg, err := normalizedProcessorConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -69,7 +77,16 @@ func (s *Service) NewAudioProcessor(cfg ProcessorConfig) (*AudioProcessor, error
 	if p.native == nil {
 		return nil, &Error{Op: "create audio processor", Code: -1}
 	}
-	observer := &rtc.ExternalAudioProcessorObserver{OnProcessedAudioFrame: func(_ *rtc.ExternalAudioProcessor, f *rtc.AudioFrame, v rtc.VadState, speech *rtc.AudioFrame) {
+	if err := check("initialize audio processor", p.native.Initialize(cfg.APM, cfg.SampleRate, cfg.Channels, cfg.VAD, p.observer())); err != nil {
+		p.native.Release()
+		p.output.close()
+		return nil, err
+	}
+	s.processors[p] = struct{}{}
+	return p, nil
+}
+func (p *AudioProcessor) observer() *rtc.ExternalAudioProcessorObserver {
+	return &rtc.ExternalAudioProcessorObserver{OnProcessedAudioFrame: func(_ *rtc.ExternalAudioProcessor, f *rtc.AudioFrame, v rtc.VadState, speech *rtc.AudioFrame) {
 		if f == nil {
 			return
 		}
@@ -80,14 +97,8 @@ func (s *Service) NewAudioProcessor(cfg ProcessorConfig) (*AudioProcessor, error
 		}
 		p.output.push(out)
 	}}
-	if err := check("initialize audio processor", p.native.Initialize(cfg.APM, cfg.SampleRate, cfg.Channels, cfg.VAD, observer)); err != nil {
-		p.native.Release()
-		p.output.close()
-		return nil, err
-	}
-	s.processors[p] = struct{}{}
-	return p, nil
 }
+
 func (p *AudioProcessor) Output() *Stream[AudioFrame] { return p.output }
 func (p *AudioProcessor) SendPCM(data []byte) error {
 	if err := validateProcessorPCM(data, p.rate, p.channels); err != nil {

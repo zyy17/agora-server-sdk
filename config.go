@@ -171,62 +171,87 @@ type ChannelConfig struct {
 }
 
 func normalized(c ChannelConfig) (ChannelConfig, error) {
-	if strings.TrimSpace(c.Channel) == "" || strings.ContainsRune(c.Channel, 0) {
-		return c, invalid("channel", "must be nonempty and contain no NUL")
-	}
-	if strings.TrimSpace(c.UserID) == "" || strings.ContainsRune(c.UserID, 0) {
-		return c, invalid("user ID", "must be nonempty and contain no NUL")
-	}
-	if len(c.Channel) > 64 || len(c.UserID) > 255 {
-		return c, invalid("identity", "exceeds channel (64) or user ID (255) byte limit")
-	}
-	if strings.ContainsRune(c.Token, 0) || strings.ContainsRune(c.Info, 0) {
-		return c, invalid("token/info", "must contain no NUL")
+	if err := validateChannelIdentity(c); err != nil {
+		return c, err
 	}
 	if c.Role > Audience || c.Mode > LargeScale || c.Audio.Mode > NoAudio || c.Video.Mode > EncodedVideo {
 		return c, invalid("mode", "is unknown")
 	}
-	var err error
-	if c.Audio.Send, err = c.Audio.Send.normalized(); err != nil {
+	if err := c.normalizeDefaults(); err != nil {
 		return c, err
 	}
-	if c.Audio.Receive, err = c.Audio.Receive.normalized(); err != nil {
+	if err := c.validateMediaOptions(); err != nil {
 		return c, err
+	}
+	return c.copyNativeOptions(), nil
+}
+
+func validateChannelIdentity(c ChannelConfig) error {
+	if strings.TrimSpace(c.Channel) == "" || strings.ContainsRune(c.Channel, 0) {
+		return invalid("channel", "must be nonempty and contain no NUL")
+	}
+	if strings.TrimSpace(c.UserID) == "" || strings.ContainsRune(c.UserID, 0) {
+		return invalid("user ID", "must be nonempty and contain no NUL")
+	}
+	if len(c.Channel) > 64 || len(c.UserID) > 255 {
+		return invalid("identity", "exceeds channel (64) or user ID (255) byte limit")
+	}
+	if strings.ContainsRune(c.Token, 0) || strings.ContainsRune(c.Info, 0) {
+		return invalid("token/info", "must contain no NUL")
+	}
+	return nil
+}
+
+func (c *ChannelConfig) normalizeDefaults() error {
+	var err error
+	if c.Audio.Send, err = c.Audio.Send.normalized(); err != nil {
+		return err
+	}
+	if c.Audio.Receive, err = c.Audio.Receive.normalized(); err != nil {
+		return err
 	}
 	if c.Receive.AudioPositions == 0 {
 		c.Receive.AudioPositions = AudioBeforeMixing
 	}
 	if c.Receive.AudioPositions & ^AudioPosition(31) != 0 {
-		return c, invalid("audio positions", "contains unsupported bits")
+		return invalid("audio positions", "contains unsupported bits")
 	}
 	if c.QueueCapacity == 0 {
 		c.QueueCapacity = 64
 	}
 	if c.QueueCapacity < 1 || c.QueueCapacity > 65536 {
-		return c, invalid("queue capacity", "must be between 1 and 65536")
+		return invalid("queue capacity", "must be between 1 and 65536")
 	}
 	if c.JoinTimeout == 0 {
 		c.JoinTimeout = 30 * time.Second
 	}
 	if c.JoinTimeout < 0 {
-		return c, invalid("join timeout", "must be positive")
+		return invalid("join timeout", "must be positive")
 	}
+	return nil
+}
+
+func (c ChannelConfig) validateMediaOptions() error {
 	if c.Mode == LargeScale && !c.Receive.ManualSubscriptions {
-		return c, invalid("large-scale channel", "requires Receive.ManualSubscriptions=true")
+		return invalid("large-scale channel", "requires Receive.ManualSubscriptions=true")
 	}
 	if c.Audio.Scenario > ScenarioAIClient {
-		return c, invalid("audio scenario", "is unknown")
+		return invalid("audio scenario", "is unknown")
 	}
 	if c.Audio.VAD && (c.Audio.Receive.SampleRate != 16000 || c.Audio.Receive.Channels != 1) {
-		return c, invalid("VAD", "requires 16 kHz mono received PCM")
+		return invalid("VAD", "requires 16 kHz mono received PCM")
 	}
 	if c.Audio.VAD && (c.Receive.Disabled || c.Receive.AudioPositions&AudioBeforeMixing == 0) {
-		return c, invalid("VAD", "requires received PCM at AudioBeforeMixing")
+		return invalid("VAD", "requires received PCM at AudioBeforeMixing")
 	}
 	if c.Audio.VADConfig != nil {
-		if err := validateVAD(*c.Audio.VADConfig); err != nil {
-			return c, err
-		}
+		return validateVAD(*c.Audio.VADConfig)
+	}
+	return nil
+}
+
+func (c ChannelConfig) copyNativeOptions() ChannelConfig {
+	if c.Audio.VADConfig != nil {
 		v := *c.Audio.VADConfig
 		c.Audio.VADConfig = &v
 	}
@@ -243,8 +268,9 @@ func normalized(c ChannelConfig) (ChannelConfig, error) {
 		v.EncryptionKdfSalt = append([]byte(nil), v.EncryptionKdfSalt...)
 		c.Encryption = &v
 	}
-	return c, nil
+	return c
 }
+
 func validatePCMFormat(rate, channels int) error {
 	switch rate {
 	case 8000, 16000, 32000, 44100, 48000:

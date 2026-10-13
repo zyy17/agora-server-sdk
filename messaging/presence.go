@@ -51,23 +51,9 @@ func (c *Client) SetState(ctx context.Context, ch Channel, state map[string]stri
 	if err := ch.validate(); err != nil {
 		return err
 	}
-	if len(state) == 0 {
-		return invalid("empty state")
-	}
-	keys := make([]string, 0, len(state))
-	for k, v := range state {
-		if err := validText("state key", k, true); err != nil {
-			return err
-		}
-		if err := validText("state value", v, false); err != nil {
-			return err
-		}
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	items := make([]*native.StateItem, 0, len(keys))
-	for _, k := range keys {
-		items = append(items, &native.StateItem{Key: k, Value: state[k]})
+	items, err := stateItems(state)
+	if err != nil {
+		return err
 	}
 	return c.call(ctx, "set state", func() (int, uint64) {
 		n := c.native.GetPresence()
@@ -78,6 +64,28 @@ func (c *Client) SetState(ctx context.Context, ch Channel, state map[string]stri
 		code := n.SetState(ch.Name, ch.Type, items, uint(len(items)), &id)
 		return code, id
 	})
+}
+
+func stateItems(state map[string]string) ([]*native.StateItem, error) {
+	if len(state) == 0 {
+		return nil, invalid("empty state")
+	}
+	keys := make([]string, 0, len(state))
+	for k, v := range state {
+		if err := validText("state key", k, true); err != nil {
+			return nil, err
+		}
+		if err := validText("state value", v, false); err != nil {
+			return nil, err
+		}
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	items := make([]*native.StateItem, 0, len(keys))
+	for _, k := range keys {
+		items = append(items, &native.StateItem{Key: k, Value: state[k]})
+	}
+	return items, nil
 }
 
 // RemoveState removes the supplied keys; an empty key list removes all state.
