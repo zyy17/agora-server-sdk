@@ -76,11 +76,18 @@ The loop filters message events because login and subscription also generate oth
 | `AppID`, `UserID` | Required, valid UTF-8, no NUL; further format/length checks are native |
 | `EventBuffer` | 128 events; zero selects default; accepted explicit range 1–65536 |
 | `RequestTimeout` | 15 seconds; zero selects default; negative rejected |
-| `Native` | `nil` uses the pinned binding’s `agorartm.NewRtmConfig()` defaults |
+| `Identity` | `IdentityDefault`: string IDs without `Native`, otherwise preserve `Native.UseStringUserId`; explicit `IdentityString` / `IdentityNumeric` override it |
+| `Connection` | Optional typed region, transport, presence/heartbeat/reconnection timers, multipath, ISP policy |
+| `Log`, `Proxy`, `Encryption`, `Private` | Optional typed native configuration; non-nil values replace corresponding `Native` settings |
+| `Parameters` | Optional JSON object applied during creation; empty retains `Native.Parameters` |
+| `ResultEvents` | `false`; enable to observe all asynchronous result callbacks, including late results |
+| `Native` | `nil` uses the pinned binding’s defaults; retained for compatibility and platform `Context` |
 
 Use stable, distinct user IDs within one App ID. Official setup guidance limits RTM IDs to 64 ASCII characters; logging in elsewhere with the same ID can displace the existing login. For compatible names, prefer ASCII letters/digits/underscores/hyphens, beginning with a letter or digit; check current service restrictions before using other characters. Wrapper UTF-8 validation alone does not enforce the native naming rules.
 
-If supplying `Config.Native`, start from `agorartm.NewRtmConfig()` and adjust only needed fields. The wrapper overwrites `AppId`, `UserId`, `UseStringUserId`, and `EventHandler`. Region, logging, proxy, encryption, and private settings follow the pinned native configuration, not defaults from another language/version. Do not mutate `Native` or its referenced values while `New` runs.
+Prefer typed configuration: `ConnectionConfig`, `LogConfig`, `ProxyConfig`, `EncryptionConfig`, and `PrivateConfig` expose the native fields without importing the raw binding. Connection durations must be nonnegative whole seconds fitting `uint32`; when a `ConnectionConfig` is supplied, zero durations pass through unchanged, and zero area means global. A zero reconnect timeout asks the native SDK to retry indefinitely, independently of the Go request timeout. A nil connection preserves the pinned Go binding’s presence/heartbeat/reconnect defaults of 30/0/0 seconds. `EncryptionConfig.Salt` is a fixed 32-byte array; referenced configuration is copied during creation. Do not mutate inputs concurrently with `New`.
+
+`IdentityNumeric` interprets `UserID` as a numeric RTC-compatible ID; supply its decimal string and matching token identity. `IdentityString` preserves a numeric-looking ID as a string identity. If supplying `Config.Native`, start from `agorartm.NewRtmConfig()` and adjust only needed fields. The wrapper overwrites `AppId`, `UserId`, and `EventHandler`; explicitly supplied typed settings take precedence. Unlike earlier wrapper versions, `IdentityDefault` now respects `Native.UseStringUserId`. Set `IdentityString` explicitly to retain the earlier forced-string behavior. Region, proxy, encryption, and private settings still require native project support. Platform-specific `Context` remains available through `Native` and must obey cgo pointer-lifetime rules.
 
 ## Lifecycle, concurrency, and cancellation
 
@@ -101,7 +108,7 @@ flowchart TD
 - `New` allocates a client; it does not log in. Call `Login` before service operations. Creation is not proof of network or feature access.
 - `Client` and `Stream` methods support concurrent callers. Native initiation is serialized; request waits are independent and keyed by request ID, including callbacks received before initiation returns. Do not mutate caller-owned input maps/slices while an operation is reading them.
 - Each asynchronous wait uses the earlier of the caller deadline and `RequestTimeout`. Nil contexts are invalid. Cancellation stops waiting, **not an already submitted operation**, and cannot interrupt a synchronous native call already running.
-- A canceled publish, metadata write, or lock acquisition may still take effect. Inspect remote state or use an application idempotency scheme before retrying. The wrapper disables automatic native lock-acquisition retry.
+- A canceled publish, metadata write, or lock acquisition may still take effect. Inspect remote state or use an application idempotency scheme before retrying. `AcquireLock` disables native retry; `AcquireLockWithOptions` can enable it, including retries that outlive the caller’s context.
 - `Close` is idempotent and unblocks pending requests with `ErrClosed`. `Client.Close` releases remaining streams before the client, then no further operations may be initiated. `Stream.Close` also fails its pending requests.
 - `Close` does not await `Logout` or a graceful stream `Leave`. When required, call those first with a fresh bounded context, then close even if they fail. A blocked native call can delay close.
 
@@ -110,7 +117,7 @@ flowchart TD
 | API | Destination and prerequisite |
 | --- | --- |
 | `Publish` | Message Channel; publisher must log in but need not subscribe |
-| `Subscribe` / `Unsubscribe` | Message Channel reception; `Subscribe` always enables message events |
+| `Subscribe` / `Unsubscribe` | Message Channel reception; messages enabled unless `DisableMessages` is true |
 | `PublishToUser` | Direct message to a logged-in user ID; no channel subscription required |
 | `NewStream` / `Stream.Join` | Owned Stream Channel; log in, create, then join before topic operations |
 | `Channel{Name, Type}` | Presence, metadata, locks: `MessageChannel` or `StreamChannel`; history: `MessageChannel` or `UserChannel` |
@@ -121,6 +128,7 @@ flowchart TD
 | `PublishOptions.CustomType` | Empty; otherwise UTF-8 without NUL |
 | `PublishOptions.StoreInHistory` | `false`; opt in at publish time and enable project history access |
 | `SubscribeOptions.Presence` / `Metadata` / `Locks` | All `false`; opt in to each event family and provision required project features |
+| `SubscribeOptions.DisableMessages` | `false`; set `true` for presence/metadata/lock-only subscriptions |
 | `SubscribeOptions.Quiet` | `false`; `true` requests native quiet subscription behavior |
 
 The wrapper’s `SubscribeOptions{}` differs from native defaults: messages are enabled, Presence/Metadata/Locks are disabled. Publish payloads must be nonempty. Server message-size and rate quotas are not prechecked; inspect native errors. A nil publish error means the SDK operation succeeded, not that a recipient application processed or persisted the message. Add application acknowledgments when that distinction matters.
@@ -129,7 +137,8 @@ The wrapper’s `SubscribeOptions{}` differs from native defaults: messages are 
 
 | API / option | Contract |
 | --- | --- |
-| `OnlineUsers(ctx, channel, PresenceOptions)` | One page; user IDs always included; `IncludeState` defaults to `false` |
+| `OnlineUsers(ctx, channel, PresenceOptions)` | One page; user IDs included unless `ExcludeUserID`; `IncludeState` defaults to `false` |
+| `PresenceOptions.ExcludeUserID` | `false`; `true` forwards native `includeUserId=false`. The pinned C callback does not supply total occupancy, so this is not a count-only API |
 | `PresenceOptions.Page` | Empty for first page; pass returned `NextPage` unchanged; empty `NextPage` ends paging |
 | `UserChannels(ctx, userID)` | Queries channels for a user |
 | `SetState(ctx, channel, map)` | Nonempty map; nonempty keys; keys/values must be UTF-8 without NUL |
@@ -161,7 +170,11 @@ The wrapper requires at least one item, unique nonempty keys, and valid UTF-8 wi
 
 The lifecycle is `SetLock` → `AcquireLock` → `ReleaseLock` → `RemoveLock`; `Locks` queries definitions/owners, and `RevokeLock` targets a specified owner. `SetLock` defines a lock but does not acquire it. TTL describes how long ownership is retained after its owner disconnects/leaves, not the lifetime of the lock definition. The official range is 10–300 seconds; the wrapper only checks positive whole seconds fitting `uint32`, so server validation can still reject a locally valid duration.
 
-Enable lock feature access and `Locks` events where needed. A request timeout does not prove acquisition failed; query before retrying. Lock events may be dropped locally, so do not use this queue alone as proof of continued ownership for a consequential write.
+Enable lock feature access and `Locks` events where needed. `AcquireLock(ctx, channel, name)` remains the no-retry convenience method. Use `AcquireLockWithOptions(ctx, channel, name, AcquireLockOptions{Retry: true})` to enable native retry.
+
+**Canceling or timing out the Go call does not cancel native retry.** The pinned SDK exposes no per-request cancellation API; it can acquire the lock after the Go call has returned, including after an acquisition-failed callback. A failed attempt is not proof that retry stopped. Enable `Config.ResultEvents` before creation, consume `RequestAcquireLock` results and lock notifications, and release unwanted successful acquisitions using a fresh context. See the [compiled cleanup example](example_test.go). The example takes ownership of a dedicated client and closes it on every exit to stop further retry. It assumes one acquisition for that target and one queue consumer; dispatch deliberately when multiple operations share a target.
+
+A single `Locks` query is only a snapshot and cannot prove a still-pending retry will never acquire the lock. Reconcile on dropped events and retain ownership/cleanup handling for the lifetime of the retrying client. Closing releases native resources but is not a successful `ReleaseLock`; disconnected-owner retention still follows the native TTL. Lock events can be dropped, so the queue alone is not proof of continued ownership for a consequential write.
 
 ## History
 
@@ -209,9 +222,17 @@ Obtain tokens from a trusted application server. Empty tokens are accepted by th
 
 ## Events and queue behavior
 
-`Events()` returns a buffered receive-only channel; `Next(ctx)` consumes the same queue. Event kinds are `EventMessage`, `EventPresence`, `EventTopic`, `EventLock`, `EventStorage`, `EventLink`, `EventToken`, and `EventTokenExpiring`. Read only the populated field indicated by `Kind`. Data, nested slices/maps, and binary payloads are independent Go copies and can outlive the callback/client.
+`Events()` returns a buffered receive-only channel; `Next(ctx)` consumes the same queue. Event kinds are `EventMessage`, `EventPresence`, `EventTopic`, `EventLock`, `EventStorage`, `EventLink`, `EventToken`, and `EventTokenExpiring`; enabling `ResultEvents` also adds `EventRequestResult`. Read only the populated field indicated by `Kind`. Data, nested slices/maps, and binary payloads are independent Go copies and can outlive the callback/client.
 
 A full RTM queue drops the **newest** event and increments `DroppedEvents()`. This includes token and state events. Request results use a separate correlation path and are not dropped by event-queue overflow. A live context drains buffered events after close; once empty, `Next` returns `ErrClosed`, and ranging `Events()` ends. Canceled contexts return their context error. Multiple consumers compete for events; fan out explicitly if needed. This differs from [RTC’s oldest-drop / `io.EOF` contract](../docs/rtc.md#queues-and-data-lifetime).
+
+### Typed results and late completions
+
+`Config.ResultEvents: true` copies each of the 38 native asynchronous result callbacks into `Event.RequestResult`. `Operation` uses a named `RequestOperation` constant; `RequestID` preserves the SDK ID. `Channel`, `UserID`, `Topic`, `TopicMetadata`, `LockName`, and `Service` expose whichever context the callback supplies. Query payloads have typed fields: `Presence`, `State`, `Channels`, `Metadata`, `Locks`, `Subscription`, `Subscribers`, and `History`. Error callbacks retain code, details, and any partial payload.
+
+These copies are independent of the synchronous method’s returned slices/maps. Results are observable even after timeout/cancellation or when the SDK repeats a callback. A waiting operation completes on its first matching callback; repeated callbacks do not overwrite it. Request events share the bounded queue and can be dropped, while operation completion uses a separate path. Local validation/submission/context errors do not synthesize a native callback. No asynchronous callbacks are delivered after the client closes.
+
+Named `PresenceEventType`, `TopicEventType`, `LockEventType`, `StorageEventType`, `TokenEventType`, `LinkState`, `LinkOperation`, `LinkReason`, `ServiceType`, and `StorageType` values make event handling possible without magic integers. Values retain the native numbers, including unknown future values. `ErrorCode` exposes the pinned signed `Code…` constants and `Reason()` queries the linked SDK’s explanatory string.
 
 ## Native access and errors
 
@@ -226,6 +247,29 @@ A full RTM queue drops the **newest** event and increments `DroppedEvents()`. Th
 | `*messaging.Error` | Immediate or asynchronous SDK rejection; inspect `Op`, `Code`, and `Details` |
 
 Use `errors.Is` for sentinels/context errors and `errors.As` for `*messaging.Error`. `ErrorCode` preserves the native numeric value. Native methods with void submission signatures still await their result callback; submission alone is not reported as success. For partial topic subscription, inspect the returned publisher lists alongside the error.
+
+## Pinned coverage and native boundaries
+
+The reference is [official Go SDK v2.6.5 at `d51ff1b5…`](https://github.com/AgoraIO-Extensions/Agora-Golang-Server-SDK/tree/d51ff1b5baf85dd53155b31543bceba8ec304dc7/go_sdk/rtm), together with the vendored C headers and matching library, not an unrelated current-language SDK.
+
+| Pinned interface | Managed API |
+| --- | --- |
+| Client creation/release, login/logout, renew token, publish, subscribe/unsubscribe, parameters, version/error reason | `New` / `Close`, `Login` / `Logout`, `RenewToken`, `Publish` / `PublishToUser`, `Subscribe` / `Unsubscribe`, `SetParameters`, `Version`, `ErrorCode.Reason` |
+| Presence user/channel queries, state set/remove/get | `OnlineUsers`, `UserChannels`, `SetState`, `RemoveState`, `State`; raw `WhoNow`/`WhereNow` retained as legacy equivalents |
+| Metadata create/build, channel and user set/update/remove/get, user subscriptions | `Metadata` values plus the corresponding `*ChannelMetadata` / `*UserMetadata` methods |
+| Lock set/query/remove/acquire/release/revoke | `SetLock`, `Locks`, `RemoveLock`, `AcquireLock` / `AcquireLockWithOptions`, `ReleaseLock`, `RevokeLock` |
+| History query | `History` and typed cursor/message results |
+| Stream create/name/join/leave/release, renew token, topic join/leave/publish/subscribe/unsubscribe/subscriber query | `NewStream`, `Name`, `Join`, `Leave`, `Close`, `RenewToken`, `JoinTopic`, `LeaveTopic`, `Publish`, `SubscribeTopic`, `UnsubscribeTopic`, `Subscribers` |
+| Eight unsolicited callbacks and 38 result callbacks | Eight ordinary event kinds plus opt-in `EventRequestResult`; all payloads copied |
+
+Genuine pinned C-ABI boundaries:
+
+- The official Go source’s legacy `OnConnectionStateChanged` field has no slot in the pinned `C_IRtmEventHandler`. Connection notifications use `OnLinkStateEvent` / `EventLink`; no incompatible callback layout is introduced.
+- C++ `IStreamChannel::setParameters` has no pinned C wrapper/export and is not an official Go method. Client `SetParameters` remains available.
+- The C++ message/presence/topic/lock/storage event timestamps and interval `totalOccupancy` are absent from the pinned C callback structures. They cannot be reconstructed reliably and are not exposed as invented zero-valued data. Link/token/history timestamps are preserved because their ABI carries them.
+- No per-request cancel or native retry-cancel operation is available. Go cancellation bounds waiting only.
+
+The raw package retains all 143 official public function/method names. Its deliberate request-ID/error-return corrections and complete-slice callback corrections are preserved; parity does not restore unsafe upstream signatures. `GetAuthorUserId` adds a correctly spelled accessor while keeping the upstream `GetAquthorUserId` alias.
 
 ## Sources and verification scope
 
