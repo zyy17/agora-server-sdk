@@ -108,12 +108,12 @@ static int opus_init_swr(OpusDecoder2 *oc) {
   int out_ch = oc->out_channels > 0 ? oc->out_channels : opus_ctx_channels(ctx);
   opus_set_dst_channels(oc, out_ch);
 
-  oc->swr_inited = 1;
 
   // no conversion needed
   if (ctx->sample_fmt == oc->dst_sample_fmt &&
       ctx->sample_rate == oc->dst_sample_rate &&
       opus_ctx_channels(ctx) == opus_dst_channels(oc)) {
+    oc->swr_inited = 1;
     return 0;
   }
 
@@ -134,6 +134,7 @@ static int opus_init_swr(OpusDecoder2 *oc) {
     return result;
   }
   oc->swr_ctx = swr_ctx;
+  oc->swr_inited = 1;
   return 0;
 }
 
@@ -151,6 +152,7 @@ static int opus_resample(OpusDecoder2 *oc, AVFrame *frame) {
 
   int buf_size = av_samples_get_buffer_size(NULL, dst_channels,
       dst_nb_samples, oc->dst_sample_fmt, 1);
+  if (buf_size < 0) return buf_size;
   if (oc->buffer == NULL || oc->buffer_size < buf_size) {
     if (oc->buffer) {
       av_free(oc->buffer);
@@ -193,6 +195,9 @@ static int opus_resample(OpusDecoder2 *oc, AVFrame *frame) {
 }
 
 void * open_opus_decoder(int in_channels, int out_sample_rate, int out_channels, int *error_code) {
+  *error_code = AVERROR(EINVAL);
+  if (in_channels < 0 || in_channels > 2 || out_channels < 0 || out_channels > 2 ||
+      out_sample_rate < 0 || out_sample_rate > 192000) return NULL;
   *error_code = 0;
   OpusDecoder2 *oc = (OpusDecoder2 *)malloc(sizeof(OpusDecoder2));
   if (!oc) {
@@ -251,8 +256,6 @@ void * open_opus_decoder(int in_channels, int out_sample_rate, int out_channels,
   }
   *error_code = 0;
 
-  av_log(NULL, AV_LOG_INFO, "opus decoder opened, in_channels %d, out_rate %d, out_channels %d\n",
-    opus_ctx_channels(ctx), out_sample_rate, out_channels);
   return oc;
 }
 
@@ -265,29 +268,15 @@ int decode_opus(void *handle, const uint8_t *data, int data_size, MediaFrame *fr
   AVFrame *fr = oc->frame;
   int result;
 
-#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(58, 0, 0)
   AVPacket *pkt = av_packet_alloc();
-  if (!pkt) {
-    return AVERROR(ENOMEM);
-  }
-  // wrap the raw opus payload without copying; ffmpeg won't free user buffer
-  pkt->data = (uint8_t *)data;
-  pkt->size = data_size;
-
+  if (!pkt) return AVERROR(ENOMEM);
+  result = av_new_packet(pkt, data_size);
+  if (result < 0) { av_packet_free(&pkt); return result; }
+  /* FFmpeg requires zero padding beyond the encoded payload. Own the packet
+     in C rather than allowing a decoder to read past a Go slice. */
+  memcpy(pkt->data, data, data_size);
   result = avcodec_send_packet(ctx, pkt);
-  pkt->data = NULL;
-  pkt->size = 0;
   av_packet_free(&pkt);
-#else
-  AVPacket pkt;
-  av_init_packet(&pkt);
-  // wrap the raw opus payload without copying; ffmpeg won't free user buffer
-  pkt.data = (uint8_t *)data;
-  pkt.size = data_size;
-
-  result = avcodec_send_packet(ctx, &pkt);
-  av_packet_unref(&pkt);
-#endif
   if (result < 0) {
     av_log(NULL, AV_LOG_ERROR, "opus send packet error %d\n", result);
     return result;
@@ -345,6 +334,9 @@ void close_opus_decoder(void *handle) {
     oc->buffer = NULL;
     oc->buffer_size = 0;
   }
+#if OPUS_USE_NEW_CH_LAYOUT
+  av_channel_layout_uninit(&oc->dst_ch_layout);
+#endif
   free(oc);
 }
 #else

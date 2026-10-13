@@ -1,12 +1,7 @@
 package agoraservice
 
-import (
-	"fmt"
-	"os"
-	"sync"
-)
+import "sync"
 
-// transcoding worker
 type AudioTransCodeInData struct {
 	data       []byte
 	codecType  int
@@ -14,142 +9,130 @@ type AudioTransCodeInData struct {
 	channels   int
 }
 
+// AudioTranscodingWorker decodes raw Opus packets to mono 48 kHz S16 PCM.
+// Stop is terminal and also releases a worker that has never been started.
 type AudioTranscodingWorker struct {
 	isRunning       bool
-	encodeDataQueue chan *AudioTransCodeInData // for en
+	stopped         bool
+	encodeDataQueue chan *AudioTransCodeInData
 	stopChan        chan bool
 	conn            *RtcConnection
 	mutex           sync.Mutex
 	wg              sync.WaitGroup
-	stopOnce        sync.Once
+	queueWG         sync.WaitGroup
 	decoder         *OpusDecoder
 	out_channels    int
 	out_sampleRate  int
+	in_channels     int
+	pushPCM         func([]byte, int, int, int64) int
 }
 
 func NewAudioTranscodingWorker(conn *RtcConnection, in_channels int) *AudioTranscodingWorker {
-
-	intervalInMs := 20
-
-	// for this case: just fix out_channels and out_sampleRate to 1 and 16000
-	ret := &AudioTranscodingWorker{
-		isRunning:       false,
-		encodeDataQueue: make(chan *AudioTransCodeInData, 1000),
-		conn:            conn,
-		stopChan:        make(chan bool),
-		mutex:           sync.Mutex{},
-		wg:              sync.WaitGroup{},
-		stopOnce:        sync.Once{},
-		decoder:         nil,
-		out_channels:    1,
-		out_sampleRate:  48000, // opus always decodes at 48kHz internally
+	if in_channels == 0 {
+		in_channels = 1
 	}
-	out_channels := ret.out_channels
-	out_sampleRate := ret.out_sampleRate
-	audioDecoder := NewOpusDecoder(in_channels, out_sampleRate, out_channels)
-	if audioDecoder == nil {
-		fmt.Printf("NewAudioTranscodingWorker failed to create opus decoder\n")
+	d := NewOpusDecoder(in_channels, 48000, 1)
+	if d == nil {
+		return nil
 	}
-	ret.decoder = audioDecoder
-	fmt.Printf("NewAudioTranscodingWorker created with in_channels: %d, intervalInMs: %d\n", in_channels, intervalInMs)
-	return ret
+	return &AudioTranscodingWorker{encodeDataQueue: make(chan *AudioTransCodeInData, 1000), conn: conn, stopChan: make(chan bool), decoder: d, in_channels: in_channels, out_channels: 1, out_sampleRate: 48000, pushPCM: conn.PushAudioPcmData}
 }
 func (worker *AudioTranscodingWorker) Start() int {
+	if worker == nil {
+		return -10001
+	}
 	worker.mutex.Lock()
 	defer worker.mutex.Unlock()
-	if worker.isRunning {
+	if worker.isRunning || worker.stopped {
 		return -1000
 	}
-	//check has
 	if worker.decoder == nil {
 		return -10001
 	}
 	worker.isRunning = true
-	// increase WaitGroup count before starting goroutine
 	worker.wg.Add(1)
-	// start a goroutine to run the worker
 	go worker.run()
 	return 0
 }
 func (worker *AudioTranscodingWorker) run() {
-	// ensure Done() is called when the function returns
 	defer worker.wg.Done()
-
-	// get out_channels and out_sampleRate from worker
-	out_channels := worker.out_channels
-	out_sampleRate := worker.out_sampleRate
-
-	// for debug
-	debug := false
-	var debugFile *os.File = nil
-
-	if debug {
-		debugPath := "./opus_transcode_worker_debug.pcm"
-		debugFile, _ = os.OpenFile(debugPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if debugFile == nil {
-			debug = false
-		}
-		defer debugFile.Close()
-	}
+	channels := worker.in_channels
+	bytesPer10ms := worker.out_sampleRate / 100 * worker.out_channels * 2
+	var pending []byte
 	for {
 		select {
-		case inData := <-worker.encodeDataQueue:
-			//should decoding all the data in the queue, Never never drop any data, even if the decoder is busy.
-			rawAudioData, _ := worker.decoder.Decode(inData.data)
-			if rawAudioData != nil {
-				// for debug
-				if debug {
-					_, err := debugFile.Write(rawAudioData)
-					if err != nil {
-						fmt.Printf("Failed to write debug file: %v\n", err)
-					}
-				}
-				// and call conn.PushAudioPcmData to push the decoded audio data to the RTC
-				worker.conn.PushAudioPcmData(rawAudioData, out_sampleRate, out_channels, 0)
-			}
-
 		case <-worker.stopChan:
-			// received stop signal, exit loop
-			worker.mutex.Lock()
-			worker.isRunning = false
-			worker.mutex.Unlock()
-			return // use return instead of break, ensure exit function
+			return
+		default:
+		}
+		select {
+		case in := <-worker.encodeDataQueue:
+			if in.channels != channels {
+				decoder := NewOpusDecoder(in.channels, worker.out_sampleRate, worker.out_channels)
+				if decoder == nil {
+					continue
+				}
+				worker.decoder.Release()
+				worker.decoder = decoder
+				channels = in.channels
+			}
+			pcm, err := worker.decoder.Decode(in.data)
+			if err == nil && len(pcm) > 0 {
+				// Opus permits 2.5 ms and 5 ms packets. Agora accepts PCM in
+				// multiples of 10 ms, so preserve shorter decoded fragments.
+				pending = append(pending, pcm...)
+				n := len(pending) / bytesPer10ms * bytesPer10ms
+				if n > 0 {
+					worker.pushPCM(pending[:n], worker.out_sampleRate, worker.out_channels, 0)
+					pending = append(pending[:0], pending[n:]...)
+				}
+			}
+		case <-worker.stopChan:
+			return
 		}
 	}
 }
 func (worker *AudioTranscodingWorker) PushEncodedData(data []byte, channels int, codecType int) {
-	if worker.isRunning == false {
+	if channels == 0 {
+		channels = 1
+	}
+	if worker == nil || len(data) == 0 || codecType != int(AudioCodecOpus) || channels < 1 || channels > 2 {
 		return
 	}
-	worker.encodeDataQueue <- &AudioTransCodeInData{
-		data:       data,
-		channels:   channels,
-		codecType:  codecType,
-		sampleRate: 48000, // no need for opus
+	worker.mutex.Lock()
+	if !worker.isRunning || worker.stopped {
+		worker.mutex.Unlock()
+		return
+	}
+	worker.queueWG.Add(1)
+	worker.mutex.Unlock()
+	defer worker.queueWG.Done()
+	in := &AudioTransCodeInData{data: append([]byte(nil), data...), channels: channels, codecType: codecType, sampleRate: 48000}
+	select {
+	case worker.encodeDataQueue <- in:
+	case <-worker.stopChan:
 	}
 }
 func (worker *AudioTranscodingWorker) Stop() {
+	if worker == nil {
+		return
+	}
 	worker.mutex.Lock()
-	if !worker.isRunning {
-		worker.mutex.Unlock()
-		return // if already stopped, return directly
+	if !worker.stopped {
+		worker.stopped = true
+		worker.isRunning = false
+		close(worker.stopChan)
 	}
 	worker.mutex.Unlock()
-
-	// use sync.Once to ensure stopChan is only closed once (prevent repeated calls to stop)
-	worker.stopOnce.Do(func() {
-		close(worker.stopChan)
-	})
-
-	// wait for run() goroutine to complete
 	worker.wg.Wait()
-
-	// clean up resources
+	worker.queueWG.Wait()
 	worker.mutex.Lock()
-	worker.isRunning = false
+	defer worker.mutex.Unlock()
+	for len(worker.encodeDataQueue) > 0 {
+		<-worker.encodeDataQueue
+	}
 	if worker.decoder != nil {
 		worker.decoder.Release()
 		worker.decoder = nil
 	}
-	worker.mutex.Unlock()
 }

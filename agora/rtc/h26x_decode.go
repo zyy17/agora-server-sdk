@@ -1,5 +1,4 @@
 //go:build avcodec
-// +build avcodec
 
 package agoraservice
 
@@ -14,31 +13,33 @@ import (
 	"unsafe"
 )
 
-// global state for managing decoder
+// VideoDecoder decodes complete Annex-B H.264 or H.265 access units to 8-bit I420.
+// Calls to DecodeAndSave and Close may be made concurrently.
 type VideoDecoder struct {
 	decoder    *C.H264Decoder
+	codecType  int
 	frameCount int
 	mutex      sync.Mutex
 }
 
-// create video decoder
 func NewVideoDecoder() (*VideoDecoder, error) {
-	fmt.Printf("0202:200318_v1: NewVideoDecoder\n")
-	var errorCode C.int
-	decoder := C.h264_decoder_init(&errorCode)
-	if decoder == nil {
-		return nil, fmt.Errorf("0202:200318_v1: failed to initialize H264 decoder: %d", errorCode)
+	var code C.int
+	d := C.h26x_decoder_init(C.int(VideoCodecTypeH264), &code)
+	if d == nil {
+		return nil, fmt.Errorf("initialize H.264 decoder: %d", code)
 	}
-
-	return &VideoDecoder{
-		decoder:    decoder,
-		frameCount: 0,
-	}, nil
+	return &VideoDecoder{decoder: d, codecType: int(VideoCodecTypeH264)}, nil
 }
 
-// decode and save one frame
+// DecodeAndSave returns the latest decoded frame, 1 if the decoder needs another
+// access unit, or a negative FFmpeg error. Despite its historical name, it never
+// writes files. Dimensions of zero preserve the source size; nonzero dimensions
+// must be positive and even. Unsupported pixel formats are rejected.
 func (vd *VideoDecoder) DecodeAndSave(data []byte, width, height, codecType int) (*ExternalVideoFrame, int) {
-	if vd == nil || len(data) == 0 {
+	if vd == nil || len(data) == 0 || len(data) > 1<<31-1 || width < 0 || height < 0 || width > 1<<31-1 || height > 1<<31-1 || width%2 != 0 || height%2 != 0 {
+		return nil, -1
+	}
+	if codecType != int(VideoCodecTypeH264) && codecType != int(VideoCodecTypeH265) {
 		return nil, -1
 	}
 	vd.mutex.Lock()
@@ -46,78 +47,47 @@ func (vd *VideoDecoder) DecodeAndSave(data []byte, width, height, codecType int)
 	if vd.decoder == nil {
 		return nil, -1
 	}
-
-	var yuvFrame *C.YUVFrame
-
-	var outframe *ExternalVideoFrame = nil
-	var ret int = 0
-
-	// use h264_decode_stream to automatically handle NAL units
-	ret = int(C.h264_decode_stream(
-		vd.decoder,
-		(*C.uint8_t)(unsafe.Pointer(&data[0])),
-		C.int(len(data)),
-		C.int(width),
-		C.int(height),
-		&yuvFrame,
-	))
-
-	if ret == 0 && yuvFrame != nil {
-		// successfully decoded one frame, write to YUV file
-		defer C.yuv_frame_free(yuvFrame)
-
-		// write Y plane
-		yData := unsafe.Slice((*byte)(unsafe.Pointer(yuvFrame.y_data)), yuvFrame.y_size)
-
-		// write U plane
-		uData := unsafe.Slice((*byte)(unsafe.Pointer(yuvFrame.u_data)), yuvFrame.uv_size)
-
-		// write V plane
-		vData := unsafe.Slice((*byte)(unsafe.Pointer(yuvFrame.v_data)), yuvFrame.uv_size)
-
-		// arrange data to outframe.Buffer
-		outframe = &ExternalVideoFrame{
-			Type:      VideoBufferRawData,
-			Format:    VideoPixelI420,
-			Buffer:    nil,
-			Stride:    width,
-			Height:    height,
-			Timestamp: 0,
+	if vd.codecType != codecType {
+		var code C.int
+		d := C.h26x_decoder_init(C.int(codecType), &code)
+		if d == nil {
+			return nil, int(code)
 		}
-		bufsize := yuvFrame.width * yuvFrame.height * 3 / 2
-		uvlen := yuvFrame.width * yuvFrame.height / 4
-		outframe.Buffer = make([]byte, bufsize)
-		copy(outframe.Buffer, yData)
-		copy(outframe.Buffer[yuvFrame.width*yuvFrame.height:], uData)
-		copy(outframe.Buffer[yuvFrame.width*yuvFrame.height+uvlen:], vData)
-		outframe.Stride = int(yuvFrame.width)
-		outframe.Height = int(yuvFrame.height)
-		outframe.Timestamp = 0
-
-		vd.frameCount++
-		//fmt.Printf("Decoded frame %d: %dx%d, YUV size: %d bytes\n",vd.frameCount, yuvFrame.width, yuvFrame.height, yuvFrame.total_size)
+		C.h264_decoder_free(vd.decoder)
+		vd.decoder, vd.codecType = d, codecType
 	}
-
-	return outframe, ret
+	var yuv *C.YUVFrame
+	ret := int(C.h264_decode_frame(vd.decoder, (*C.uint8_t)(unsafe.Pointer(&data[0])), C.int(len(data)), C.int(width), C.int(height), &yuv))
+	if yuv != nil {
+		defer C.yuv_frame_free(yuv)
+	}
+	if ret != 0 || yuv == nil {
+		return nil, ret
+	}
+	buf := make([]byte, int(yuv.total_size))
+	ySize, uvSize := int(yuv.y_size), int(yuv.uv_size)
+	copy(buf, unsafe.Slice((*byte)(unsafe.Pointer(yuv.y_data)), ySize))
+	copy(buf[ySize:], unsafe.Slice((*byte)(unsafe.Pointer(yuv.u_data)), uvSize))
+	copy(buf[ySize+uvSize:], unsafe.Slice((*byte)(unsafe.Pointer(yuv.v_data)), uvSize))
+	vd.frameCount++
+	return &ExternalVideoFrame{Type: VideoBufferRawData, Format: VideoPixelI420, Buffer: buf, Stride: int(yuv.width), Height: int(yuv.height)}, 0
 }
 
-// close decoder
 func (vd *VideoDecoder) Close() {
+	if vd == nil {
+		return
+	}
 	vd.mutex.Lock()
 	defer vd.mutex.Unlock()
-
 	if vd.decoder != nil {
 		C.h264_decoder_free(vd.decoder)
 		vd.decoder = nil
 	}
-	fmt.Printf("Total decoded frames: %d\n", vd.frameCount)
 }
 
-// transcoding worker
 type TransCodeInData struct {
 	data      []byte
 	frameInfo *EncodedVideoFrameInfo
-	// need to keep timestamp for calc processing time??
 	timestamp int64
 }
 type TransCodeStatus struct {
@@ -128,25 +98,23 @@ type TransCodeStatus struct {
 	lastCheckCount                 int
 }
 
-func (status *TransCodeStatus) Reset() {
-	status.orgEncodedDataInFrameCount = 0
-	status.transcodedYuvDataOutFrameCount = 0
-	status.pushToRtcFrameCount = 0
-	status.pushToRtcFailedCount = 0
-	status.lastCheckCount = 0
-}
+func (status *TransCodeStatus) Reset() { *status = TransCodeStatus{} }
 
+// TranscodingWorker owns a bounded queue and a decoder. Stop is terminal and
+// idempotent, including when called before Start. Inputs are copied on enqueue.
 type TranscodingWorker struct {
 	isRunning        bool
-	encodeDataQueue  chan *TransCodeInData // for en
-	decodeVideoFrame *ExternalVideoFrame   // for decode video frame, only one frame is allowed to be decoded at a time.
-	timer            *time.Ticker          // for timer
+	stopped          bool
+	encodeDataQueue  chan *TransCodeInData
+	decodeVideoFrame *ExternalVideoFrame
+	timer            *time.Ticker
+	interval         time.Duration
 	conn             *RtcConnection
 	decoder          *VideoDecoder
 	stopChan         chan bool
 	mutex            sync.Mutex
-	wg               sync.WaitGroup // for waiting run() goroutine to complete
-	stopOnce         sync.Once      // ensure stopChan is only closed once
+	wg               sync.WaitGroup
+	queueWG          sync.WaitGroup
 	status           *TransCodeStatus
 }
 
@@ -157,126 +125,105 @@ func NewTranscodingWorker(conn *RtcConnection, fps int) *TranscodingWorker {
 	if fps > 30 {
 		fps = 30
 	}
-	intervalInMs := 1000 / fps
-	ret := &TranscodingWorker{
-		isRunning:        false,
-		encodeDataQueue:  make(chan *TransCodeInData, 1000),
-		decodeVideoFrame: nil,
-		timer:            time.NewTicker(time.Duration(intervalInMs) * time.Millisecond),
-		conn:             conn,
-		decoder:          nil,
-		stopChan:         make(chan bool),
-		mutex:            sync.Mutex{},
-		wg:               sync.WaitGroup{},
-		stopOnce:         sync.Once{},
-		status: &TransCodeStatus{
-			orgEncodedDataInFrameCount:     0,
-			transcodedYuvDataOutFrameCount: 0,
-			pushToRtcFrameCount:            0,
-			pushToRtcFailedCount:           0,
-			lastCheckCount:                 0,
-		},
-	}
-	decoder, err := NewVideoDecoder()
+	d, err := NewVideoDecoder()
 	if err != nil {
-		fmt.Printf("NewTranscodingWorker failed to create video decoder: %v\n", err)
+		return nil
 	}
-	ret.decoder = decoder
-	fmt.Printf("NewTranscodingWorker created with fps: %d, intervalInMs: %d\n", fps, intervalInMs)
-	return ret
+	return &TranscodingWorker{encodeDataQueue: make(chan *TransCodeInData, 1000), interval: time.Second / time.Duration(fps), conn: conn, decoder: d, stopChan: make(chan bool), status: &TransCodeStatus{}}
 }
 func (worker *TranscodingWorker) Start() int {
+	if worker == nil {
+		return -10001
+	}
 	worker.mutex.Lock()
 	defer worker.mutex.Unlock()
-	if worker.isRunning {
+	if worker.isRunning || worker.stopped {
 		return -1000
 	}
+	if worker.decoder == nil {
+		return -10001
+	}
 	worker.isRunning = true
-	// increase WaitGroup count before starting goroutine
+	worker.timer = time.NewTicker(worker.interval)
 	worker.wg.Add(1)
-	// start a goroutine to run the worker
 	go worker.run()
 	return 0
 }
 func (worker *TranscodingWorker) run() {
-	// ensure Done() is called when the function returns
 	defer worker.wg.Done()
-
 	for {
+		// Prefer shutdown even if producers have left a full queue.
 		select {
-		case data := <-worker.encodeDataQueue:
-			// update status
+		case <-worker.stopChan:
+			return
+		default:
+		}
+		select {
+		case in := <-worker.encodeDataQueue:
+			frame, ret := worker.decoder.DecodeAndSave(in.data, in.frameInfo.Width, in.frameInfo.Height, int(in.frameInfo.CodecType))
 			worker.status.orgEncodedDataInFrameCount++
-			//should decoding all the data in the queue, Never never drop any data, even if the decoder is busy.
-			yuvframe, ret := worker.decoder.DecodeAndSave(data.data, data.frameInfo.Width, data.frameInfo.Height, int(data.frameInfo.CodecType))
-			if yuvframe != nil {
-				//fmt.Printf("TranscodingWorker decode video frame failed: %d\n", ret)
-				// replace and assign to decodeVideoFrame
-				worker.mutex.Lock()
-				worker.decodeVideoFrame = yuvframe
+			if ret == 0 && frame != nil {
+				worker.decodeVideoFrame = frame
 				worker.status.transcodedYuvDataOutFrameCount++
-				worker.mutex.Unlock()
-			} else if ret != 0 {
-				fmt.Printf("TranscodingWorker decode video frame failed: %d\n", ret)
 			}
 		case <-worker.timer.C:
-			// do processing decoded video frame now
-			worker.mutex.Lock()
-			ret := worker.conn.handleDecodedVideoFrameForTranscode(worker.decodeVideoFrame)
-			if ret == 0 {
-				worker.status.pushToRtcFrameCount++
-			} else {
-				worker.status.pushToRtcFailedCount++
-			}
-			worker.mutex.Unlock()
-			// output status
-			worker.status.lastCheckCount++
-			if worker.status.lastCheckCount >= 50 {
-				fmt.Printf("TranscodingWorker status: orgEncodedDataInFrameCount: %d, transcodedYuvDataOutFrameCount: %d, pushToRtcFrameCount: %d, pushToRtcFailedCount: %d\n", worker.status.orgEncodedDataInFrameCount, worker.status.transcodedYuvDataOutFrameCount, worker.status.pushToRtcFrameCount, worker.status.pushToRtcFailedCount)
-				// reset status
-				worker.status.Reset()
+			if worker.decodeVideoFrame != nil {
+				if worker.conn.handleDecodedVideoFrameForTranscode(worker.decodeVideoFrame) == 0 {
+					worker.status.pushToRtcFrameCount++
+				} else {
+					worker.status.pushToRtcFailedCount++
+				}
 			}
 		case <-worker.stopChan:
-			// received stop signal, exit loop
-			worker.mutex.Lock()
-			worker.isRunning = false
-			worker.mutex.Unlock()
-			return // use return instead of break, ensure exit function
+			return
 		}
 	}
 }
-func (worker *TranscodingWorker) PushEncodedData(data []byte, frameInfo *EncodedVideoFrameInfo) {
-	worker.encodeDataQueue <- &TransCodeInData{
-		data:      data,
-		frameInfo: frameInfo,
-		timestamp: time.Now().UnixMilli(),
+func (worker *TranscodingWorker) PushEncodedData(data []byte, info *EncodedVideoFrameInfo) {
+	if worker == nil || len(data) == 0 || info == nil {
+		return
+	}
+	worker.mutex.Lock()
+	if !worker.isRunning || worker.stopped {
+		worker.mutex.Unlock()
+		return
+	}
+	worker.queueWG.Add(1)
+	worker.mutex.Unlock()
+	defer worker.queueWG.Done()
+	frameInfo := *info
+	frameInfo.SeiData = append([]byte(nil), info.SeiData...)
+	in := &TransCodeInData{data: append([]byte(nil), data...), frameInfo: &frameInfo, timestamp: time.Now().UnixMilli()}
+	select {
+	case worker.encodeDataQueue <- in:
+	case <-worker.stopChan:
 	}
 }
 func (worker *TranscodingWorker) Stop() {
+	if worker == nil {
+		return
+	}
 	worker.mutex.Lock()
-	if !worker.isRunning {
-		worker.mutex.Unlock()
-		return // if already stopped, return directly
+	if !worker.stopped {
+		worker.stopped = true
+		worker.isRunning = false
+		close(worker.stopChan)
 	}
 	worker.mutex.Unlock()
-
-	// stop timer
-	worker.timer.Stop()
-
-	// use sync.Once to ensure stopChan is only closed once (prevent repeated calls to stop)
-	worker.stopOnce.Do(func() {
-		close(worker.stopChan)
-	})
-
-	// wait for run() goroutine to complete
 	worker.wg.Wait()
-
-	// clean up resources
+	worker.queueWG.Wait()
 	worker.mutex.Lock()
-	worker.isRunning = false
+	defer worker.mutex.Unlock()
+	for len(worker.encodeDataQueue) > 0 {
+		<-worker.encodeDataQueue
+	}
+	if worker.timer != nil {
+		worker.timer.Stop()
+		worker.timer = nil
+	}
 	if worker.decoder != nil {
 		worker.decoder.Close()
 		worker.decoder = nil
 	}
-	worker.mutex.Unlock()
+	worker.decodeVideoFrame = nil
 }

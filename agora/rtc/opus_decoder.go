@@ -11,10 +11,12 @@ package agoraservice
 import "C"
 import (
 	"fmt"
+	"sync"
 	"unsafe"
 )
 
 type OpusDecoder struct {
+	mutex       sync.Mutex
 	handle      unsafe.Pointer
 	cframe      C.struct__MediaFrame
 	sample_rate int
@@ -28,6 +30,18 @@ type OpusDecoder struct {
 // out_channels:    desired output PCM channel count. pass 0 to keep in_channels.
 // note: the bits is fixed to 16 bits for this version and also for opus decoder.
 func NewOpusDecoder(in_channels int, out_sample_rate int, out_channels int) *OpusDecoder {
+	if in_channels < 0 || in_channels > 2 || out_channels < 0 || out_channels > 2 || out_sample_rate < 0 || out_sample_rate > 192000 {
+		return nil
+	}
+	if in_channels == 0 {
+		in_channels = 1
+	}
+	if out_channels == 0 {
+		out_channels = in_channels
+	}
+	if out_sample_rate == 0 {
+		out_sample_rate = 48000
+	}
 	var errorCode C.int
 	handle := C.open_opus_decoder(C.int(in_channels), C.int(out_sample_rate), C.int(out_channels), &errorCode)
 	if handle == nil {
@@ -44,8 +58,13 @@ func NewOpusDecoder(in_channels int, out_sample_rate int, out_channels int) *Opu
 // returns 0 on success (frame filled), AVERROR(EAGAIN) when more data is needed,
 // or a negative error code on failure.
 func (decoder *OpusDecoder) Decode(packet []byte) ([]byte, error) {
-	if decoder == nil || decoder.handle == nil || len(packet) == 0 {
+	if decoder == nil || len(packet) == 0 || len(packet) > 1<<31-1 {
 		return nil, fmt.Errorf("opus decoder: empty packet or released decoder")
+	}
+	decoder.mutex.Lock()
+	defer decoder.mutex.Unlock()
+	if decoder.handle == nil {
+		return nil, fmt.Errorf("opus decoder: released decoder")
 	}
 	frame := &decoder.cframe
 	C.memset(unsafe.Pointer(frame), 0, C.sizeof_struct__MediaFrame)
@@ -57,7 +76,12 @@ func (decoder *OpusDecoder) Decode(packet []byte) ([]byte, error) {
 }
 
 func (decoder *OpusDecoder) Release() {
-	if decoder == nil || decoder.handle == nil {
+	if decoder == nil {
+		return
+	}
+	decoder.mutex.Lock()
+	defer decoder.mutex.Unlock()
+	if decoder.handle == nil {
 		return
 	}
 	C.close_opus_decoder(decoder.handle)
