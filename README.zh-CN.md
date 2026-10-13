@@ -2,7 +2,7 @@
 
 用管理资源生命周期、支持 context 的 Go API，构建服务端实时音视频与消息应用。
 
-[English](README.md) · [RTC 指南](docs/rtc.zh-CN.md) · [RTM 指南](messaging/README.zh-CN.md) · [示例](examples/README.zh-CN.md) · [开发与部署](docs/development.zh-CN.md)
+[English](README.md) · [GoDoc](#api-文档godoc) · [RTC 指南](docs/rtc.zh-CN.md) · [RTM 指南](messaging/README.zh-CN.md) · [示例](examples/README.zh-CN.md) · [开发与部署](docs/development.zh-CN.md)
 
 ## 功能
 
@@ -12,9 +12,22 @@
 - 独立 RTM 客户端：消息、在线状态、元数据、锁、历史和 Stream Topic
 - 复制后的接收数据、有界队列、可观测丢弃计数和受控原生访问
 
+## 与官方 SDK 的差异
+
+本独立 Go 模块基于官方 Agora Go SDK v2.6.5，增加高层契约与定向绑定修复。底层媒体和消息能力仍由 Agora 提供，不能只替换 import 就兼容原版。
+
+| 官方 v2.6.5 | 本项目增加 |
+| --- | --- |
+| 进程初始化、连接、observer | 管理资源的 `Service`/`Session`、有界入会等待、Go 类型化错误 |
+| 媒体与结果回调 | context 读取/请求、有界队列与丢弃计数 |
+| PCM、编码媒体、VAD、打断、RTM 功能 | 带校验的组合、PCM 调速助手、明确所有权 |
+| 原生绑定与安装器 | 定向 ABI/生命周期修复、校验和固定安装、离线检查 |
+
+详见[完整对比文档](docs/upstream-comparison.zh-CN.md)，包含固定基线、默认值变化、上游已有能力、迁移限制与源码依据。
+
 ## 环境与支持范围
 
-使用 Go **1.27.2**、C/C++ 编译器及固定原生库。本项目依赖 cgo，不支持 `CGO_ENABLED=0`。仓库工具链要求与上游最低 Go 版本是不同概念。
+使用 Go **1.27.2**。RTC/RTM 包还需要 C/C++ 编译器、固定原生库和 cgo，不支持 `CGO_ENABLED=0`；`mediaio` 和 `token` 包为纯 Go。仓库工具链要求与上游最低 Go 版本是不同概念。
 
 | 平台 | 原生 RTC 包 | 范围 |
 | --- | --- | --- |
@@ -110,6 +123,20 @@ go get github.com/zyy17/agora-server-sdk@dev
 ```
 
 `@dev` 指向可变分支；需要可重复构建时固定已审查的提交。环境脚本配置已安装 SDK 的 cgo、链接和运行路径。部署仍需携带动态库并配置兼容的加载路径，二进制不能独立运行。
+
+## API 文档（GoDoc）
+
+包与导出符号注释是 API 参考。完成受支持的[工具链与原生库配置](docs/development.zh-CN.md#工具链与安装)后，在当前 checkout 阅读标准 GoDoc：
+
+```sh
+go doc github.com/zyy17/agora-server-sdk
+go doc github.com/zyy17/agora-server-sdk.Session
+go doc github.com/zyy17/agora-server-sdk/messaging
+go doc github.com/zyy17/agora-server-sdk/mediaio
+go doc github.com/zyy17/agora-server-sdk/token
+```
+
+包概览：[RTC](doc.go)、[RTM](messaging/doc.go)、[媒体包](mediaio/doc.go)、[token](token/doc.go)。GoDoc 也包含 Go 示例。本地 `go doc` 对应当前代码，在线文档索引可能落后于持续变化的 `dev` 分支。以下 Markdown 指南补充使用流程与部署背景。
 
 ## 选择 API
 

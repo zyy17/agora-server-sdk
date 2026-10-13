@@ -2,7 +2,7 @@
 
 Build server-side realtime audio, video, and messaging applications with an owned, context-aware Go API.
 
-[简体中文](README.zh-CN.md) · [RTC reference](docs/rtc.md) · [RTM reference](messaging/README.md) · [Examples](examples/README.md) · [Development](docs/development.md)
+[简体中文](README.zh-CN.md) · [GoDoc](#api-documentation-godoc) · [RTC guide](docs/rtc.md) · [RTM guide](messaging/README.md) · [Examples](examples/README.md) · [Development](docs/development.md)
 
 ## Features
 
@@ -12,9 +12,22 @@ Build server-side realtime audio, video, and messaging applications with an owne
 - Independent RTM clients: messaging, Presence, metadata, locks, history, and Stream Topics
 - Copied receive data, bounded queues, visible drop counts, and controlled native access
 
+## Differences from the official SDK
+
+This separate Go module adds high-level contracts and targeted binding fixes on top of the official Agora Go SDK v2.6.5. Agora still supplies the native media and messaging capabilities; this is not an import-compatible replacement.
+
+| Official v2.6.5 | This SDK adds |
+| --- | --- |
+| Process initialization, connections, observers | Owned `Service`/`Session`, bounded joins, typed Go errors |
+| Media and result callbacks | Context-based reads/requests, bounded queues and drop counters |
+| PCM, encoded media, VAD, interruption, RTM facilities | Validated combinations, PCM pacing helper, explicit ownership |
+| Native bindings and installer | Targeted ABI/lifetime fixes, checksum-pinned installation and offline checks |
+
+Read the [detailed comparison](docs/upstream-comparison.md) for the pinned baseline, changed defaults, upstream capabilities, migration limits, and sources.
+
 ## Requirements and scope
 
-Use Go **1.27.2**, a C/C++ compiler, and the pinned native libraries. This is a cgo library; `CGO_ENABLED=0` is unsupported. The repository toolchain requirement is distinct from upstream’s minimum Go version.
+Use Go **1.27.2**. RTC/RTM packages also require a C/C++ compiler, the pinned native libraries, and cgo; they do not support `CGO_ENABLED=0`. The `mediaio` and `token` packages are pure Go. The repository toolchain requirement is distinct from upstream’s minimum Go version.
 
 | Platform | Native RTC archive | Scope |
 | --- | --- | --- |
@@ -111,12 +124,26 @@ Install the pinned SDK from a checkout of this repository, then run from your ap
 
 `@dev` tracks a moving branch; pin a reviewed commit for reproducible application builds. The helper configures cgo/linker/runtime paths for the installed SDK. Deployment still requires its shared libraries and a compatible runtime loader configuration; the binary is not standalone.
 
+## API documentation (GoDoc)
+
+Package and exported-symbol comments are the API reference. Read the checkout's standard GoDoc after the supported [toolchain/native setup](docs/development.md#toolchain-and-installation):
+
+```sh
+go doc github.com/zyy17/agora-server-sdk
+go doc github.com/zyy17/agora-server-sdk.Session
+go doc github.com/zyy17/agora-server-sdk/messaging
+go doc github.com/zyy17/agora-server-sdk/mediaio
+go doc github.com/zyy17/agora-server-sdk/token
+```
+
+Package overviews: [RTC](doc.go), [RTM](messaging/doc.go), [media packets](mediaio/doc.go), [tokens](token/doc.go). GoDoc also includes Go examples. Local `go doc` reflects this checkout; online documentation indexes may lag the moving `dev` branch. The Markdown guides below provide walkthroughs and deployment context.
+
 ## Choose an API
 
 | Need | Entry point |
 | --- | --- |
-| Audio/video, RTC events and data | Root package; [RTC reference](docs/rtc.md) |
-| Application messages, Presence, metadata, locks, history, Topics | `messaging`; [RTM reference](messaging/README.md) |
+| Audio/video, RTC events and data | Root package; [RTC guide](docs/rtc.md) |
+| Application messages, Presence, metadata, locks, history, Topics | `messaging`; [RTM guide](messaging/README.md) |
 | Native-only options | `agora/rtc`, `agora/rtm`; follow the high-level guides’ ownership restrictions |
 | Trusted-server RTC token generation | `token.RTC`; [token contract](docs/rtc.md#events-and-tokens) |
 | Runnable scenarios and media file formats | [Examples](examples/README.md) |
