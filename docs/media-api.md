@@ -35,6 +35,10 @@ The pinned Go sender does not marshal texture/EGL/CVPixelBuffer/D3D handles. Tho
 
 Delay is a duration truncated to milliseconds. Buffer capacity counts 10 ms frames. Enabled/delay/capacity native setters are void, so success confirms local storage or native invocation, not peer acknowledgement. Clearing only affects the local native queue. Stop producers first; received audio cannot be recalled. `InterruptAudio` retains its distinct AI-server unpublish/republish behavior.
 
+### External-audio engine options
+
+`rtc.SendExternalAudioParameters` uses runtime-wide speed and mute-data settings. The first successful enabled request fixes each value until a successful service release; matching requests are idempotent and conflicting requests fail. Closing a connection does not reset these settings, and an accepted value remains selected if a later setup step fails. `SendMs` remains a per-track budget. Native acceptance confirms configuration only, not achieved throughput.
+
 ## Processing and voice activity
 
 ```go
