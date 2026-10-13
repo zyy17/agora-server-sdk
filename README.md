@@ -2,7 +2,7 @@
 
 Build server-side realtime audio, video, and messaging applications with an owned, context-aware Go API.
 
-[简体中文](README.zh-CN.md) · [GoDoc](#api-documentation-godoc) · [RTC guide](docs/rtc.md) · [RTM guide](messaging/README.md) · [Examples](examples/README.md) · [Development](docs/development.md)
+[简体中文](README.zh-CN.md) · [GoDoc](#api-documentation-godoc) · [RTC guide](docs/rtc.md) · [RTM guide](messaging/README.md) · [Examples](examples/README.md) · [API coverage](docs/api-coverage.md) · [Development](docs/development.md)
 
 ## Features
 
@@ -23,7 +23,7 @@ This separate Go module adds high-level contracts and targeted binding fixes on 
 | PCM, encoded media, VAD, interruption, RTM facilities | Validated combinations, PCM pacing helper, explicit ownership |
 | Native bindings and installer | Targeted ABI/lifetime fixes, checksum-pinned installation and offline checks |
 
-Read the [detailed comparison](docs/upstream-comparison.md) for the pinned baseline, changed defaults, upstream capabilities, migration limits, and sources.
+Read the [detailed comparison](docs/upstream-comparison.md) for the pinned baseline, changed defaults, upstream capabilities, migration limits, and sources. The [API coverage inventory](docs/api-coverage.md) checks all 326 official Go callables plus exported fields/types/constants, records deliberate compatibility fixes, and separates high-level, managed advanced, raw-only, and unavailable capabilities. Symbol retention alone does not establish feature parity.
 
 ## Requirements and scope
 

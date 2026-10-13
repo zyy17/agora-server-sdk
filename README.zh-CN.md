@@ -2,7 +2,7 @@
 
 用管理资源生命周期、支持 context 的 Go API，构建服务端实时音视频与消息应用。
 
-[English](README.md) · [GoDoc](#api-文档godoc) · [RTC 指南](docs/rtc.zh-CN.md) · [RTM 指南](messaging/README.zh-CN.md) · [示例](examples/README.zh-CN.md) · [开发与部署](docs/development.zh-CN.md)
+[English](README.md) · [GoDoc](#api-文档godoc) · [RTC 指南](docs/rtc.zh-CN.md) · [RTM 指南](messaging/README.zh-CN.md) · [示例](examples/README.zh-CN.md) · [API 覆盖范围](docs/api-coverage.zh-CN.md) · [开发与部署](docs/development.zh-CN.md)
 
 ## 功能
 
@@ -23,7 +23,7 @@
 | PCM、编码媒体、VAD、打断、RTM 功能 | 带校验的组合、PCM 调速助手、明确所有权 |
 | 原生绑定与安装器 | 定向 ABI/生命周期修复、校验和固定安装、离线检查 |
 
-详见[完整对比文档](docs/upstream-comparison.zh-CN.md)，包含固定基线、默认值变化、上游已有能力、迁移限制与源码依据。
+详见[完整对比文档](docs/upstream-comparison.zh-CN.md)，包含固定基线、默认值变化、上游已有能力、迁移限制与源码依据。 [API 覆盖清单](docs/api-coverage.zh-CN.md)检查官方 Go 的全部 326 个函数与方法，以及导出字段、类型和常量，记录有意的兼容性修复，并区分高层、受控高级访问、仅底层与不可用能力。保留符号本身不等于完整功能覆盖。
 
 ## 环境与支持范围
 
