@@ -408,7 +408,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
       public internal::CopyAssignable<std::is_copy_constructible<T>::value &&
                                       std::is_copy_assignable<T>::value>,
       public internal::MoveAssignable<std::is_move_constructible<T>::value &&
-                                      std::is_move_assignable<T>::value> 
+                                      std::is_move_assignable<T>::value>
 #endif
 {
  public:

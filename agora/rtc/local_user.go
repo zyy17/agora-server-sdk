@@ -60,7 +60,13 @@ func (localUser *LocalUser) UnsubscribeAudio(uid string) int {
 	}
 	cUid := C.CString(uid)
 	defer C.free(unsafe.Pointer(cUid))
-	return int(C.agora_local_user_unsubscribe_audio(localUser.cLocalUser, cUid))
+	ret := int(C.agora_local_user_unsubscribe_audio(localUser.cLocalUser, cUid))
+	if ret == 0 {
+		if con := agoraService.getConFromHandle(localUser.cLocalUser, ConTypeCLocalUser); con != nil {
+			con.remoteTracks.remove(remoteAudioTrack, uid)
+		}
+	}
+	return ret
 }
 
 func (localUser *LocalUser) SubscribeAllAudio() int {
@@ -74,7 +80,13 @@ func (localUser *LocalUser) UnsubscribeAllAudio() int {
 	if localUser.cLocalUser == nil {
 		return -1000
 	}
-	return int(C.agora_local_user_unsubscribe_all_audio(localUser.cLocalUser))
+	ret := int(C.agora_local_user_unsubscribe_all_audio(localUser.cLocalUser))
+	if ret == 0 {
+		if con := agoraService.getConFromHandle(localUser.cLocalUser, ConTypeCLocalUser); con != nil {
+			con.remoteTracks.remove(remoteAudioTrack, "")
+		}
+	}
+	return ret
 }
 
 func (localUser *LocalUser) SubscribeVideo(uid string, options *VideoSubscriptionOptions) int {
@@ -103,7 +115,13 @@ func (localUser *LocalUser) UnsubscribeVideo(uid string) int {
 	}
 	cUid := C.CString(uid)
 	defer C.free(unsafe.Pointer(cUid))
-	return int(C.agora_local_user_unsubscribe_video(localUser.cLocalUser, cUid))
+	ret := int(C.agora_local_user_unsubscribe_video(localUser.cLocalUser, cUid))
+	if ret == 0 {
+		if con := agoraService.getConFromHandle(localUser.cLocalUser, ConTypeCLocalUser); con != nil {
+			con.remoteTracks.remove(remoteVideoTrack, uid)
+		}
+	}
+	return ret
 }
 
 func (localUser *LocalUser) SubscribeAllVideo(options *VideoSubscriptionOptions) int {
@@ -128,7 +146,13 @@ func (localUser *LocalUser) UnsubscribeAllVideo() int {
 	if localUser.cLocalUser == nil {
 		return -1000
 	}
-	return int(C.agora_local_user_unsubscribe_all_video(localUser.cLocalUser))
+	ret := int(C.agora_local_user_unsubscribe_all_video(localUser.cLocalUser))
+	if ret == 0 {
+		if con := agoraService.getConFromHandle(localUser.cLocalUser, ConTypeCLocalUser); con != nil {
+			con.remoteTracks.remove(remoteVideoTrack, "")
+		}
+	}
+	return ret
 }
 
 func (localUser *LocalUser) SetAudioEncoderConfiguration(config *AudioEncoderConfiguration) int {
@@ -227,6 +251,7 @@ func (localUser *LocalUser) SetAudioScenario(audioScenario AudioScenario) int {
 	}
 	return int(C.agora_local_user_set_audio_scenario(localUser.cLocalUser, C.int(audioScenario)))
 }
+
 func (localUser *LocalUser) SetAudioVolumeIndicationParameters(intervalInMs int, smooth int, reportVad bool) int {
 	if localUser.cLocalUser == nil {
 		return -1000
@@ -235,6 +260,7 @@ func (localUser *LocalUser) SetAudioVolumeIndicationParameters(intervalInMs int,
 	ret := C.agora_local_user_set_audio_volume_indication_parameters(localUser.cLocalUser, C.int(intervalInMs), C.int(smooth), C.bool(reportVad))
 	return int(ret)
 }
+
 func (localUser *LocalUser) sendAudioMetaData(metaData []byte) int {
 	if localUser.cLocalUser == nil {
 		return -1000

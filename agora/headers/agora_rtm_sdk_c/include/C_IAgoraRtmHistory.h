@@ -43,4 +43,4 @@ int agora_rtm_history_get_messages(C_IRtmHistory *this_, const char* channelName
 }
 #endif // __cplusplus
 
-#endif // C_I_AGORA_RTM_HISTORY_H 
+#endif // C_I_AGORA_RTM_HISTORY_H

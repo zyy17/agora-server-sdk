@@ -65,6 +65,9 @@ func NewVideoEncoderConfiguration() *VideoEncoderConfiguration {
 }
 
 func NewCustomVideoTrackFrame(videoSender *VideoFrameSender) *LocalVideoTrack {
+	if videoSender == nil || videoSender.cSender == nil || agoraService.service == nil {
+		return nil
+	}
 	cTrack := C.agora_service_create_custom_video_track_frame(agoraService.service, videoSender.cSender)
 	if cTrack == nil {
 		return nil
@@ -75,6 +78,9 @@ func NewCustomVideoTrackFrame(videoSender *VideoFrameSender) *LocalVideoTrack {
 }
 
 func NewCustomVideoTrackEncoded(videoSender *VideoEncodedImageSender, senderOptions *VideoEncodedImageSenderOptions) *LocalVideoTrack {
+	if videoSender == nil || videoSender.cSender == nil || senderOptions == nil || agoraService.service == nil {
+		return nil
+	}
 	cSenderOptions := C.sender_options{}
 	cptrSenderOptions := &cSenderOptions
 	if senderOptions != nil {
@@ -127,6 +133,7 @@ func (track *LocalVideoTrack) setVideoEncoderConfiguration(cfg *VideoEncoderConf
 	cCfg.encode_alpha = CIntFromBool(cfg.EncodeAlpha)
 	return int(C.agora_local_video_track_set_video_encoder_config(track.cTrack, &cCfg))
 }
+
 func (track *LocalVideoTrack) setSimulcastStream(enable bool, config *SimulcastStreamConfig) int {
 	if track == nil || track.cTrack == nil {
 		return -2000

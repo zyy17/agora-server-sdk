@@ -11,49 +11,72 @@ package agoraservice
 import "C"
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 )
 
 //export goOnSinkAudioFrame
 func goOnSinkAudioFrame(sink unsafe.Pointer, frame unsafe.Pointer) C.int {
-
-	goFrame := GoSinkAudioFrame((*C.struct__audio_pcm_frame)(frame))
-	// restore external audio processor instance from user data
-	processor := (*ExternalAudioProcessor)(unsafe.Pointer(sink))
-	if processor == nil {
-		fmt.Printf("[ExternalAudioProcessor] failed to restore external audio processor instance from user data\n")
+	value, ok := audioSinkProcessors.Load(sink)
+	if !ok || frame == nil {
 		return -1
 	}
-	// call to external audio processor instance to process the audio frame
-	result := processor.doResultFrame(goFrame)
-	return C.int(result)
+	processor := value.(*ExternalAudioProcessor)
+	if !processor.callbacks.begin() {
+		return -1
+	}
+	defer processor.callbacks.end()
+	goFrame := GoSinkAudioFrame((*C.struct__audio_pcm_frame)(frame))
+	return C.int(processor.doResultFrame(goFrame))
 }
 
-// date: 2025-11-25 to add external audio processor observer
+var audioSinkProcessors sync.Map
+
+// ExternalAudioProcessorObserver receives native processed PCM callbacks.
+// Callbacks run on the native callback path; return promptly and dispatch lifecycle
+// changes elsewhere. Do not release or reconfigure the processor synchronously
+// inside a callback.
 type ExternalAudioProcessorObserver struct {
+	// OnProcessedAudioFrame receives copied processed samples, optional VAD state,
+	// and selected speech. It must be non-nil when an observer is supplied.
+	// The speech frame may alias the processed frame; copy before independent mutation.
 	OnProcessedAudioFrame func(processor *ExternalAudioProcessor, frame *AudioFrame, vadResultStat VadState, vadResultFrame *AudioFrame)
 }
 
-/*
-audio sink related:
-*/
+// AudioSink is an opaque native sink owned by ExternalAudioProcessor.
+// Applications do not construct or release it independently.
 type AudioSink struct {
 	cSinkCallback *C.audio_sink
 	cSink         unsafe.Pointer
 }
 
+// ExternalAudioProcessor owns a raw PCM sender, processing track, sink, and
+// optional Go-side AudioVadV2 segmenter. It is independent of RTC publication.
+// Construct it after native service initialization and release it before the
+// service. Serialize initialization, sending, and Release externally.
+// Prefer the root package's owned AudioProcessor for application use.
 type ExternalAudioProcessor struct {
-	pcmSender           *AudioPcmDataSender
-	audioTrack          *LocalAudioTrack
-	audioSinks          *AudioSink
-	initialized         bool
-	vadInstance         *AudioVadV2
-	observer            *ExternalAudioProcessorObserver
-	InStreamInMs        atomic.Int64
+	callbacks   callbackGate
+	pcmSender   *AudioPcmDataSender
+	audioTrack  *LocalAudioTrack
+	audioSinks  *AudioSink
+	initialized bool
+	vadInstance *AudioVadV2
+	observer    *ExternalAudioProcessorObserver
+	// InStreamInMs counts submitted input duration in milliseconds after each
+	// sender call, including a call whose native result is nonzero. It is telemetry,
+	// not a reliable outstanding-input or successful-processing counter.
+	InStreamInMs atomic.Int64
+	// ProcessedStreamInMs advances by 10 for each native processed-frame callback.
+	// It is callback-duration telemetry, not a remote-playback acknowledgement.
 	ProcessedStreamInMs atomic.Int64
 }
 
+// NewExternalAudioProcessor allocates native processing resources from the
+// process-global media factory. The service must already be initialized.
+// Allocation failure returns nil and releases partial resources.
+// Call Initialize before use and Release when finished, including after failed initialization.
 func NewExternalAudioProcessor() *ExternalAudioProcessor {
 	processor := &ExternalAudioProcessor{
 		pcmSender:           nil,
@@ -69,17 +92,33 @@ func NewExternalAudioProcessor() *ExternalAudioProcessor {
 	//and initialize the pcmSender and audioTrack
 	factory := agoraService.mediaFactory
 	processor.pcmSender = factory.NewAudioPcmDataSender()
+	if processor.pcmSender == nil {
+		return nil
+	}
 	processor.audioTrack = NewCustomAudioTrackPcm(processor.pcmSender, AudioScenarioDefault, false)
+	if processor.audioTrack == nil {
+		processor.Release()
+		return nil
+	}
 	processor.audioSinks = newAudioSink(processor)
+	if processor.audioSinks == nil {
+		processor.Release()
+		return nil
+	}
 	processor.initialized = false
 	return processor
 }
 
-// Initialize sets up the ExternalAudioProcessor by configuring the underlying audio sink and its filter properties,
-// setting audio track parameters, and enabling the audio track for publishing.
-// outputSampleRate: the desired output sample rate in Hz.
-// outputChannels:   the number of output audio channels.
-// Returns 0 on success, or a non-zero error code on failure.
+// Initialize configures the processing track, sink, APM extensions, optional
+// Go-side VAD, and observer. outputSampleRate is in Hz and outputChannels is the
+// requested output channel count. The native service's APM mode must support
+// external processing, and apmConfig and vadConfig cannot both be nil.
+// A non-nil observer must provide OnProcessedAudioFrame.
+//
+// A nonzero return is a binding or native failure; release the object on failure.
+// Requested extension libraries and models must be present in the installed SDK.
+// The method can print diagnostic settings/errors to stdout. It is not safe to
+// reinitialize a running processor or race with sending or Release.
 func (p *ExternalAudioProcessor) Initialize(apmConfig *APMConfig, outputSampleRate int, outputChannels int, vadConfig *AudioVadConfigV2, observer *ExternalAudioProcessorObserver) int {
 	var ret int = 0
 
@@ -134,18 +173,30 @@ func (p *ExternalAudioProcessor) Initialize(apmConfig *APMConfig, outputSampleRa
 	return 0
 }
 
+// PushAudioPcmData submits nonempty interleaved PCM16 input in complete 10 ms
+// multiples. sampleRate is in Hz, must be 8000–48000 and divisible by 100;
+// channels must be 1 or 2. startPtsInMs is forwarded as the signed presentation
+// value. Keep data unchanged until the synchronous call returns.
+//
+// The call does not pace input or wait for output. It returns -2000 for missing
+// resources, -2001 for invalid layout/rate/channels, otherwise the native sender
+// result. Submission counters advance even for nonzero native results.
+// Serialize this call with other raw lifecycle operations.
 func (p *ExternalAudioProcessor) PushAudioPcmData(data []byte, sampleRate int, channels int, startPtsInMs int64) int {
 	if p == nil || p.audioTrack == nil || p.pcmSender == nil {
 		return -2000
 	}
-	readLen := len(data)
-	bytesPerFrameInMs := (sampleRate / 1000) * 2 * channels // 1ms , channels and 16bit
-	// validity check: only accepts data with lengths that are integer multiples of 10ms​​
-	if readLen%bytesPerFrameInMs != 0 {
-		fmt.Printf("PushAudioPcmData data length is not integer multiples of 10ms, readLen: %d, bytesPerFrame: %d\n", readLen, bytesPerFrameInMs)
+	if len(data) == 0 || sampleRate < 8000 || sampleRate > 48000 || sampleRate%100 != 0 || channels < 1 || channels > 2 {
 		return -2001
 	}
-	packnumInMs := readLen / bytesPerFrameInMs
+	readLen := len(data)
+	bytesPer10ms := (sampleRate / 100) * 2 * channels
+	// validity check: only accepts data with lengths that are integer multiples of 10ms​​
+	if readLen%bytesPer10ms != 0 {
+		fmt.Printf("PushAudioPcmData data length is not integer multiples of 10ms, readLen: %d, bytesPerFrame: %d\n", readLen, bytesPer10ms)
+		return -2001
+	}
+	packnumInMs := (readLen / bytesPer10ms) * 10
 
 	frame := &AudioFrame{
 		Buffer:            nil,
@@ -159,7 +210,7 @@ func (p *ExternalAudioProcessor) PushAudioPcmData(data []byte, sampleRate int, c
 	}
 
 	frame.Buffer = data
-	frame.SamplesPerChannel = (sampleRate / 1000) * packnumInMs
+	frame.SamplesPerChannel = sampleRate * packnumInMs / 1000
 
 	ret := p.pcmSender.SendAudioPcmData(frame)
 	p.InStreamInMs.Add(int64(packnumInMs))
@@ -167,7 +218,15 @@ func (p *ExternalAudioProcessor) PushAudioPcmData(data []byte, sampleRate int, c
 	return ret
 }
 
+// Release stops callbacks and releases the processor's sink, track, sender,
+// and VAD buffers. It accepts nil and is safe to repeat sequentially.
+// Do not invoke it synchronously from a processed-frame callback or race it
+// with Initialize or PushAudioPcmData. Pending input need not produce output.
 func (p *ExternalAudioProcessor) Release() {
+	if p == nil {
+		return
+	}
+	p.callbacks.pause()
 
 	// release track
 	// release pcmSender
@@ -259,25 +318,38 @@ func newAudioSink(processor *ExternalAudioProcessor) *AudioSink {
 	}
 	// allocate audio_sink	 structure
 	csink_callback := (*C.audio_sink)(C.malloc(C.sizeof_audio_sink))
-	//C.memset(unsafe.Pointer(csink_callback), 0, C.sizeof_audio_sink)
+	if csink_callback == nil {
+		return nil
+	}
+	C.memset(unsafe.Pointer(csink_callback), 0, C.sizeof_audio_sink)
 
 	// set callback function pointer - using C wrapper function
 	csink_callback.on_audio_frame = (*[0]byte)(C.cgo_onSinkAudioFrameCallback)
-	csink_callback.user_data = unsafe.Pointer(processor)
+	csink_callback.user_data = unsafe.Pointer(csink_callback)
+	audioSinkProcessors.Store(unsafe.Pointer(csink_callback), processor)
 
 	// create audio sink
 	sink.cSink = C.agora_audio_sink_create(csink_callback)
 	sink.cSinkCallback = csink_callback
+	if sink.cSink == nil {
+		sink.release()
+		return nil
+	}
 	return sink
 }
+
 func (s *AudioSink) release() {
-	if s.cSinkCallback != nil {
-		C.free(unsafe.Pointer(s.cSinkCallback))
-		s.cSinkCallback = nil
+	if s == nil {
+		return
 	}
 	if s.cSink != nil {
 		C.agora_audio_sink_destroy(s.cSink)
 		s.cSink = nil
+	}
+	if s.cSinkCallback != nil {
+		audioSinkProcessors.Delete(unsafe.Pointer(s.cSinkCallback))
+		C.free(unsafe.Pointer(s.cSinkCallback))
+		s.cSinkCallback = nil
 	}
 }
 
@@ -301,6 +373,7 @@ func (p *ExternalAudioProcessor) removeAudioSink() int {
 	}
 	return int(C.agora_audio_track_remove_audio_sink(p.audioTrack.cTrack, p.audioSinks.cSink))
 }
+
 func (p *ExternalAudioProcessor) doResultFrame(frame *AudioFrame) int {
 	// TODO: implement the logic to process the audio frame
 	//fmt.Printf("[ExternalAudioProcessor] doResultFrame, voice prob: %d, rms: %d, pitch: %d\n", frame.VoiceProb, frame.Rms, frame.Pitch)

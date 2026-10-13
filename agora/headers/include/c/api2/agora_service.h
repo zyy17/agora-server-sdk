@@ -62,7 +62,7 @@ typedef struct _agora_service_config {
    * The supported area code, default is AREA_CODE_GLOB
    */
   unsigned int area_code;
-  /** 
+  /**
    * The channel profile.
    */
   int channel_profile;
@@ -299,6 +299,12 @@ AGORA_API_C_HDL agora_service_create_direct_custom_audio_track_pcm(AGORA_HANDLE 
  * @ANNOTATION:GROUP:agora_service
  * @ANNOTATION:CTOR:agora_local_audio_track
  */
+AGORA_API_C_HDL agora_service_create_direct_custom_audio_track_pcm_with_apm(AGORA_HANDLE agora_svc, AGORA_HANDLE agora_audio_pcm_data_sender /* pointer to RefPtrHolder */, int enable_aec, int enable_ans, int enable_agc);
+
+/**
+ * @ANNOTATION:GROUP:agora_service
+ * @ANNOTATION:CTOR:agora_local_audio_track
+ */
 AGORA_API_C_HDL agora_service_create_custom_audio_track_encoded(AGORA_HANDLE agora_svc, AGORA_HANDLE agora_audio_encoded_frame_sender, int mix_mode);
 
 /**
@@ -426,7 +432,7 @@ AGORA_API_C_VOID agora_rtm_service_destroy(AGORA_HANDLE agora_rtm_service);
 /**
  * @ANNOTATION:GROUP:agora_service
  */
-AGORA_API_C_INT agora_service_enable_extension(AGORA_HANDLE agora_svc, const char* provider_name, const char* extension_name, 
+AGORA_API_C_INT agora_service_enable_extension(AGORA_HANDLE agora_svc, const char* provider_name, const char* extension_name,
                               const char* track_id, unsigned int auto_enable_on_track);
 
 /**

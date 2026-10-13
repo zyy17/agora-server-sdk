@@ -1,78 +1,31 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
-
-# Base URL for downloading SDKs.
-readonly BASE_URL="https://download.agora.io/sdk/release"
-
-# Latest Linux SDK version.
-readonly LINUX_SDK_URL="${BASE_URL}/agora_rtc_sdk_x86_64-linux-gnu-v4.4.32.164_27464_SERVER_20260228_1031_1017176_20251021_1427-3a.zip"
-
-# Target directory for headers.
-readonly TARGET_DIR="agora/headers"
-
-# Headers to sync.
-readonly HEADERS_TO_SYNC=(
-    "agora_rtm_sdk_c"
-    "include"
-)
-
-# Temporary directory for download and extraction.
-readonly TEMP_DIR=$(mktemp -d)
-trap "rm -rf ${TEMP_DIR}" EXIT
-
-main() {
-    # Extract filename from URL (everything after the last /)
-    local sdk_filename
-    sdk_filename="${LINUX_SDK_URL##*/}"
-    echo "Using SDK: ${sdk_filename}"
-    
-    local download_url="${LINUX_SDK_URL}"
-    local zip_file="${TEMP_DIR}/${sdk_filename}"
-    local extract_dir="${TEMP_DIR}/extracted"
-    
-    # Download the SDK.
-    echo "Downloading ${download_url}..."
-    if ! curl -f -L -o "${zip_file}" "${download_url}"; then
-        echo "✗ Failed to download ${download_url}" >&2
-        exit 1
-    fi
-    
-    # Extract the zip file.
-    echo "Extracting ${sdk_filename}..."
-    mkdir -p "${extract_dir}"
-    unzip -q "${zip_file}" -d "${extract_dir}"
-    
-    # Find the agora_sdk directory in the extracted files.
-    local sdk_dir
-    sdk_dir=$(find "${extract_dir}" -type d -name "agora_sdk" | head -n 1)
-    if [[ -z "${sdk_dir}" ]]; then
-        echo "✗ Could not find agora_sdk directory in extracted files" >&2
-        exit 1
-    fi
-    
-    echo "Found SDK directory: ${sdk_dir}"
-    
-    # Create target directory if it doesn't exist.
-    mkdir -p "${TARGET_DIR}"
-    
-    # Copy directories from HEADERS_TO_SYNC list.
-    for dir in "${HEADERS_TO_SYNC[@]}"; do
-        if [[ -d "${sdk_dir}/${dir}" ]]; then
-            echo "Copying ${dir}/ to ${TARGET_DIR}/..."
-            rm -rf "${TARGET_DIR}/${dir}"
-            cp -r "${sdk_dir}/${dir}" "${TARGET_DIR}/"
-            echo "✓ Copied ${dir}/"
-        else
-            echo "⚠ Warning: ${dir}/ not found in SDK"
-        fi
-    done
-    
-    echo "✓ Successfully synced headers to ${TARGET_DIR}"
-
-    # Remove the temporary directory.
-    rm -rf "${TEMP_DIR}"
-}
-
-# Entrypoint.
-main "$@"
+# The macOS artifact contains only dylibs. The checked-in, platform-independent
+# C headers always come from the pinned Linux SDK.
+# shellcheck source=lib/sdk_common.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/sdk_common.sh"
+archive=''
+case "${1:-}" in
+    '') ;;
+    --archive)
+        [[ $# -eq 2 ]] || { sdk_die 'Usage: sync_agora_libs_headers.sh [--archive PATH]'; exit 2; }
+        archive=$2 ;;
+    --help|-h)
+        printf 'Usage: %s [--archive PATH]\n\nRefreshes agora/headers from the pinned Linux SDK with checksum validation.\nEnvironment: AGORA_SDK_CACHE_DIR.\n' "$0"
+        exit 0 ;;
+    *) sdk_die "Unknown argument: $1"; exit 2 ;;
+esac
+sdk_select_platform linux-amd64
+trap sdk_cleanup_transaction EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+sdk_begin_transaction "${SDK_REPO_ROOT}/agora/headers"
+sdk_prepare_archive "$archive" "$SDK_WORK_DIR"
+sdk_extract_archive "$SDK_ARCHIVE" "${SDK_WORK_DIR}/extracted"
+sdk_validate_headers "${SDK_WORK_DIR}/extracted/agora_sdk"
+mkdir "${SDK_WORK_DIR}/headers"
+cp -R "${SDK_WORK_DIR}/extracted/agora_sdk/include" "${SDK_WORK_DIR}/headers/"
+cp -R "${SDK_WORK_DIR}/extracted/agora_sdk/agora_rtm_sdk_c" "${SDK_WORK_DIR}/headers/"
+sdk_cache_archive "$SDK_ARCHIVE"
+sdk_commit_directory "${SDK_WORK_DIR}/headers"
+sdk_log "Updated agora/headers from verified Agora SDK ${SDK_VERSION}"

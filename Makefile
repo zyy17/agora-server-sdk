@@ -1,46 +1,76 @@
-# Set the Agora libraries directory.
-AGORA_LIBS_DIR := $(PWD)/agora_libs
+SHELL := /bin/bash
+.DEFAULT_GOAL := help
 
-# Set the Agora RTC base directory.
-AGORA_RTC_BASE_DIR := $(PWD)/agora_rtc
+GO ?= go
+STATICCHECK_VERSION := v0.8.2
+GOIMPORTS_VERSION := v0.51.0
+TOOLS_BIN := $(CURDIR)/.tools/bin
+STATICCHECK_CACHE ?= $(CURDIR)/.cache/staticcheck
+export STATICCHECK_CACHE
+GOFLAGS ?= -mod=readonly
+export GOFLAGS
+AGORA_LIBS_DIR ?= $(CURDIR)/agora_libs
+export AGORA_LIBS_DIR
+OUTPUT_BIN_PATH ?= $(CURDIR)/bin
+WITH_AGORA := ./scripts/with_agora_env.sh
 
-# Set the output binary path.
-OUTPUT_BIN_PATH := $(PWD)/bin
+.PHONY: help fmt fmt-check vet lint install-tools install-goimports test race build-examples check native-smoke \
+        download-agora-libs sync-agora-libs-headers test-tooling test-avcodec test-callbacks clean
 
-# Set the examples directory.
-EXAMPLES_DIR := $(PWD)/examples
+help: ## Show available targets.
+	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "%-25s %s\n", $$1, $$2}'
 
-# Get the kind of build machine.
-OS := $(shell uname -s)
+fmt: install-goimports ## Format Go source, import groups, and function spacing.
+	GOIMPORTS="$(TOOLS_BIN)/goimports" ./scripts/check_format.sh "$(GO)" --write
 
-# Set the CGO_LDFLAGS based on the build machine.
-ifeq ($(OS),Darwin)
-    CGO_LDFLAGS := -L$(AGORA_LIBS_DIR)
-else ifeq ($(OS),Linux)
-    CGO_LDFLAGS := -L$(AGORA_LIBS_DIR) -Wl,-rpath-link=$(AGORA_LIBS_DIR)
-else
-    $(error Unsupported OS: $(OS))
-endif
+fmt-check: install-goimports ## Fail if Go source, import groups, or function spacing need formatting.
+	GOIMPORTS="$(TOOLS_BIN)/goimports" ./scripts/check_format.sh "$(GO)"
 
-.PHONY: build-examples
-build-examples: download-agora-libs ## Build the examples.
-	cd $(EXAMPLES_DIR) && CGO_LDFLAGS="$(CGO_LDFLAGS)" go build -o $(OUTPUT_BIN_PATH)/send_pcm $(EXAMPLES_DIR)/send_pcm/main.go
-	cd $(EXAMPLES_DIR) && CGO_LDFLAGS="$(CGO_LDFLAGS)" go build -o $(OUTPUT_BIN_PATH)/recv_pcm $(EXAMPLES_DIR)/recv_pcm/main.go
+install-goimports: ## Install the checksum-verified, pinned import formatter.
+	GOBIN="$(TOOLS_BIN)" $(GO) install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
 
-.PHONY: download-agora-libs
-download-agora-libs: ## Download the official Agora libraries into agora_libs.
+install-tools: install-goimports ## Install checksum-verified, pinned Go development tools.
+	GOBIN="$(TOOLS_BIN)" $(GO) install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
+
+lint: install-tools ## Lint first-party APIs and examples; vet also checks native bindings.
+	PATH="$$(dirname "$$(command -v "$(GO)")"):$$PATH" $(WITH_AGORA) "$(TOOLS_BIN)/staticcheck" . ./messaging/... ./mediaio/... ./token/... ./examples/...
+
+vet: ## Vet every package with the pinned native SDK.
+	$(WITH_AGORA) $(GO) vet ./...
+
+test: ## Run offline tests; no Agora credentials or live channel needed.
+	$(WITH_AGORA) $(GO) test -count=1 ./...
+
+race: ## Run offline tests with Go's race detector (native code is not instrumented).
+	$(WITH_AGORA) $(GO) test -race -count=1 ./...
+
+build-examples: ## Build all examples from the root module.
+	mkdir -p "$(OUTPUT_BIN_PATH)"
+	@for package in $$($(WITH_AGORA) $(GO) list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./examples/...); do \
+		$(WITH_AGORA) $(GO) build -o "$(OUTPUT_BIN_PATH)/$${package##*/}" "$$package" || exit $$?; \
+	done
+
+test-callbacks: ## Exercise registered C callbacks with synthetic data, race and cgo checks.
+	GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -tags agora_test -count=1 -run '^TestNativeCallback' ./agora/rtc
+
+native-smoke: ## Check credential-free native lifecycle with strict cgo pointer checks.
+	AGORA_NATIVE_SMOKE=1 GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -count=1 -run '^TestNative' ./...
+
+check: fmt-check test-tooling lint vet test race build-examples native-smoke test-callbacks ## Run all default offline checks after SDK installation.
+
+download-agora-libs: ## Install the checksum-pinned SDK for this OS/architecture.
 	./scripts/download_agora_libs.sh
 
-.PHONY: sync-agora-libs-headers
-sync-agora-libs-headers: ## Sync the official Agora headers into agora/headers.
+sync-agora-libs-headers: ## Refresh vendored C headers from the pinned Linux SDK.
 	./scripts/sync_agora_libs_headers.sh
-	$(MAKE) add-trailing-newlines
 
-.PHONY: add-trailing-newlines
-add-trailing-newlines: ## Add trailing newlines to the Agora headers and source files.
-	find agora -type f \( -name "*.h" -o -name "*.c" \) -exec sed -i -e '$$a\' {} +
+test-tooling: install-goimports ## Check installer and formatter behavior with offline fixtures.
+	$(GO) test ./internal/cmd/funcspacing
+	./scripts/test_tooling.sh
+	GOIMPORTS="$(TOOLS_BIN)/goimports" ./scripts/test_format.sh "$(GO)"
 
-.PHONY: clean
-clean: ## Clean the build files.
-	rm -rf $(AGORA_LIBS_DIR)
-	rm -rf $(OUTPUT_BIN_PATH)
+test-avcodec: ## Test optional FFmpeg decoders (requires FFmpeg development packages).
+	$(WITH_AGORA) $(GO) test -tags avcodec -count=1 ./...
+
+clean: ## Remove generated example binaries; preserve native SDK/cache.
+	rm -f "$(OUTPUT_BIN_PATH)/send_pcm" "$(OUTPUT_BIN_PATH)/recv_pcm" "$(OUTPUT_BIN_PATH)/loopback" "$(OUTPUT_BIN_PATH)/media" "$(OUTPUT_BIN_PATH)/messages" "$(OUTPUT_BIN_PATH)/multi_sessions" "$(OUTPUT_BIN_PATH)/ai_audio" "$(OUTPUT_BIN_PATH)/process_audio" "$(OUTPUT_BIN_PATH)/messaging" "$(OUTPUT_BIN_PATH)/send_media" "$(OUTPUT_BIN_PATH)/duplex_pcm" "$(OUTPUT_BIN_PATH)/external_vad" "$(OUTPUT_BIN_PATH)/rtc_rtm" "$(OUTPUT_BIN_PATH)/voice_agent"

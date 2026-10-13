@@ -19,7 +19,7 @@ typedef struct _texture_id {
 /**
  * This structure defines the video frame of texture type on Android
  * @note For technical preview, not supported for the moment. Use RawPixelBuffer instead.
- * 
+ *
  */
 typedef struct _texture_info {
   int texture_type;
@@ -31,7 +31,7 @@ typedef struct _texture_info {
 
 /**
  * This structure defines the raw video frame data in memory
- * 
+ *
  */
 typedef struct _raw_pixel_buffer {
   int format;

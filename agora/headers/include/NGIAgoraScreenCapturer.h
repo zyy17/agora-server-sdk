@@ -18,12 +18,12 @@ namespace rtc {
  */
 class IScreenCapturer : public RefCountInterface {
  public:
-#if defined (_WIN32) || (defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE)
+#if defined (_WIN32) || (defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE) || (defined(__linux__) && !defined(__ANDROID__) && !defined(__OHOS__))
   /**
    * Initializes the screen capturer by specifying a display ID.
    *
    * @note
-   * This method applies to macOS only.
+   * This method applies to macOS windows linux.
    *
    * This method shares a whole or part of a screen specified by the display ID.
    * @param displayId The display ID of the screen to be shared. This parameter specifies which screen you want
@@ -36,10 +36,10 @@ class IScreenCapturer : public RefCountInterface {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int initWithDisplayId(uint32_t displayId, const Rectangle& regionRect) = 0;
+  virtual int initWithDisplayId(int64_t displayId, const Rectangle& regionRect) = 0;
 #endif
- 
-#if defined(_WIN32) || (defined(__linux__) && !defined(__ANDROID__))
+
+#if defined(_WIN32) || (defined(__linux__) && !defined(__ANDROID__) && !defined(__OHOS__))
   /**
    * Initializes the screen capturer by specifying a screen Rect.
    *
@@ -142,7 +142,7 @@ class IScreenCapturer : public RefCountInterface {
   ~IScreenCapturer() {}
 };
 
-#if defined(__ANDROID__) || (defined(__APPLE__) && TARGET_OS_IPHONE)
+#if defined(__ANDROID__) || (defined(__APPLE__) && TARGET_OS_IPHONE) || defined (__OHOS__)
 class IScreenCapturer2 : public RefCountInterface {
  public:
   /**
@@ -196,19 +196,20 @@ class IScreenCapturer2 : public RefCountInterface {
 
 #if defined(__ANDROID__)
   /**
-   * Set screen sharing MediaProjection.
+   * Sets screen sharing using the Android native class MediaProjection.
    *
    * When screen capture stopped, the SDK will automatically release the MediaProjection internally.
    *
    * @param mediaProjection MediaProjection is an Android class that provides access to screen capture and recording capabiliies.
    *
    * @note
-   * It is mainly used in some specific scenarios, such as iot custom devices, or child process screen sharing. 
-   * MediaProjection is not easily obtained or for other reasons.
+   * Additional MediaProjection is primarily used for specific scenarios,
+   * such as IOT custom devices or subprocess screen sharing.
    *
    * @return
    * - 0: Success.
    * - < 0: Failure.
+   * @technical preview
    */
   virtual int setExternalMediaProjection(void* mediaProjection) = 0;
 #endif

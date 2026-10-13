@@ -244,6 +244,7 @@ func NewRtmLogConfig() *RtmLogConfig {
 
 	return config
 }
+
 func (config *RtmLogConfig) toC() unsafe.Pointer {
 	if config == nil {
 		return nil
@@ -257,6 +258,7 @@ func (config *RtmLogConfig) toC() unsafe.Pointer {
 	cConfig.level = C.enum_C_RTM_LOG_LEVEL(config.Level)
 	return unsafe.Pointer(cConfig)
 }
+
 func freeRtmLogConfig(cHandler unsafe.Pointer) {
 	cConfig := (*C.struct_C_RtmLogConfig)(cHandler)
 	if cConfig == nil {
@@ -586,6 +588,7 @@ func NewRtmProxyConfig() *RtmProxyConfig {
 
 	return rtmProxyConfig
 }
+
 func (this_ *RtmProxyConfig) toC() unsafe.Pointer {
 	if this_ == nil {
 		return nil
@@ -601,6 +604,7 @@ func (this_ *RtmProxyConfig) toC() unsafe.Pointer {
 	cProxyConfig.password = C.CString(this_.Password)
 	return unsafe.Pointer(cProxyConfig)
 }
+
 func freeRtmProxyConfig(cProxyHandler unsafe.Pointer) {
 	cProxyConfig := (*C.struct_C_RtmProxyConfig)(cProxyHandler)
 	if cProxyConfig == nil {
@@ -641,6 +645,7 @@ func NewRtmEncryptionConfig() *RtmEncryptionConfig {
 
 	return rtmEncryptionConfig
 }
+
 func (this_ *RtmEncryptionConfig) toC() unsafe.Pointer {
 	if this_ == nil {
 		return nil
@@ -664,6 +669,7 @@ func (this_ *RtmEncryptionConfig) toC() unsafe.Pointer {
 	}
 	return unsafe.Pointer(cEncryptionConfig)
 }
+
 func freeRtmEncryptionConfig(cHandler unsafe.Pointer) {
 	cEncryptionConfig := (*C.struct_C_RtmEncryptionConfig)(cHandler)
 	if cEncryptionConfig == nil {
@@ -693,6 +699,7 @@ func NewRtmPrivateConfig() *RtmPrivateConfig {
 	}
 	return rtmPrivateConfig
 }
+
 func (this_ *RtmPrivateConfig) toC() unsafe.Pointer {
 	if this_ == nil {
 		return nil
@@ -720,6 +727,7 @@ func (this_ *RtmPrivateConfig) toC() unsafe.Pointer {
 
 	return unsafe.Pointer(cPrivateConfig)
 }
+
 func freeRtmPrivateConfig(cHandler unsafe.Pointer) {
 	if cHandler != nil {
 		cPrivateConfig := (*C.struct_C_RtmPrivateConfig)(cHandler)

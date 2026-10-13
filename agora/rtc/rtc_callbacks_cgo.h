@@ -15,7 +15,7 @@
 //   void (*on_token_privilege_will_expire)(AGORA_HANDLE agora_rtc_conn, const char* token);
 //   void (*on_token_privilege_did_expire)(AGORA_HANDLE agora_rtc_conn);
 //   void (*on_connection_license_validation_failure)(AGORA_HANDLE agora_rtc_conn, int reason);
-//   void (*on_connection_failure)(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason); 
+//   void (*on_connection_failure)(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason);
 //   void (*on_user_joined)(AGORA_HANDLE agora_rtc_conn, user_id_t user_id);
 //   void (*on_user_left)(AGORA_HANDLE agora_rtc_conn, user_id_t user_id, int reason);
 //   void (*on_transport_stats)(AGORA_HANDLE agora_rtc_conn, const rtc_stats* stats);
@@ -35,8 +35,8 @@
 //   void (*on_encryption_error)(AGORA_HANDLE agora_rtc_conn, int error_type);
 //   void (*on_upload_log_result)(AGORA_HANDLE agora_rtc_conn, const char* request_id, int success, int reason);
 // } rtc_conn_observer;
-// sonme fucc defined in local user observer 
-//  void (*on_audio_volume_indication)(AGORA_HANDLE agora_local_user, const audio_volume_info* speakers, unsigned int speaker_number, int total_volume); 
+// sonme fucc defined in local user observer
+//  void (*on_audio_volume_indication)(AGORA_HANDLE agora_local_user, const audio_volume_info* speakers, unsigned int speaker_number, int total_volume);
 
 //connection
 extern void cgo_on_connected(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason);
@@ -55,9 +55,9 @@ extern void cgo_on_token_privilege_did_expire(AGORA_HANDLE agora_rtc_conn);
 extern void cgo_on_user_joined(AGORA_HANDLE agora_rtc_conn, user_id_t user_id);
 extern void cgo_on_user_left(AGORA_HANDLE agora_rtc_conn, user_id_t user_id, int reason);
 
-//steam message 
+//steam message
 extern void cgo_on_stream_message_error(AGORA_HANDLE agora_rtc_conn, user_id_t user_id, int stream_id, int code, int missed, int cached);
-extern void cgo_on_stream_message(AGORA_HANDLE agora_local_user, user_id_t user_id, int stream_id, const char* data, size_t length);
+extern void cgo_on_stream_message(AGORA_HANDLE agora_local_user, user_id_t user_id, int stream_id, const char* data, size_t length, uint64_t send_ts);
 
   // /**
   //  * The media information of a specified user.
@@ -96,9 +96,9 @@ extern void cgo_on_audio_publish_state_changed(AGORA_HANDLE agora_local_user, co
 extern void cgo_on_audio_volume_indication(AGORA_HANDLE agora_local_user, const audio_volume_info* speakers, unsigned int speaker_number, int total_volume);
 extern void cgo_on_audio_meta_data_received(AGORA_HANDLE agora_local_user, user_id_t userId, const char* meta_data, size_t length);
 extern void cgo_on_local_audio_track_statistics(AGORA_HANDLE agora_local_user, const local_audio_stats* stats);
-extern void cgo_on_remote_audio_track_statistics(AGORA_HANDLE agora_local_user, user_id_t userId, const remote_audio_stats* stats);
-extern void cgo_on_local_video_track_statistics(AGORA_HANDLE agora_local_user, const local_video_track_stats* stats);
-extern void cgo_on_remote_video_track_statistics(AGORA_HANDLE agora_local_user, user_id_t userId, const remote_video_track_stats* stats);
+extern void cgo_on_remote_audio_track_statistics(AGORA_HANDLE agora_local_user, AGORA_HANDLE track, const remote_audio_track_stats* stats);
+extern void cgo_on_local_video_track_statistics(AGORA_HANDLE agora_local_user, AGORA_HANDLE track, const local_video_track_stats* stats);
+extern void cgo_on_remote_video_track_statistics(AGORA_HANDLE agora_local_user, AGORA_HANDLE track, const remote_video_track_stats* stats);
 extern void cgo_on_encryption_error(AGORA_HANDLE agora_rtc_conn, int error_type);
 
 // added on 2025-06-09
@@ -108,3 +108,7 @@ extern void cgo_on_audio_track_unpublished(AGORA_HANDLE agora_local_user, AGORA_
 // added on 2025-06-13
 extern void cgo_on_capabilities_changed(AGORA_HANDLE agora_local_user, const capabilities* caps, int size);
 extern void cgo_on_intra_request_received(AGORA_HANDLE agora_local_user);
+
+// Video track publish callbacks
+extern void cgo_on_video_track_publish_success(AGORA_HANDLE agora_local_user, AGORA_HANDLE agora_local_video_track);
+extern void cgo_on_video_track_unpublished(AGORA_HANDLE agora_local_user, AGORA_HANDLE agora_local_video_track);

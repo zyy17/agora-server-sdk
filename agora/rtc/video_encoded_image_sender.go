@@ -55,6 +55,10 @@ type EncodedVideoFrameInfo struct {
 	 */
 	StreamType    int
 	PresentTimeMs int64
+	/**
+	 * The SEI data of the video frame. default is nil.
+	 */
+	SeiData []byte
 }
 
 type VideoEncodedImageSender struct {
@@ -62,6 +66,9 @@ type VideoEncodedImageSender struct {
 }
 
 func (mediaNodeFactory *MediaNodeFactory) NewVideoEncodedImageSender() *VideoEncodedImageSender {
+	if mediaNodeFactory == nil || mediaNodeFactory.cFactory == nil {
+		return nil
+	}
 	sender := C.agora_media_node_factory_create_video_encoded_image_sender(mediaNodeFactory.cFactory)
 	if sender == nil {
 		return nil
@@ -72,7 +79,7 @@ func (mediaNodeFactory *MediaNodeFactory) NewVideoEncodedImageSender() *VideoEnc
 }
 
 func (sender *VideoEncodedImageSender) Release() {
-	if sender.cSender == nil {
+	if sender == nil || sender.cSender == nil {
 		return
 	}
 	C.agora_video_encoded_image_sender_destroy(sender.cSender)
@@ -80,6 +87,9 @@ func (sender *VideoEncodedImageSender) Release() {
 }
 
 func (sender *VideoEncodedImageSender) SendEncodedVideoImage(payload []byte, frameInfo *EncodedVideoFrameInfo) int {
+	if sender == nil || sender.cSender == nil || frameInfo == nil || len(payload) == 0 {
+		return -1
+	}
 	cData, pinner := unsafeCBytes(payload)
 	defer pinner.Unpin()
 	cFrameInfo := &C.struct__encoded_video_frame_info{

@@ -76,7 +76,23 @@
 namespace agora {
 namespace rtm {
 
+class IRtmEventHandler;
+
 const uint32_t DEFAULT_LOG_SIZE_IN_KB = 1024;
+
+/**
+ * Rtm token event type.
+ */
+enum RTM_TOKEN_EVENT_TYPE {
+  /**
+   * The token is about to expire.
+   */
+  RTM_TOKEN_EVENT_TYPE_WILL_EXPIRE = 1,
+  /**
+   * The token read permission is revoked.
+   */
+  RTM_TOKEN_EVENT_TYPE_READ_PERMISSION_REVOKED = 2,
+};
 
 /**
  * Rtm link state.
@@ -537,6 +553,10 @@ enum RTM_ERROR_CODE {
    * -10026: Renew token timeout.
    */
   RTM_ERROR_RENEW_TOKEN_TIMEOUT = -10026,
+  /**
+   * -10027: The user ID is already in use by another active RTM instance.
+   */
+  RTM_ERROR_DUPLICATE_USER_ID = -10027,
 
   /**
    * -11001 ~ -12000 : reserved for channel error.
@@ -687,6 +707,18 @@ enum RTM_ERROR_CODE {
    * -11037: The message delivered successfully but store in history failed.
    */
   RTM_ERROR_CHANNEL_MESSAGE_DELIVERED_BUT_STORE_FAILED = -11037,
+  /**
+   * -11038: The subscribe permission is denied.
+   */
+  RTM_ERROR_CHANNEL_SUBSCRIBE_PERMISSION_DENIED = -11038,
+  /**
+   * -11039: The publish permission is denied.
+   */
+  RTM_ERROR_CHANNEL_PUBLISH_PERMISSION_DENIED = -11039,
+  /**
+   * -11040: Subscribe was canceled by an unsubscribe call before completion.
+   */
+  RTM_ERROR_CHANNEL_SUBSCRIBE_CANCELED = -11040,
 
   /**
    * -12001 ~ -13000 : reserved for storage error.
@@ -765,6 +797,10 @@ enum RTM_ERROR_CODE {
    * -12019: The storage service not available.
    */
   RTM_ERROR_STORAGE_NOT_AVAILABLE = -12019,
+  /**
+   * -12020: The storage permission is denied.
+   */
+  RTM_ERROR_STORAGE_PERMISSION_DENIED = -12020,
 
   /**
    * -13001 ~ -14000 : reserved for presence error.
@@ -819,6 +855,18 @@ enum RTM_ERROR_CODE {
    * -13013: The presence operation failed.
    */
   RTM_ERROR_PRESENCE_OPERATION_FAILED = -13013,
+  /**
+   * -13014: The presence service is not activated.
+   */
+  RTM_ERROR_PRESENCE_INACTIVE = -13014,
+  /**
+   * -13015: The presence pending request is cancelled.
+   */
+  RTM_ERROR_PRESENCE_PENDING_REQUEST_CANCELLED = -13015,
+  /**
+   * -13016: The presence pending request count exceeds the limitation.
+   */
+  RTM_ERROR_PRESENCE_PENDING_REQUEST_EXCEED_LIMITATION = -13016,
 
   /**
    * -14001 ~ -15000 : reserved for lock error.
@@ -857,6 +905,10 @@ enum RTM_ERROR_CODE {
    * -14009: The lock service is not available.
    */
   RTM_ERROR_LOCK_NOT_AVAILABLE = -14009,
+  /**
+   * -14010: The lock permission is denied.
+   */
+  RTM_ERROR_LOCK_PERMISSION_DENIED = -14010,
 
   /**
    * -15001 ~ -16000 : reserved for history error.
@@ -879,154 +931,13 @@ enum RTM_ERROR_CODE {
    * -15005: The history service not available.
    */
   RTM_ERROR_HISTORY_NOT_AVAILABLE = -15005,
+  /**
+   * -15006: The history permission is denied.
+   */
+  RTM_ERROR_HISTORY_PERMISSION_DENIED = -15006,
 };
 
-/**
- * Connection states between rtm sdk and agora server.
- */
-enum RTM_CONNECTION_STATE {
-  /**
-   * 1: The SDK is disconnected with server.
-   */
-  RTM_CONNECTION_STATE_DISCONNECTED = 1,
-  /**
-   * 2: The SDK is connecting to the server.
-   */
-  RTM_CONNECTION_STATE_CONNECTING = 2,
-  /**
-   * 3: The SDK is connected to the server and has joined a channel. You can now publish or subscribe to
-   * a track in the channel.
-   */
-  RTM_CONNECTION_STATE_CONNECTED = 3,
-  /**
-   * 4: The SDK keeps rejoining the channel after being disconnected from the channel, probably because of
-   * network issues.
-   */
-  RTM_CONNECTION_STATE_RECONNECTING = 4,
-  /**
-   * 5: The SDK fails to connect to the server or join the channel.
-   */
-  RTM_CONNECTION_STATE_FAILED = 5,
-};
 
-/**
- * Reasons for connection state change.
- */
-enum RTM_CONNECTION_CHANGE_REASON {
-  /**
-   * 0: The SDK is connecting to the server.
-   */
-  RTM_CONNECTION_CHANGED_CONNECTING = 0,
-  /**
-   * 1: The SDK has joined the channel successfully.
-   */
-  RTM_CONNECTION_CHANGED_JOIN_SUCCESS = 1,
-  /**
-   * 2: The connection between the SDK and the server is interrupted.
-   */
-  RTM_CONNECTION_CHANGED_INTERRUPTED = 2,
-  /**
-   * 3: The connection between the SDK and the server is banned by the server.
-   */
-  RTM_CONNECTION_CHANGED_BANNED_BY_SERVER = 3,
-  /**
-   * 4: The SDK fails to join the channel for more than 20 minutes and stops reconnecting to the channel.
-   */
-  RTM_CONNECTION_CHANGED_JOIN_FAILED = 4,
-  /**
-   * 5: The SDK has left the channel.
-   */
-  RTM_CONNECTION_CHANGED_LEAVE_CHANNEL = 5,
-  /**
-   * 6: The connection fails because the App ID is not valid.
-   */
-  RTM_CONNECTION_CHANGED_INVALID_APP_ID = 6,
-  /**
-   * 7: The connection fails because the channel name is not valid.
-   */
-  RTM_CONNECTION_CHANGED_INVALID_CHANNEL_NAME = 7,
-  /**
-   * 8: The connection fails because the token is not valid.
-   */
-  RTM_CONNECTION_CHANGED_INVALID_TOKEN = 8,
-  /**
-   * 9: The connection fails because the token has expired.
-   */
-  RTM_CONNECTION_CHANGED_TOKEN_EXPIRED = 9,
-  /**
-   * 10: The connection is rejected by the server.
-   */
-  RTM_CONNECTION_CHANGED_REJECTED_BY_SERVER = 10,
-  /**
-   * 11: The connection changes to reconnecting because the SDK has set a proxy server.
-   */
-  RTM_CONNECTION_CHANGED_SETTING_PROXY_SERVER = 11,
-  /**
-   * 12: When the connection state changes because the app has renewed the token.
-   */
-  RTM_CONNECTION_CHANGED_RENEW_TOKEN = 12,
-  /**
-   * 13: The IP Address of the app has changed. A change in the network type or IP/Port changes the IP
-   * address of the app.
-   */
-  RTM_CONNECTION_CHANGED_CLIENT_IP_ADDRESS_CHANGED = 13,
-  /**
-   * 14: A timeout occurs for the keep-alive of the connection between the SDK and the server.
-   */
-  RTM_CONNECTION_CHANGED_KEEP_ALIVE_TIMEOUT = 14,
-  /**
-   * 15: The SDK has rejoined the channel successfully.
-   */
-  RTM_CONNECTION_CHANGED_REJOIN_SUCCESS = 15,
-  /**
-   * 16: The connection between the SDK and the server is lost.
-   */
-  RTM_CONNECTION_CHANGED_LOST = 16,
-  /**
-   * 17: The change of connection state is caused by echo test.
-   */
-  RTM_CONNECTION_CHANGED_ECHO_TEST = 17,
-  /**
-   * 18: The local IP Address is changed by user.
-   */
-  RTM_CONNECTION_CHANGED_CLIENT_IP_ADDRESS_CHANGED_BY_USER = 18,
-  /**
-   * 19: The connection is failed due to join the same channel on another device with the same uid.
-   */
-  RTM_CONNECTION_CHANGED_SAME_UID_LOGIN = 19,
-  /**
-   * 20: The connection is failed due to too many broadcasters in the channel.
-   */
-  RTM_CONNECTION_CHANGED_TOO_MANY_BROADCASTERS = 20,
-  /**
-   * 21: The connection is failed due to license validation failure.
-   */
-  RTM_CONNECTION_CHANGED_LICENSE_VALIDATION_FAILURE = 21,
-  /**
-   * 22: The connection is failed due to certification verify failure.
-   */
-  RTM_CONNECTION_CHANGED_CERTIFICATION_VERIFY_FAILURE = 22,
-  /**
-   * 23: The connection is failed due to user vid not support stream channel.
-   */
-  RTM_CONNECTION_CHANGED_STREAM_CHANNEL_NOT_AVAILABLE = 23,
-  /**
-   * 24: The connection is failed due to token and appid inconsistent.
-   */
-  RTM_CONNECTION_CHANGED_INCONSISTENT_APPID = 24,
-  /**
-   * 10001: The connection of rtm edge service has been successfully established.
-   */
-  RTM_CONNECTION_CHANGED_LOGIN_SUCCESS = 10001,
-  /**
-   * 10002: User log out Agora RTM system.
-   */
-  RTM_CONNECTION_CHANGED_LOGOUT = 10002,
-  /**
-   * 10003: User log out Agora RTM system.
-   */
-  RTM_CONNECTION_CHANGED_PRESENCE_NOT_READY = 10003,
-};
 
 /**
  * RTM channel type.
@@ -1071,7 +982,7 @@ enum RTM_STORAGE_TYPE {
   /**
     0: Unknown type.
     */
-  RTM_STORAGE_TYPE_NONE = 0,
+  RTM_STORAGE_TYPE_NONE= 0,
   /**
     1: The user storage event.
     */
@@ -1089,7 +1000,7 @@ enum RTM_STORAGE_EVENT_TYPE {
   /**
     0: Unknown event type.
     */
-  RTM_STORAGE_EVENT_TYPE_NONE = 0,
+  RTM_STORAGE_EVENT_TYPE_NONE= 0,
   /**
     1: Triggered when user subscribe user metadata state or join channel with options.withMetadata = true
     */
@@ -1428,8 +1339,8 @@ struct PresenceOptions {
 };
 
 /**
- * @brief Publish message option
- */
+  * @brief Publish message option
+  */
 struct PublishOptions {
   /**
    * The channel type.
@@ -1632,6 +1543,144 @@ struct HistoryMessage {
                      messageLength(0),
                      customType(NULL),
                      timestamp(0) {}
+};
+
+/**
+ *  Configurations for RTM Client.
+ */
+struct RtmConfig {
+  /**
+   * The App ID of your project.
+   */
+  const char* appId;
+
+  /**
+   * The ID of the user.
+   */
+  const char* userId;
+
+  /**
+   * The region for connection. This advanced feature applies to scenarios that
+   * have regional restrictions.
+   *
+   * For the regions that Agora supports, see #AREA_CODE.
+   *
+   * After specifying the region, the SDK connects to the Agora servers within
+   * that region.
+   */
+  RTM_AREA_CODE areaCode;
+
+  /**
+   * The protocol used for connecting to the Agora RTM service.
+   */
+  RTM_PROTOCOL_TYPE protocolType;
+
+  /**
+   * Presence timeout in seconds, specify the timeout value when you lost connection between sdk
+   * and rtm service.
+   */
+  uint32_t presenceTimeout;
+
+  /**
+   * Heartbeat interval in seconds, specify the interval value of sending heartbeat between sdk
+   * and rtm service.
+   */
+  uint32_t heartbeatInterval;
+
+  /**
+   * - For Android, it is the context of Activity or Application.
+   * - For Windows, it is the window handle of app. Once set, this parameter enables you to plug
+   * or unplug the video devices while they are powered.
+   */
+  void* context;
+
+  /**
+   * Reconnection timeout in seconds, specify the timeout value for login and reconnection operations.
+   *
+   * Timeout behavior and callbacks:
+   * - Login timeout: Triggers onLoginResult and onLinkStateChanged
+   * - Reconnection timeout: Triggers onLinkStateChanged
+   *
+   * Default: 0 seconds, never timeout, keep retrying.
+   * Range: [15, 3600]
+   */
+  uint32_t reconnectTimeout;
+
+  /**
+   * Whether to use String user IDs, if you are using RTC products with Int user IDs,
+   * set this value as 'false'. Otherwise errors might occur.
+   */
+  bool useStringUserId;
+
+  /**
+   * Whether to enable multipath, introduced from 2.2.0, for now , only effect on stream channel.
+   */
+  bool multipath;
+
+  /**
+   * iot devices may be restricted by isp, need to enable this feature to connect to server by domain.
+   * -true: connect to servers restricted by isp
+   * -false: (Default) connect to servers with no limit
+   */
+  bool ispPolicyEnabled;
+
+  /**
+   * The callbacks handler
+   */
+  IRtmEventHandler* eventHandler;
+
+  /**
+   * The config for customer set log path, log size and log level.
+   */
+  RtmLogConfig logConfig;
+
+  /**
+   * The config for proxy setting
+   */
+  RtmProxyConfig proxyConfig;
+
+  /**
+   * The config for encryption setting
+   */
+  RtmEncryptionConfig  encryptionConfig;
+
+  /**
+   * The config for private setting
+   */
+  RtmPrivateConfig privateConfig;
+
+  /**
+   * Optional JSON parameters string
+   * Default: NULL
+   */
+  const char* parameters;
+
+  RtmConfig() : appId(NULL),
+                userId(NULL),
+                areaCode(RTM_AREA_CODE_GLOB),
+                protocolType(RTM_PROTOCOL_TYPE_TCP_UDP),
+                presenceTimeout(300),
+                heartbeatInterval(5),
+                context(NULL),
+                reconnectTimeout(0),
+                useStringUserId(true),
+                multipath(false),
+                ispPolicyEnabled(false),
+                eventHandler(NULL),
+                parameters(NULL) {}
+};
+
+struct ChannelList {
+  const char** channels;
+  size_t channelCount;
+
+  ChannelList() : channels(NULL), channelCount(0) {}
+};
+
+struct AffectedResources {
+  ChannelList messageChannels;
+
+  AffectedResources() : messageChannels() {}
 };
 
 }  // namespace rtm

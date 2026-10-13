@@ -1,184 +1,201 @@
 package agorasdk
 
 import (
+	"context"
 	"errors"
-	"fmt"
-	"os"
+	"strings"
+	"sync"
 
-	rtctokenbuilder "github.com/AgoraIO/Tools/DynamicKey/AgoraDynamicKey/go/src/rtctokenbuilder2"
-	agoraservice "github.com/zyy17/agora-server-sdk/agora/rtc"
+	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
-const (
-	// AGORA_APP_ID_ENV_VAR is the environment variable for the Agora app ID.
-	AGORA_APP_ID_ENV_VAR = "AGORA_APP_ID"
+var runtimeOwner struct {
+	sync.Mutex
+	active bool
+}
 
-	// AGORA_APP_CERT_ENV_VAR is the environment variable for the Agora app certificate.
-	AGORA_APP_CERT_ENV_VAR = "AGORA_APP_CERT"
-)
-
-const (
-	// DefaultTokenExpirationInSeconds is the default token expiration time in seconds.
-	DefaultTokenExpirationInSeconds = 3600
-
-	// DefaultPrivilegeExpirationInSeconds is the default privilege expiration time in seconds.
-	DefaultPrivilegeExpirationInSeconds = 3600
-)
-
-var (
-	// ErrEmptyAppID is the error returned when the app ID is empty.
-	ErrEmptyAppID = errors.New("empty app id")
-
-	// ErrEmptyAppCert is the error returned when the app certificate is empty.
-	ErrEmptyAppCert = errors.New("empty app cert")
-
-	// ErrEmptyUserID is the error returned when the user ID is empty.
-	ErrEmptyUserID = errors.New("empty user id")
-
-	// ErrEmptyChannelName is the error returned when the channel name is empty.
-	ErrEmptyChannelName = errors.New("empty channel name")
-)
-
-// Service represents an Agora RTC service instance.
+// Service owns the process-wide native RTC runtime, its Sessions, and its
+// AudioProcessors. Construct it with NewService; the zero value is not usable.
+// Service methods serialize lifecycle changes, but callers must synchronize
+// their own buffers and configuration values. Do not mix this ownership model
+// with direct rtc.Initialize or rtc.Release calls.
 type Service struct {
-	channelName string
-	userID      string
-	token       string
+	mu              sync.Mutex
+	closed          bool
+	video           bool
+	sessions        map[*Session]struct{}
+	closeOnce       sync.Once
+	closeErr        error
+	release         func() error
+	processors      map[*AudioProcessor]struct{}
+	audioProcessing bool
+	identityMode    IdentityMode
+	setParameters   func(string) int
 }
 
-// ServiceConfig represents the configuration for an Agora RTC service.
-type ServiceConfig struct {
-	appCert     string
-	userID      string
-	channelName string
-	token       string
-	svcCfg      *agoraservice.AgoraServiceConfig
-}
-
-// NewService creates a new Agora RTC service instance.
-func NewService(opts ...ServiceOption) (*Service, error) {
-	cfg := &ServiceConfig{
-		svcCfg: agoraservice.NewAgoraServiceConfig(),
+func serviceConfig(cfg Config) (*rtc.AgoraServiceConfig, error) {
+	if len(cfg.AppID) != 32 || strings.ContainsRune(cfg.AppID, 0) {
+		return nil, invalid("app ID", "must be 32 characters")
 	}
-
-	// Apply the service options.
-	for _, opt := range opts {
-		opt(cfg)
+	native := rtc.NewAgoraServiceConfig()
+	native.IdleMode = false
+	if cfg.AudioProcessing {
+		native.APMModel = 1
+		native.APMConfig = rtc.NewAPMConfig()
 	}
-
-	if cfg.svcCfg.AppId == "" {
-		return nil, ErrEmptyAppID
+	native.AppId = cfg.AppID
+	if cfg.IdentityMode > NumericIdentity {
+		return nil, invalid("identity mode", "is unknown")
 	}
-
-	if cfg.appCert == "" {
-		return nil, ErrEmptyAppCert
-	}
-
-	if cfg.userID == "" {
-		return nil, ErrEmptyUserID
-	}
-
-	if cfg.channelName == "" {
-		return nil, ErrEmptyChannelName
-	}
-
-	if cfg.token == "" {
-		if err := cfg.generateToken(); err != nil {
-			return nil, fmt.Errorf("failed to generate token, %w", err)
+	native.UseStringUid = cfg.IdentityMode == StringIdentity
+	native.EnableVideo = cfg.Video
+	native.LogPath = cfg.LogPath
+	native.ConfigDir = cfg.ConfigDir
+	native.DataDir = cfg.DataDir
+	if cfg.ConfigureNative != nil {
+		if err := cfg.ConfigureNative(native); err != nil {
+			return nil, err
 		}
 	}
-
-	// Initialize the Agora RTC service.
-	if ret := agoraservice.Initialize(cfg.svcCfg); ret != 0 {
-		return nil, fmt.Errorf("failed to initialize Agora RTC service, return %d", ret)
+	if native.UseStringUid != (cfg.IdentityMode == StringIdentity) {
+		return nil, invalid("UseStringUid", "must match Config.IdentityMode")
 	}
-
-	return &Service{
-		userID:      cfg.userID,
-		channelName: cfg.channelName,
-		token:       cfg.token,
-	}, nil
-}
-
-// ServiceOption is a function that configures a service.
-type ServiceOption func(*ServiceConfig)
-
-// WithAppID sets the app ID for the service.
-func WithAppID(appID string) ServiceOption {
-	return func(cfg *ServiceConfig) {
-		if appID == "" {
-			appID = os.Getenv(AGORA_APP_ID_ENV_VAR)
-		}
-		cfg.svcCfg.AppId = appID
+	// Idle mode delays destruction beyond Session.Close and violates ownership.
+	if native.IdleMode {
+		return nil, invalid("IdleMode", "must remain false for deterministic Close")
 	}
+	return native, nil
 }
 
-// WithAppCert sets the app certificate for the service.
-func WithAppCert(appCert string) ServiceOption {
-	return func(cfg *ServiceConfig) {
-		if appCert == "" {
-			appCert = os.Getenv(AGORA_APP_CERT_ENV_VAR)
-		}
-		cfg.appCert = appCert
-	}
-}
-
-// WithUserID sets the user ID for the service.
-func WithUserID(userID string) ServiceOption {
-	return func(cfg *ServiceConfig) {
-		cfg.userID = userID
-	}
-}
-
-// WithChannelName sets the channel name for the service.
-func WithChannelName(channelName string) ServiceOption {
-	return func(cfg *ServiceConfig) {
-		cfg.channelName = channelName
-	}
-}
-
-// WithToken sets the token for the service.
-func WithToken(token string) ServiceOption {
-	return func(cfg *ServiceConfig) {
-		cfg.token = token
-	}
-}
-
-// WithLogPath sets the log path for the service.
-func WithLogPath(path string) ServiceOption {
-	return func(cfg *ServiceConfig) {
-		cfg.svcCfg.LogPath = path
-	}
-}
-
-// WithConfigDir sets the config directory for the service.
-func WithConfigDir(dir string) ServiceOption {
-	return func(cfg *ServiceConfig) {
-		cfg.svcCfg.ConfigDir = dir
-	}
-}
-
-// WithDataDir sets the data directory for the service.
-func WithDataDir(dir string) ServiceOption {
-	return func(cfg *ServiceConfig) {
-		cfg.svcCfg.DataDir = dir
-	}
-}
-
-// Release releases the service resources.
-func (s *Service) Release() {
-	agoraservice.Release()
-}
-
-func (cfg *ServiceConfig) generateToken() error {
-	token, err := rtctokenbuilder.BuildTokenWithUserAccount(cfg.svcCfg.AppId, cfg.appCert, cfg.channelName, cfg.userID,
-		rtctokenbuilder.RolePublisher, DefaultTokenExpirationInSeconds, DefaultPrivilegeExpirationInSeconds)
+// NewService initializes the native RTC runtime with cfg.
+// It returns ErrServiceActive if another high-level Service owns the runtime,
+// an error wrapping ErrInvalidConfig for invalid settings, the configuration
+// hook's error, or an *Error for native initialization failure.
+// A successful caller must call Service.Close, even if no channel is joined.
+func NewService(cfg Config) (*Service, error) {
+	native, err := serviceConfig(cfg)
 	if err != nil {
+		return nil, err
+	}
+	runtimeOwner.Lock()
+	defer runtimeOwner.Unlock()
+	if runtimeOwner.active {
+		return nil, ErrServiceActive
+	}
+	if err := check("initialize service", rtc.Initialize(native)); err != nil {
+		return nil, err
+	}
+	runtimeOwner.active = true
+	return &Service{setParameters: rtc.GetAgoraParameter().SetParameters, identityMode: cfg.IdentityMode, video: native.EnableVideo, sessions: make(map[*Session]struct{}), processors: make(map[*AudioProcessor]struct{}), audioProcessing: native.APMModel > 0, release: func() error {
+		runtimeOwner.Lock()
+		defer runtimeOwner.Unlock()
+		err := check("release service", rtc.Release())
+		if err == nil {
+			runtimeOwner.active = false
+		}
+		return err
+	}}, nil
+}
+
+// Join creates a session and waits for connection success, failure, the earlier
+// of ctx's deadline and ChannelConfig.JoinTimeout, or context cancellation.
+// ctx must not be nil. Failed joins release the partially created session;
+// the returned error may join the connection and cleanup errors.
+//
+// A successfully returned Session remains open until Session.Close or
+// Service.Close; subsequent cancellation of ctx does not disconnect it.
+// Empty tokens are valid only for projects that do not require authentication.
+// IdentityMode, channel, user identity, token privileges, and peer configuration
+// must agree. Native connection success does not prove media interoperability.
+func (s *Service) Join(ctx context.Context, cfg ChannelConfig) (*Session, error) {
+	if ctx == nil {
+		return nil, invalid("context", "must not be nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := s.identityMode.validateUserID(cfg.UserID, true); err != nil {
+		return nil, err
+	}
+	cfg, err := normalized(cfg)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil, ErrClosed
+	}
+	if !s.video && (cfg.Video.Mode != NoVideo || cfg.Receive.Video || cfg.Receive.EncodedVideo) {
+		s.mu.Unlock()
+		return nil, invalid("video", "requires Config.Video=true")
+	}
+	session, err := newSession(s, cfg)
+	if err == nil {
+		s.sessions[session] = struct{}{}
+	}
+	s.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, cfg.JoinTimeout)
+	defer cancel()
+	if err = session.connect(ctx); err != nil {
+		return nil, errors.Join(err, session.Close())
+	}
+	return session, nil
+}
+
+// Close closes all owned processors and sessions, then releases the native runtime.
+// It is safe to call repeatedly or concurrently; every call returns the same
+// combined cleanup error. Release failure may leave process ownership reserved,
+// so do not assume a new Service can be created after a failed Close.
+// Close waits for native cleanup and is not bounded by a context.
+func (s *Service) Close() error {
+	s.closeOnce.Do(func() {
+		s.mu.Lock()
+		s.closed = true
+		sessions := make([]*Session, 0, len(s.sessions))
+		for c := range s.sessions {
+			sessions = append(sessions, c)
+		}
+		processors := make([]*AudioProcessor, 0, len(s.processors))
+		for p := range s.processors {
+			processors = append(processors, p)
+		}
+		s.mu.Unlock()
+		for _, p := range processors {
+			s.closeErr = errors.Join(s.closeErr, p.Close())
+		}
+		for _, c := range sessions {
+			s.closeErr = errors.Join(s.closeErr, c.Close())
+		}
+		if s.release != nil {
+			s.closeErr = errors.Join(s.closeErr, s.release())
+		}
+	})
+	return s.closeErr
+}
+
+func (s *Service) remove(c *Session) { s.mu.Lock(); delete(s.sessions, c); s.mu.Unlock() }
+
+// SetParameters applies a native process-level JSON object under the service
+// lifecycle lock. Call it before Join for keys that affect new connections.
+// The wrapper validates JSON object syntax only; supported keys and timing
+// requirements belong to the pinned native SDK. It returns ErrClosed after
+// Close, ErrUnsupported when the parameter interface is unavailable, or *Error
+// for a nonzero native result.
+func (s *Service) SetParameters(parameters string) error {
+	if err := validateParameters(parameters); err != nil {
 		return err
 	}
-
-	// Set the token that requested from the Agora.
-	cfg.token = token
-
-	return nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return ErrClosed
+	}
+	if s.setParameters == nil {
+		return ErrUnsupported
+	}
+	return check("set service parameters", s.setParameters(parameters))
 }

@@ -10,49 +10,52 @@ package agoraservice
 */
 import "C"
 import (
-	"strconv"
 	"unsafe"
 )
 
 //export goOnVideoFrame
-func goOnVideoFrame(cObserver unsafe.Pointer, channelId *C.char, uid *C.char, frame *C.struct__video_frame) C.int {
+func goOnVideoFrame(cObserver unsafe.Pointer, channelId *C.char, uid *C.char, frame *C.struct__video_frame) {
 	// validity check
 	if cObserver == nil {
-		return C.int(0)
-	}
-	// added by wei to avoid uid=0 i.e local users callback , which is a bug in current 44.3.1 sdk version
-	// but fix it from cgo layer is not a good idea
-	goUid := C.GoString(uid)
-	if goUid == "0" {
-		return C.int(0)
+		return
 	}
 
 	con := agoraService.getConFromHandle(cObserver, ConTypeCVideoObserver)
-	if con == nil || con.videoObserver == nil || con.videoObserver.OnFrame == nil {
-		return C.int(0)
+
+	if con == nil || !con.callbacks.begin() {
+		return
 	}
+	defer con.callbacks.end()
+	if con == nil || con.videoObserver == nil || con.videoObserver.OnFrame == nil {
+		return
+	}
+	goUid := C.GoString(uid)
 	goChannelId := C.GoString(channelId)
 
 	goFrame := GoVideoFrame(frame)
-	ret := con.videoObserver.OnFrame(goChannelId, goUid, goFrame)
-	if ret {
-		return C.int(1)
-	}
-	return C.int(0)
+	con.videoObserver.OnFrame(goChannelId, goUid, goFrame)
 }
 
 //export goOnEncodedVideoFrame
-func goOnEncodedVideoFrame(observer unsafe.Pointer, uid C.uint32_t, imageBuffer *C.uint8_t, length C.size_t,
+func goOnEncodedVideoFrame(observer unsafe.Pointer, channelId *C.char, uid *C.char, imageBuffer *C.uint8_t, length C.size_t,
 	video_encoded_frame_info *C.struct__encoded_video_frame_info) C.int {
 	// validity check
 	if observer == nil {
 		return C.int(0)
 	}
 	con := agoraService.getConFromHandle(observer, ConTypeCEncodedVideoObserver)
+
+	if con == nil || !con.callbacks.begin() {
+		return C.int(0)
+	}
+	defer con.callbacks.end()
 	if con == nil || con.encodedVideoObserver == nil || con.encodedVideoObserver.OnEncodedVideoFrame == nil {
 		return C.int(0)
 	}
-	goUid := strconv.FormatUint(uint64(uid), 10)
+	goUid := C.GoString(uid)
+	goChannelId := C.GoString(channelId)
+	//fmt.Printf("goOnEncodedVideoFrame, uid: %s, length: %d, uid: %d\n", goUid, length, uid)
+	//fmt.Printf("goOnEncodedVideoFrame, video_encoded_frame_info: %v\n", video_encoded_frame_info)
 	goImageBuffer := C.GoBytes(unsafe.Pointer(imageBuffer), C.int(length))
 	// GoEncodedVideoFrameInfo(video_encoded_frame_info)
 	goFrameInfo := &EncodedVideoFrameInfo{
@@ -69,7 +72,7 @@ func goOnEncodedVideoFrame(observer unsafe.Pointer, uid C.uint32_t, imageBuffer 
 		StreamType:      int(video_encoded_frame_info.stream_type),
 		PresentTimeMs:   int64(video_encoded_frame_info.presentation_ms),
 	}
-	if con.encodedVideoObserver.OnEncodedVideoFrame(goUid, goImageBuffer, goFrameInfo) {
+	if con.encodedVideoObserver.OnEncodedVideoFrame(goChannelId, goUid, goImageBuffer, goFrameInfo) {
 		return C.int(1)
 	}
 	return C.int(0)

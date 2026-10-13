@@ -15,7 +15,28 @@ namespace rtc {
 
 class IVideoTrack;
 
+struct MixerLayoutConfig {
+  int32_t x;
+  int32_t y;
+  int32_t width;
+  int32_t height;
+  int32_t zOrder; // larger zOrder prioritizes smaller ones
+  float alpha;
+  bool mirror;
+  FIT_MODE_TYPE fit_mode; // cover or contain when adapting source frame to layout box
+  const char* image_path; // url of the place holder picture
+  VIDEO_ORIENTATION rotation;
 
+  MixerLayoutConfig() : x(0), y(0), width(0), height(0), zOrder(0), alpha(1.0), mirror(false), fit_mode(MODE_COVER), image_path(NULL), rotation(VIDEO_ORIENTATION::VIDEO_ORIENTATION_0) {}
+  MixerLayoutConfig(int ox, int oy, int w, int h, int order) : x(ox), y(oy), width(w), height(h), zOrder(order), alpha(1.0), mirror(false), fit_mode(MODE_COVER), image_path(NULL), rotation(VIDEO_ORIENTATION::VIDEO_ORIENTATION_0) {}
+};
+
+enum ImageType {
+  kUnknownPic,
+  kPng,
+  kJpeg,
+  kGif
+};
 
 /**
  * The IVideoMixerSource class abstracts a multi-in-multi-out video source which receives video
@@ -114,7 +135,7 @@ public:
   virtual int setBackground(uint32_t width, uint32_t height, int fps, const char* url, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Set the rotation of the mixed video stream
-   * @param rotation:0:none, 1:90°, 2:180°, 3:270° 
+   * @param rotation:0:none, 1:90°, 2:180°, 3:270°
    * @return
    * 0 - Success
    * <0 - Failure
@@ -128,7 +149,7 @@ public:
    */
   virtual int getAvgMixerDelay() = 0;
   /**
-   * Set the master clock source for mixed video frame. The master clock source serves as the 
+   * Set the master clock source for mixed video frame. The master clock source serves as the
    * reference clock for audio/video synchronization after mixing.
    * @return
    * 0 - Success

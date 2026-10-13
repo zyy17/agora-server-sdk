@@ -448,7 +448,7 @@ typedef struct _rtc_stats {
    * The system CPU usage (%).
    */
   double cpu_total_usage;
-  /** 
+  /**
    * gateway Rtt
   */
   int gateway_rtt;
@@ -747,7 +747,7 @@ typedef struct _local_audio_stats {
    * The internal payload type
    */
   int internal_codec;
-  
+
   /**
    * Voice pitch frequency in Hz
    */
@@ -955,7 +955,7 @@ typedef struct _live_transcoding {
    * The number of advanced feature count in the live broadcast.
    */
   int advanced_feature_count;
-  /** 
+  /**
    * Advanced features of the RTMP or RTMPS streaming with transcoding. See LiveStreamAdvancedFeature.
    */
   live_stream_advanced_feature* advancedFeatures;
@@ -1246,11 +1246,11 @@ typedef struct _audio_encoded_frame_observer_config {
  * @ANNOTATION:TYPE:OBSERVER
  */
 typedef struct _audio_encoded_frame_observer {
-  void (*on_record_audio_encoded_frame)(AGORA_HANDLE agora_audio_encoded_frame, 
+  void (*on_record_audio_encoded_frame)(AGORA_HANDLE agora_audio_encoded_frame,
         const uint8_t* frame_buffer,  int length, const encoded_audio_frame_info* audio_encoded_frame_info);
-  void (*on_playback_audio_encoded_frame)(AGORA_HANDLE agora_audio_encoded_frame, 
+  void (*on_playback_audio_encoded_frame)(AGORA_HANDLE agora_audio_encoded_frame,
         const uint8_t* frame_buffer,  int length, const encoded_audio_frame_info* audio_encoded_frame_info);
-  void (*on_mixed_audio_encoded_frame)(AGORA_HANDLE agora_audio_encoded_frame, 
+  void (*on_mixed_audio_encoded_frame)(AGORA_HANDLE agora_audio_encoded_frame,
         const uint8_t* frame_buffer,  int length, const encoded_audio_frame_info* audio_encoded_frame_info);
 } audio_encoded_frame_observer;
 
@@ -1362,12 +1362,29 @@ typedef struct _encryption_config {
    * @note If you do not set an encryption key or set it as NULL, you cannot use the built-in encryption, and the SDK returns #ERR_INVALID_ARGUMENT (-2).
    */
   const char* encryption_key;
+  /**
+   * Salt, 32 bytes in length. Agora recommends that you use OpenSSL to generate salt on the server
+   * side.
+   *
+   * @note This parameter takes effect only in `AES_128_GCM2` or `AES_256_GCM2` encrypted mode.
+   * In this case, ensure that this parameter is not 0.
+   */
   uint8_t encryption_kdf_salt[32];
+
+  /**
+   * Whether to enable data stream encryption:
+   * - true: Enable data stream encryption. When enabled, data streams sent via
+   *   `createDataStream` will be encrypted using the same encryption configuration
+   *   (mode and key) as the media stream.
+   * - false: Disable data stream encryption. Data streams are not encrypted
+   *   even if media stream encryption is enabled.
+   */
+  bool datastream_encryption_enabled;
 } encryption_config;
 
 
 
-/** 
+/**
  * Spatial audio parameters
  */
 typedef struct _spatial_audio_params {

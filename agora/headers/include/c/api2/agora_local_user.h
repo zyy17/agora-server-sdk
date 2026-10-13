@@ -285,7 +285,7 @@ typedef struct _local_user_observer {
   void (*on_user_info_updated)(AGORA_HANDLE agora_local_user, user_id_t user_id, int msg, int val);
   void (*on_intra_request_received)(AGORA_HANDLE agora_local_user);
   void (*on_remote_subscribe_fallback_to_audio_only)(AGORA_HANDLE agora_local_user, user_id_t user_id, int is_fallback_or_recover);
-  void (*on_stream_message)(AGORA_HANDLE agora_local_user, user_id_t user_id, int stream_id, const char* data, size_t length);
+  void (*on_stream_message)(AGORA_HANDLE agora_local_user, user_id_t user_id, int stream_id, const char* data, size_t length, uint64_t send_ts);
   void (*on_user_state_changed)(AGORA_HANDLE agora_local_user, user_id_t user_id, uint32_t state);
   void (*on_audio_meta_data_received)(AGORA_HANDLE agora_local_user, user_id_t userId, const char* meta_data, size_t length);
 } local_user_observer;

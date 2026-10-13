@@ -127,7 +127,7 @@ class IRtmpLocalUser {
 
   /**
    * Set the parameters of the audio encoder when pushing the stream
-   * 
+   *
    * @param config Audio encoder parameters
    *
    * @return
@@ -138,7 +138,7 @@ class IRtmpLocalUser {
 
   /**
    * Set the parameters of the video encoder when pushing the stream
-   * 
+   *
    * @param config Video encoder parameters
    *
    * @return
@@ -151,7 +151,7 @@ class IRtmpLocalUser {
    * Adjusts the audio volume for publishing.
    *
    * @param volume The volume for publishing. The value ranges between 0 and 100 (default).
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -161,7 +161,7 @@ class IRtmpLocalUser {
   /**
    * Gets the current volume for publishing.
    * @param volume A pointer to the publishing volume.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -170,14 +170,14 @@ class IRtmpLocalUser {
 
   /**
    * Dynamically adjust the bit rate parameters of the video encoder in the push stream
-   * 
-   * @note: When increasing the bit rate, each call increases by 50kbps; 
+   *
+   * @note: When increasing the bit rate, each call increases by 50kbps;
    *        When you lower the bit rate, you reduce it by 100kbps per call
-   * 
+   *
    * @param type The type of adjustment mode for the bit-rate parameter of the video encoder in the push stream:
    * - `Increasing`: Increase the video encoding bitrate.
    * - `Decreasing`: Reduce video encoding bitrate
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.
@@ -186,11 +186,11 @@ class IRtmpLocalUser {
 
   /**
    * Set whether to enable local video
-   * 
+   *
    * @param enabled Whether to enable local video:
    * - `true`: Enable local video.
    * - `false`: Disable local video.
-   * 
+   *
    * @return
    * - 0: Success.
    * - < 0: Failure.

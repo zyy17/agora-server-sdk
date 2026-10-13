@@ -151,14 +151,15 @@ const (
 type AudioPublishType int
 
 const (
-	AudioPublishTypeNoPublish AudioPublishType = 0
-	AudioPublishTypePcm AudioPublishType = 1
+	AudioPublishTypeNoPublish  AudioPublishType = 0
+	AudioPublishTypePcm        AudioPublishType = 1
 	AudioPublishTypeEncodedPcm AudioPublishType = 2
 )
+
 type VideoPublishType int
 
 const (
-	VideoPublishTypeNoPublish VideoPublishType = 0
-	VideoPublishTypeYuv VideoPublishType = 1
+	VideoPublishTypeNoPublish    VideoPublishType = 0
+	VideoPublishTypeYuv          VideoPublishType = 1
 	VideoPublishTypeEncodedImage VideoPublishType = 2
 )

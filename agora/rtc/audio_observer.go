@@ -22,6 +22,11 @@ func goOnRecordAudioFrame(cLocalUser unsafe.Pointer, channelId *C.char, frame *C
 	}
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
+
+	if con == nil || !con.callbacks.begin() {
+		return C.int(0)
+	}
+	defer con.callbacks.end()
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnRecordAudioFrame == nil {
 		return C.int(0)
 	}
@@ -42,6 +47,11 @@ func goOnPlaybackAudioFrame(cLocalUser unsafe.Pointer, channelId *C.char, frame 
 	}
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
+
+	if con == nil || !con.callbacks.begin() {
+		return C.int(0)
+	}
+	defer con.callbacks.end()
 
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnPlaybackAudioFrame == nil {
 		return C.int(0)
@@ -64,6 +74,11 @@ func goOnMixedAudioFrame(cLocalUser unsafe.Pointer, channelId *C.char, frame *C.
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
 
+	if con == nil || !con.callbacks.begin() {
+		return C.int(0)
+	}
+	defer con.callbacks.end()
+
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnMixedAudioFrame == nil {
 		return C.int(0)
 	}
@@ -85,6 +100,11 @@ func goOnEarMonitoringAudioFrame(cLocalUser unsafe.Pointer, frame *C.struct__aud
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
 
+	if con == nil || !con.callbacks.begin() {
+		return C.int(0)
+	}
+	defer con.callbacks.end()
+
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnEarMonitoringAudioFrame == nil {
 		return C.int(0)
 	}
@@ -104,6 +124,11 @@ func goOnPlaybackAudioFrameBeforeMixing(cLocalUser unsafe.Pointer, channelId *C.
 	}
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
+
+	if con == nil || !con.callbacks.begin() {
+		return C.int(0)
+	}
+	defer con.callbacks.end()
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnPlaybackAudioFrameBeforeMixing == nil {
 		return C.int(0)
 	}
@@ -135,6 +160,11 @@ func goOnGetAudioFramePosition(cLocalUser unsafe.Pointer) C.int {
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
 
+	if con == nil || !con.callbacks.begin() {
+		return C.int(0)
+	}
+	defer con.callbacks.end()
+
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnGetAudioFramePosition == nil {
 		return C.int(0)
 	}
@@ -152,6 +182,11 @@ func goOnGetPlaybackAudioFrameParam(cLocalUser unsafe.Pointer) C.struct__audio_p
 	}
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
+
+	if con == nil || !con.callbacks.begin() {
+		return C.struct__audio_params{}
+	}
+	defer con.callbacks.end()
 
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnGetPlaybackAudioFrameParam == nil {
 		return cAudioParam
@@ -176,6 +211,11 @@ func goOnGetRecordAudioFrameParam(cLocalUser unsafe.Pointer) C.struct__audio_par
 	}
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
+
+	if con == nil || !con.callbacks.begin() {
+		return C.struct__audio_params{}
+	}
+	defer con.callbacks.end()
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnGetRecordAudioFrameParam == nil {
 		return cAudioParam
 	}
@@ -199,6 +239,11 @@ func goOnGetMixedAudioFrameParam(cLocalUser unsafe.Pointer) C.struct__audio_para
 	}
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
+
+	if con == nil || !con.callbacks.begin() {
+		return C.struct__audio_params{}
+	}
+	defer con.callbacks.end()
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnGetMixedAudioFrameParam == nil {
 		return cAudioParam
 	}
@@ -221,6 +266,11 @@ func goOnGetEarMonitoringAudioFrameParam(cLocalUser unsafe.Pointer) C.struct__au
 	}
 	// get conn from handle
 	con := agoraService.getConFromHandle(cLocalUser, ConTypeCLocalUser)
+
+	if con == nil || !con.callbacks.begin() {
+		return C.struct__audio_params{}
+	}
+	defer con.callbacks.end()
 	if con == nil || con.audioObserver == nil || con.audioObserver.OnGetEarMonitoringAudioFrameParam == nil {
 		return cAudioParam
 	}

@@ -1,14 +1,11 @@
 package agorartm
 
-import (
-	//"fmt"
-	"unsafe"
-)
 //note: MUST dec cgo_xxx_xxx in this file and include C_IAgoraRtmClient.h, or the callback will not be called
-//like the following: 
+//like the following:
 
 /*
 #include "C_IAgoraRtmClient.h"
+void cgo_RtmEventHandlerBridge_onTokenEvent(struct C_IRtmEventHandler *, struct C_TokenEvent *);
 
 void cgo_RtmEventHandlerBridge_onMessageEvent(struct C_IRtmEventHandler *this,struct C_MessageEvent *event);
 
@@ -39,13 +36,13 @@ void cgo_RtmEventHandlerBridge_onLeaveTopicResult(struct C_IRtmEventHandler *thi
 void cgo_RtmEventHandlerBridge_onSubscribeTopicResult(struct C_IRtmEventHandler *this,
 	uint64_t requestId, char *channelName, char *userId, char *topic, struct C_UserList succeedUsers, struct C_UserList failedUsers, enum C_RTM_ERROR_CODE errorCode);
 
-void cgo_RtmEventHandlerBridge_onConnectionStateChanged(struct C_IRtmEventHandler *this,
-	char *channelName, enum C_RTM_CONNECTION_STATE state, enum C_RTM_CONNECTION_CHANGE_REASON reason);
 
 void cgo_RtmEventHandlerBridge_onTokenPrivilegeWillExpire(struct C_IRtmEventHandler *this,
 	char *channelName);
 
 void cgo_RtmEventHandlerBridge_onSubscribeResult(struct C_IRtmEventHandler *this,
+	uint64_t requestId, char *channelName, enum C_RTM_ERROR_CODE errorCode);
+void cgo_RtmEventHandlerBridge_onUnsubscribeResult(struct C_IRtmEventHandler *this,
 	uint64_t requestId, char *channelName, enum C_RTM_ERROR_CODE errorCode);
 
 	void cgo_RtmEventHandlerBridge_onPublishResult(struct C_IRtmEventHandler *this,
@@ -151,6 +148,7 @@ import "C"
 //"github.com/AgoraIO-Extensions/Agora-RTM-Server-SDK-Go/pkg/agora"
 
 type RtmEventHandler struct {
+	OnTokenEvent                  func(event *TokenEvent)
 	OnMessageEvent                func(event *MessageEvent)
 	OnPresenceEvent               func(event *PresenceEvent)
 	OnTopicEvent                  func(event *TopicEvent)
@@ -161,9 +159,9 @@ type RtmEventHandler struct {
 	OnJoinTopicResult             func(requestId uint64, channelName string, userId string, topic string, meta string, errorCode int)
 	OnLeaveTopicResult            func(requestId uint64, channelName string, userId string, topic string, meta string, errorCode int)
 	OnSubscribeTopicResult        func(requestId uint64, channelName string, userId string, topic string, succeedUsers UserList, failedUsers UserList, errorCode int)
-	OnConnectionStateChanged      func(channelName string, state int, reason int)
 	OnTokenPrivilegeWillExpire    func(channelName string)
 	OnSubscribeResult             func(requestId uint64, channelName string, errorCode int)
+	OnUnsubscribeResult           func(requestId uint64, channelName string, errorCode int)
 	OnPublishResult               func(requestId uint64, errorCode int)
 	OnLoginResult                 func(requestId uint64, errorCode int)
 	OnSetChannelMetadataResult    func(requestId uint64, channelName string, channelType RtmChannelType, errorCode int)
@@ -180,24 +178,21 @@ type RtmEventHandler struct {
 	OnReleaseLockResult           func(requestId uint64, channelName string, channelType RtmChannelType, lockName string, errorCode int)
 	OnAcquireLockResult           func(requestId uint64, channelName string, channelType RtmChannelType, lockName string, errorCode int, errorDetails string)
 	OnRevokeLockResult            func(requestId uint64, channelName string, channelType RtmChannelType, lockName string, errorCode int)
-	OnGetLocksResult              func(requestId uint64, channelName string, channelType RtmChannelType, lockDetailList *LockDetail, count uint, errorCode int)
-	OnWhoNowResult                func(requestId uint64, userStateList *UserState, count uint, nextPage string, errorCode int)
-	OnGetOnlineUsersResult        func(requestId uint64, userStateList *UserState, count uint, nextPage string, errorCode int)
-	OnWhereNowResult              func(requestId uint64, channels *ChannelInfo, count uint, errorCode int)
-	OnGetUserChannelsResult       func(requestId uint64, channels *ChannelInfo, count uint, errorCode int)
+	OnGetLocksResult              func(requestId uint64, channelName string, channelType RtmChannelType, lockDetailList []LockDetail, errorCode int)
+	OnWhoNowResult                func(requestId uint64, userStateList []UserState, nextPage string, errorCode int)
+	OnGetOnlineUsersResult        func(requestId uint64, userStateList []UserState, nextPage string, errorCode int)
+	OnWhereNowResult              func(requestId uint64, channels []ChannelInfo, errorCode int)
+	OnGetUserChannelsResult       func(requestId uint64, channels []ChannelInfo, errorCode int)
 	OnPresenceSetStateResult      func(requestId uint64, errorCode int)
 	OnPresenceRemoveStateResult   func(requestId uint64, errorCode int)
 	OnPresenceGetStateResult      func(requestId uint64, state *UserState, errorCode int)
 	// newly added callback functions
-	OnLinkStateEvent              func(event *LinkStateEvent)
-	OnLogoutResult                func(requestId uint64, errorCode int)
-	OnRenewTokenResult            func(requestId uint64, serverType RtmServiceType, channelName string, errorCode int)
-	OnPublishTopicMessageResult   func(requestId uint64, channelName string, topic string, errorCode int)
-	OnUnsubscribeTopicResult      func(requestId uint64, channelName string, topic string, errorCode int)
-	OnGetSubscribedUserListResult func(requestId uint64, channelName string, topic string, user *UserList, errorCode int)
-	// note： 可以将messageList转换为HistoryMessage切片，也就是将C的HistoryMessage数组转换为Go的HistoryMessage切片
-	// 使用unsafe.Slice将C的HistoryMessage数组转换为Go的HistoryMessage切片,也就是参数为：messageList *HistoryMessage,count uint,newStart uint64
-	// 这样就不需要做拷贝之类的，效率高，不过也没有多大影响。参考channelInfo的转换
+	OnLinkStateEvent                func(event *LinkStateEvent)
+	OnLogoutResult                  func(requestId uint64, errorCode int)
+	OnRenewTokenResult              func(requestId uint64, serverType RtmServiceType, channelName string, errorCode int)
+	OnPublishTopicMessageResult     func(requestId uint64, channelName string, topic string, errorCode int)
+	OnUnsubscribeTopicResult        func(requestId uint64, channelName string, topic string, errorCode int)
+	OnGetSubscribedUserListResult   func(requestId uint64, channelName string, topic string, user *UserList, errorCode int)
 	OnGetHistoryMessagesResult      func(requestId uint64, messageList []HistoryMessage, newStart uint64, errorCode int)
 	OnUnsubscribeUserMetadataResult func(requestId uint64, userId string, errorCode int)
 }
@@ -205,7 +200,11 @@ type RtmEventHandler struct {
 func CRtmEventHandler() *C.struct_C_IRtmEventHandler {
 
 	ret := (*C.struct_C_IRtmEventHandler)(C.C_IRtmEventHandler_New(nil))
-	ret.userData = unsafe.Pointer(nil)
+	if ret == nil {
+		return nil
+	}
+	ret.userData = nil
+	ret.onTokenEvent = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onTokenEvent)
 	ret.onMessageEvent = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onMessageEvent)
 	ret.onPresenceEvent = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onPresenceEvent)
 	ret.onTopicEvent = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onTopicEvent)
@@ -216,9 +215,9 @@ func CRtmEventHandler() *C.struct_C_IRtmEventHandler {
 	ret.onJoinTopicResult = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onJoinTopicResult)
 	ret.onLeaveTopicResult = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onLeaveTopicResult)
 	ret.onSubscribeTopicResult = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onSubscribeTopicResult)
-	ret.onConnectionStateChanged = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onConnectionStateChanged)
 	ret.onTokenPrivilegeWillExpire = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onTokenPrivilegeWillExpire)
 	ret.onSubscribeResult = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onSubscribeResult)
+	ret.onUnsubscribeResult = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onUnsubscribeResult)
 	ret.onPublishResult = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onPublishResult)
 	ret.onLoginResult = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onLoginResult)
 	ret.onSetChannelMetadataResult = (*[0]byte)(C.cgo_RtmEventHandlerBridge_onSetChannelMetadataResult)
@@ -261,10 +260,8 @@ func cgo_RtmEventHandlerBridge_onMessageEvent(handler *C.struct_C_IRtmEventHandl
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnMessageEvent == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnMessageEvent, client值为nil\n")
 		return
 	}
 
@@ -283,10 +280,8 @@ func cgo_RtmEventHandlerBridge_onPresenceEvent(handler *C.struct_C_IRtmEventHand
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnPresenceEvent == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnPresenceEvent, client值为nil\n")
 		return
 	}
 
@@ -305,10 +300,8 @@ func cgo_RtmEventHandlerBridge_onTopicEvent(handler *C.struct_C_IRtmEventHandler
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnTopicEvent == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnTopicEvent, client值为nil\n")
 		return
 	}
 
@@ -327,10 +320,8 @@ func cgo_RtmEventHandlerBridge_onLockEvent(handler *C.struct_C_IRtmEventHandler,
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnLockEvent == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnLockEvent, client值为nil\n")
 		return
 	}
 
@@ -349,10 +340,8 @@ func cgo_RtmEventHandlerBridge_onStorageEvent(handler *C.struct_C_IRtmEventHandl
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnStorageEvent == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnStorageEvent, client值为nil\n")
 		return
 	}
 
@@ -371,10 +360,8 @@ func cgo_RtmEventHandlerBridge_onJoinResult(handler *C.struct_C_IRtmEventHandler
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnJoinResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnJoinResult, client值为nil\n")
 		return
 	}
 
@@ -394,10 +381,8 @@ func cgo_RtmEventHandlerBridge_onLeaveResult(handler *C.struct_C_IRtmEventHandle
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnLeaveResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnLeaveResult, client值为nil\n")
 		return
 	}
 
@@ -417,10 +402,8 @@ func cgo_RtmEventHandlerBridge_onJoinTopicResult(handler *C.struct_C_IRtmEventHa
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnJoinTopicResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnJoinTopicResult, client值为nil\n")
 		return
 	}
 
@@ -442,10 +425,8 @@ func cgo_RtmEventHandlerBridge_onLeaveTopicResult(handler *C.struct_C_IRtmEventH
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnLeaveTopicResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnLeaveTopicResult, client值为nil\n")
 		return
 	}
 
@@ -467,7 +448,10 @@ func cgo_RtmEventHandlerBridge_onSubscribeTopicResult(handler *C.struct_C_IRtmEv
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
+	client := lookupRtmClient(handler)
+	if client == nil || client.handler == nil || client.handler.OnSubscribeTopicResult == nil {
+		return
+	}
 	goSucceedUsers := CUserListToUserList(&succeedUsers)
 	goFailedUsers := CUserListToUserList(&failedUsers)
 
@@ -483,12 +467,6 @@ func cgo_RtmEventHandlerBridge_onSubscribeTopicResult(handler *C.struct_C_IRtmEv
 		safeFailedUsers = *goFailedUsers
 	}
 
-	// 判断client是否为nil
-	if client == nil || client.handler == nil || client.handler.OnSubscribeTopicResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnSubscribeTopicResult, client值为nil\n")
-		return
-	}
-
 	client.handler.OnSubscribeTopicResult(
 		uint64(requestId),
 		C.GoString(channelName),
@@ -500,28 +478,6 @@ func cgo_RtmEventHandlerBridge_onSubscribeTopicResult(handler *C.struct_C_IRtmEv
 	)
 }
 
-//export cgo_RtmEventHandlerBridge_onConnectionStateChanged
-func cgo_RtmEventHandlerBridge_onConnectionStateChanged(handler *C.struct_C_IRtmEventHandler,
-	channelName *C.char, state C.enum_C_RTM_CONNECTION_STATE, reason C.enum_C_RTM_CONNECTION_CHANGE_REASON) {
-
-	if handler == nil {
-		return
-	}
-
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
-	if client == nil || client.handler == nil || client.handler.OnConnectionStateChanged == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnConnectionStateChanged, client值为nil\n")
-		return
-	}
-
-	client.handler.OnConnectionStateChanged(
-		C.GoString(channelName),
-		int(state),
-		int(reason),
-	)
-}
-
 //export cgo_RtmEventHandlerBridge_onTokenPrivilegeWillExpire
 func cgo_RtmEventHandlerBridge_onTokenPrivilegeWillExpire(handler *C.struct_C_IRtmEventHandler,
 	channelName *C.char) {
@@ -530,10 +486,8 @@ func cgo_RtmEventHandlerBridge_onTokenPrivilegeWillExpire(handler *C.struct_C_IR
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnTokenPrivilegeWillExpire == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnTokenPrivilegeWillExpire, client值为nil\n")
 		return
 	}
 
@@ -550,10 +504,8 @@ func cgo_RtmEventHandlerBridge_onSubscribeResult(handler *C.struct_C_IRtmEventHa
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnSubscribeResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnSubscribeResult, client值为nil\n")
 		return
 	}
 
@@ -572,10 +524,8 @@ func cgo_RtmEventHandlerBridge_onPublishResult(handler *C.struct_C_IRtmEventHand
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnPublishResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnPublishResult, client值为nil\n")
 		return
 	}
 
@@ -589,19 +539,12 @@ func cgo_RtmEventHandlerBridge_onPublishResult(handler *C.struct_C_IRtmEventHand
 func cgo_RtmEventHandlerBridge_onLoginResult(handler *C.struct_C_IRtmEventHandler,
 	requestId C.uint64_t, errorCode C.enum_C_RTM_ERROR_CODE) {
 
-	//fmt.Printf("[DEBUG] cgo_RtmEventHandlerBridge_onLoginResult被调用: requestId=%d, errorCode=%d\n", requestId, errorCode)
-
 	if handler == nil {
-		//fmt.Printf("[DEBUG] userData为nil，返回\n")
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	//fmt.Printf("[DEBUG] 调用Go事件处理器OnLoginResult, client值: %v\n", client)
-
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnLoginResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnLoginResult, client值为nil\n")
 		return
 	}
 
@@ -609,7 +552,6 @@ func cgo_RtmEventHandlerBridge_onLoginResult(handler *C.struct_C_IRtmEventHandle
 		uint64(requestId),
 		int(errorCode),
 	)
-	//fmt.Printf("[DEBUG] Go事件处理器OnLoginResult调用完成\n")
 }
 
 //export cgo_RtmEventHandlerBridge_onSetChannelMetadataResult
@@ -620,10 +562,8 @@ func cgo_RtmEventHandlerBridge_onSetChannelMetadataResult(handler *C.struct_C_IR
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnSetChannelMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnSetChannelMetadataResult, client值为nil\n")
 		return
 	}
 
@@ -643,10 +583,8 @@ func cgo_RtmEventHandlerBridge_onUpdateChannelMetadataResult(handler *C.struct_C
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnUpdateChannelMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnUpdateChannelMetadataResult, client值为nil\n")
 		return
 	}
 
@@ -666,10 +604,8 @@ func cgo_RtmEventHandlerBridge_onRemoveChannelMetadataResult(handler *C.struct_C
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnRemoveChannelMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnRemoveChannelMetadataResult, client值为nil\n")
 		return
 	}
 
@@ -689,13 +625,11 @@ func cgo_RtmEventHandlerBridge_onGetChannelMetadataResult(handler *C.struct_C_IR
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	goData := CMetadataToIMetadata(data)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnGetChannelMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnGetChannelMetadataResult, client值为nil\n")
 		return
 	}
+	goData := CMetadataToIMetadata(data)
 
 	client.handler.OnGetChannelMetadataResult(
 		uint64(requestId),
@@ -714,10 +648,8 @@ func cgo_RtmEventHandlerBridge_onSetUserMetadataResult(handler *C.struct_C_IRtmE
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnSetUserMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnSetUserMetadataResult, client值为nil\n")
 		return
 	}
 
@@ -736,10 +668,8 @@ func cgo_RtmEventHandlerBridge_onUpdateUserMetadataResult(handler *C.struct_C_IR
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnUpdateUserMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnUpdateUserMetadataResult, client值为nil\n")
 		return
 	}
 
@@ -758,10 +688,8 @@ func cgo_RtmEventHandlerBridge_onRemoveUserMetadataResult(handler *C.struct_C_IR
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnRemoveUserMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnRemoveUserMetadataResult, client值为nil\n")
 		return
 	}
 
@@ -780,17 +708,15 @@ func cgo_RtmEventHandlerBridge_onGetUserMetadataResult(handler *C.struct_C_IRtmE
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnGetUserMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnGetUserMetadataResult, client值为nil\n")
 		return
 	}
 
 	client.handler.OnGetUserMetadataResult(
 		uint64(requestId),
 		C.GoString(userId),
-		(*IMetadata)(unsafe.Pointer(data)),
+		CMetadataToIMetadata(data),
 		int(errorCode),
 	)
 }
@@ -803,10 +729,8 @@ func cgo_RtmEventHandlerBridge_onSubscribeUserMetadataResult(handler *C.struct_C
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnSubscribeUserMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnSubscribeUserMetadataResult, client值为nil\n")
 		return
 	}
 
@@ -825,10 +749,8 @@ func cgo_RtmEventHandlerBridge_onSetLockResult(handler *C.struct_C_IRtmEventHand
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnSetLockResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnSetLockResult, client值为nil\n")
 		return
 	}
 
@@ -849,10 +771,8 @@ func cgo_RtmEventHandlerBridge_onRemoveLockResult(handler *C.struct_C_IRtmEventH
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnRemoveLockResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnRemoveLockResult, client值为nil\n")
 		return
 	}
 
@@ -873,10 +793,8 @@ func cgo_RtmEventHandlerBridge_onReleaseLockResult(handler *C.struct_C_IRtmEvent
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnReleaseLockResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnReleaseLockResult, client值为nil\n")
 		return
 	}
 
@@ -897,10 +815,8 @@ func cgo_RtmEventHandlerBridge_onAcquireLockResult(handler *C.struct_C_IRtmEvent
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnAcquireLockResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnAcquireLockResult, client值为nil\n")
 		return
 	}
 
@@ -922,10 +838,8 @@ func cgo_RtmEventHandlerBridge_onRevokeLockResult(handler *C.struct_C_IRtmEventH
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnRevokeLockResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnRevokeLockResult, client值为nil\n")
 		return
 	}
 
@@ -946,20 +860,17 @@ func cgo_RtmEventHandlerBridge_onGetLocksResult(handler *C.struct_C_IRtmEventHan
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	goLockDetail := CLockDetailToLockDetail(lockDetailList)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnGetLocksResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnGetLocksResult, client值为nil\n")
 		return
 	}
+	goLockDetail := copyLockDetails(lockDetailList, count)
 
 	client.handler.OnGetLocksResult(
 		uint64(requestId),
 		C.GoString(channelName),
 		RtmChannelType(channelType),
 		goLockDetail,
-		uint(count),
 		int(errorCode),
 	)
 }
@@ -972,18 +883,15 @@ func cgo_RtmEventHandlerBridge_onWhoNowResult(handler *C.struct_C_IRtmEventHandl
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	goUserState := CUserStateToUserState(userStateList)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnWhoNowResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnWhoNowResult, client值为nil\n")
 		return
 	}
+	goUserState := copyUserStates(userStateList, count)
 
 	client.handler.OnWhoNowResult(
 		uint64(requestId),
 		goUserState,
-		uint(count),
 		C.GoString(nextPage),
 		int(errorCode),
 	)
@@ -997,18 +905,15 @@ func cgo_RtmEventHandlerBridge_onGetOnlineUsersResult(handler *C.struct_C_IRtmEv
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	goUserState := CUserStateToUserState(userStateList)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnGetOnlineUsersResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnGetOnlineUsersResult, client值为nil\n")
 		return
 	}
+	goUserState := copyUserStates(userStateList, count)
 
 	client.handler.OnGetOnlineUsersResult(
 		uint64(requestId),
 		goUserState,
-		uint(count),
 		C.GoString(nextPage),
 		int(errorCode),
 	)
@@ -1022,18 +927,15 @@ func cgo_RtmEventHandlerBridge_onWhereNowResult(handler *C.struct_C_IRtmEventHan
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	goChannelInfo := CChannelInfoToChannelInfo(channels)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnWhereNowResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnWhereNowResult, client值为nil\n")
 		return
 	}
+	goChannelInfo := copyChannelInfos(channels, count)
 
 	client.handler.OnWhereNowResult(
 		uint64(requestId),
 		goChannelInfo,
-		uint(count),
 		int(errorCode),
 	)
 }
@@ -1046,18 +948,15 @@ func cgo_RtmEventHandlerBridge_onGetUserChannelsResult(handler *C.struct_C_IRtmE
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	goChannelInfo := CChannelInfoToChannelInfo(channels)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnGetUserChannelsResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnGetUserChannelsResult, client值为nil\n")
 		return
 	}
+	goChannelInfo := copyChannelInfos(channels, count)
 
 	client.handler.OnGetUserChannelsResult(
 		uint64(requestId),
 		goChannelInfo,
-		uint(count),
 		int(errorCode),
 	)
 }
@@ -1070,10 +969,8 @@ func cgo_RtmEventHandlerBridge_onPresenceSetStateResult(handler *C.struct_C_IRtm
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnPresenceSetStateResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnPresenceSetStateResult, client值为nil\n")
 		return
 	}
 
@@ -1091,10 +988,8 @@ func cgo_RtmEventHandlerBridge_onPresenceRemoveStateResult(handler *C.struct_C_I
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnPresenceRemoveStateResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnPresenceRemoveStateResult, client值为nil\n")
 		return
 	}
 
@@ -1112,13 +1007,11 @@ func cgo_RtmEventHandlerBridge_onPresenceGetStateResult(handler *C.struct_C_IRtm
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	goUserState := CUserStateToUserState(state)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnPresenceGetStateResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnPresenceGetStateResult, client值为nil\n")
 		return
 	}
+	goUserState := CUserStateToUserState(state)
 
 	client.handler.OnPresenceGetStateResult(
 		uint64(requestId),
@@ -1137,15 +1030,11 @@ func cgo_RtmEventHandlerBridge_onLinkStateEvent(handler *C.struct_C_IRtmEventHan
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	goLinkStateEvent := CLinkStateEventToLinkStateEvent(event)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnLinkStateEvent == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnLinkStateEvent, client值为nil\n")
 		return
 	}
-
-	//fmt.Printf("[DEBUG] 调用Go事件处理器OnLinkStateEvent, client值: %v\n", client)
+	goLinkStateEvent := CLinkStateEventToLinkStateEvent(event)
 	client.handler.OnLinkStateEvent(
 		goLinkStateEvent,
 	)
@@ -1159,10 +1048,8 @@ func cgo_RtmEventHandlerBridge_onLogoutResult(handler *C.struct_C_IRtmEventHandl
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnLogoutResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnLogoutResult, client值为nil\n")
 		return
 	}
 
@@ -1180,10 +1067,8 @@ func cgo_RtmEventHandlerBridge_onRenewTokenResult(handler *C.struct_C_IRtmEventH
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnRenewTokenResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnRenewTokenResult, client值为nil\n")
 		return
 	}
 
@@ -1203,10 +1088,8 @@ func cgo_RtmEventHandlerBridge_onPublishTopicMessageResult(handler *C.struct_C_I
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnPublishTopicMessageResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnPublishTopicMessageResult, client值为nil\n")
 		return
 	}
 
@@ -1226,10 +1109,8 @@ func cgo_RtmEventHandlerBridge_onUnsubscribeTopicResult(handler *C.struct_C_IRtm
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnUnsubscribeTopicResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnUnsubscribeTopicResult, client值为nil\n")
 		return
 	}
 
@@ -1249,10 +1130,8 @@ func cgo_RtmEventHandlerBridge_onGetSubscribedUserListResult(handler *C.struct_C
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnGetSubscribedUserListResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnGetSubscribedUserListResult, client值为nil\n")
 		return
 	}
 
@@ -1275,20 +1154,12 @@ func cgo_RtmEventHandlerBridge_onGetHistoryMessagesResult(handler *C.struct_C_IR
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnGetHistoryMessagesResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnGetHistoryMessagesResult, client值为nil\n")
 		return
 	}
 
-	messages := make([]HistoryMessage, count)
-	if count > 0 {
-		cMessages := unsafe.Slice(messageList, count)
-		for i := range messages {
-			messages[i] = *CHistoryMessageToHistoryMessage(&cMessages[i])
-		}
-	}
+	messages := copyHistoryMessages(messageList, count)
 
 	client.handler.OnGetHistoryMessagesResult(
 		uint64(requestId),
@@ -1306,10 +1177,8 @@ func cgo_RtmEventHandlerBridge_onUnsubscribeUserMetadataResult(handler *C.struct
 		return
 	}
 
-	client := (*IRtmClient)(handler.userData)
-	// 判断client是否为nil
+	client := lookupRtmClient(handler)
 	if client == nil || client.handler == nil || client.handler.OnUnsubscribeUserMetadataResult == nil {
-		//fmt.Printf("[DEBUG] 调用Go事件处理器OnUnsubscribeUserMetadataResult, client值为nil\n")
 		return
 	}
 
@@ -1318,4 +1187,41 @@ func cgo_RtmEventHandlerBridge_onUnsubscribeUserMetadataResult(handler *C.struct
 		C.GoString(userId),
 		int(errorCode),
 	)
+}
+
+//export cgo_RtmEventHandlerBridge_onUnsubscribeResult
+func cgo_RtmEventHandlerBridge_onUnsubscribeResult(handler *C.struct_C_IRtmEventHandler,
+	requestId C.uint64_t, channelName *C.char, errorCode C.enum_C_RTM_ERROR_CODE) {
+
+	if handler == nil {
+		return
+	}
+
+	client := lookupRtmClient(handler)
+	if client == nil || client.handler == nil || client.handler.OnUnsubscribeResult == nil {
+		return
+	}
+
+	client.handler.OnUnsubscribeResult(
+		uint64(requestId),
+		C.GoString(channelName),
+		int(errorCode),
+	)
+}
+
+// TokenEvent describes token expiry and affected message channels in SDK 2.6.5.
+type TokenEvent struct {
+	EventType       int
+	Reason          string
+	MessageChannels []string
+	Timestamp       uint64
+}
+
+//export cgo_RtmEventHandlerBridge_onTokenEvent
+func cgo_RtmEventHandlerBridge_onTokenEvent(handler *C.struct_C_IRtmEventHandler, event *C.struct_C_TokenEvent) {
+	client := lookupRtmClient(handler)
+	if client == nil || client.handler == nil || client.handler.OnTokenEvent == nil || event == nil {
+		return
+	}
+	client.handler.OnTokenEvent(&TokenEvent{EventType: int(event.eventType), Reason: C.GoString(event.reason), MessageChannels: copyStrings(event.affectedResources.messageChannels.channels, event.affectedResources.messageChannels.channelCount), Timestamp: uint64(event.timestamp)})
 }
