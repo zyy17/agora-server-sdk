@@ -75,37 +75,8 @@ func duplex(parent context.Context, session *sdk.Session, duration time.Duration
 		}
 		log.Printf("dropped: audio=%d events=%d", session.Audio().Stats().Dropped, session.Events().Stats().Dropped)
 	}()
-	start(func() error {
-		frames, bytes := 0, 0
-		defer func() { log.Printf("received frames=%d bytes=%d", frames, bytes) }()
-		for {
-			frame, e := session.Audio().Next(ctx)
-			if e != nil {
-				return e
-			}
-			if frame.SampleRate != 16000 || frame.Channels != 1 {
-				return fmt.Errorf("unexpected received format: %d Hz, %d channels", frame.SampleRate, frame.Channels)
-			}
-			frames++
-			bytes += len(frame.Data)
-		}
-	})
-	start(func() error {
-		for {
-			event, e := session.Events().Next(ctx)
-			if e != nil {
-				return e
-			}
-			switch event.Kind {
-			case sdk.TokenExpiring:
-				log.Print("RTC token expiring: obtain a new numeric-UID token from your server and call RenewToken")
-			case sdk.TokenExpired, sdk.ConnectionFailed, sdk.ConnectionLost, sdk.Disconnected:
-				return fmt.Errorf("RTC event %s: reason=%d", event.Kind, event.Reason)
-			case sdk.SDKError:
-				return fmt.Errorf("RTC error %d: %s", event.Code, event.Message)
-			}
-		}
-	})
+	start(func() error { return receiveMonoAudio(ctx, session) })
+	start(func() error { return receiveEvents(ctx, session) })
 	if err := streamTone(ctx, duration, pts, session.SendPCMAt, waitContext); err != nil {
 		return err
 	}
@@ -116,4 +87,37 @@ func duplex(parent context.Context, session *sdk.Session, duration time.Duration
 		return err
 	}
 	return nil
+}
+
+func receiveMonoAudio(ctx context.Context, session *sdk.Session) error {
+	frames, bytes := 0, 0
+	defer func() { log.Printf("received frames=%d bytes=%d", frames, bytes) }()
+	for {
+		frame, e := session.Audio().Next(ctx)
+		if e != nil {
+			return e
+		}
+		if frame.SampleRate != 16000 || frame.Channels != 1 {
+			return fmt.Errorf("unexpected received format: %d Hz, %d channels", frame.SampleRate, frame.Channels)
+		}
+		frames++
+		bytes += len(frame.Data)
+	}
+}
+
+func receiveEvents(ctx context.Context, session *sdk.Session) error {
+	for {
+		event, e := session.Events().Next(ctx)
+		if e != nil {
+			return e
+		}
+		switch event.Kind {
+		case sdk.TokenExpiring:
+			log.Print("RTC token expiring: obtain a new numeric-UID token from your server and call RenewToken")
+		case sdk.TokenExpired, sdk.ConnectionFailed, sdk.ConnectionLost, sdk.Disconnected:
+			return fmt.Errorf("RTC event %s: reason=%d", event.Kind, event.Reason)
+		case sdk.SDKError:
+			return fmt.Errorf("RTC error %d: %s", event.Code, event.Message)
+		}
+	}
 }

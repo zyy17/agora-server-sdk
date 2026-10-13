@@ -35,53 +35,69 @@ func run() (err error) {
 	}
 	ctx, stop := example.Context()
 	defer stop()
-	frames, leftBytes, rightBytes := 0, 0, 0
 	if *channels == 1 {
-		detector := rtc.NewAudioVad(nil)
-		if detector == nil {
-			return errors.New("cannot initialize standalone VAD; check installed native libraries")
-		}
-		defer detector.Release()
-		lastState := -1
-		err = processFrames(ctx, reader, 1, func(frame *rtc.AudioFrame) error {
-			output, state := detector.ProcessPcmFrame(frame)
-			if state < 0 {
-				return fmt.Errorf("mono VAD failed: %d", state)
-			}
-			frames++
-			leftBytes += outputBytes(output)
-			if state != lastState {
-				log.Printf("frame=%d state=%d", frames, state)
-				lastState = state
-			}
-			return nil
-		})
-	} else {
-		// NewSteroVad is the compatibility API spelling. Each channel has its
-		// own detector and can produce different speech boundaries and lengths.
-		detector := rtc.NewSteroVad(nil, nil)
-		if detector == nil {
-			return errors.New("cannot initialize stereo VAD; check installed native libraries")
-		}
-		defer detector.Release()
-		lastLeft, lastRight := -1, -1
-		err = processFrames(ctx, reader, 2, func(frame *rtc.AudioFrame) error {
-			left, leftState, right, rightState := detector.ProcessAudioFrame(frame)
-			if leftState < 0 || rightState < 0 {
-				return fmt.Errorf("stereo VAD failed: left=%d right=%d", leftState, rightState)
-			}
-			frames++
-			leftBytes += outputBytes(left)
-			rightBytes += outputBytes(right)
-			if leftState != lastLeft || rightState != lastRight {
-				log.Printf("frame=%d left_state=%d right_state=%d", frames, leftState, rightState)
-				lastLeft, lastRight = leftState, rightState
-			}
-			return nil
-		})
+		return processMono(ctx, reader)
 	}
-	log.Printf("input_frames=%d returned_mono_bytes=%d returned_right_bytes=%d", frames, leftBytes, rightBytes)
-	return err
+	return processStereo(ctx, reader)
+}
+
+type vadStats struct {
+	frames, leftBytes, rightBytes int
+}
+
+func (s *vadStats) log() {
+	log.Printf("input_frames=%d returned_mono_bytes=%d returned_right_bytes=%d", s.frames, s.leftBytes, s.rightBytes)
+}
+
+func processMono(ctx context.Context, reader io.Reader) error {
+	detector := rtc.NewAudioVad(nil)
+	if detector == nil {
+		return errors.New("cannot initialize standalone VAD; check installed native libraries")
+	}
+	defer detector.Release()
+	var stats vadStats
+	defer stats.log()
+	lastState := -1
+	return processFrames(ctx, reader, 1, func(frame *rtc.AudioFrame) error {
+		output, state := detector.ProcessPcmFrame(frame)
+		if state < 0 {
+			return fmt.Errorf("mono VAD failed: %d", state)
+		}
+		stats.frames++
+		stats.leftBytes += outputBytes(output)
+		if state != lastState {
+			log.Printf("frame=%d state=%d", stats.frames, state)
+			lastState = state
+		}
+		return nil
+	})
+}
+
+func processStereo(ctx context.Context, reader io.Reader) error {
+	// NewSteroVad is the compatibility API spelling. Each channel has its
+	// own detector and can produce different speech boundaries and lengths.
+	detector := rtc.NewSteroVad(nil, nil)
+	if detector == nil {
+		return errors.New("cannot initialize stereo VAD; check installed native libraries")
+	}
+	defer detector.Release()
+	var stats vadStats
+	defer stats.log()
+	lastLeft, lastRight := -1, -1
+	return processFrames(ctx, reader, 2, func(frame *rtc.AudioFrame) error {
+		left, leftState, right, rightState := detector.ProcessAudioFrame(frame)
+		if leftState < 0 || rightState < 0 {
+			return fmt.Errorf("stereo VAD failed: left=%d right=%d", leftState, rightState)
+		}
+		stats.frames++
+		stats.leftBytes += outputBytes(left)
+		stats.rightBytes += outputBytes(right)
+		if leftState != lastLeft || rightState != lastRight {
+			log.Printf("frame=%d left_state=%d right_state=%d", stats.frames, leftState, rightState)
+			lastLeft, lastRight = leftState, rightState
+		}
+		return nil
+	})
 }
 
 func outputBytes(frame *rtc.AudioFrame) int {

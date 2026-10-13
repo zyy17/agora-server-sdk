@@ -12,6 +12,7 @@ import (
 )
 
 func main() { example.Main(run) }
+
 func run() (err error) {
 	input := flag.String("input", "examples/testdata/send_audio_16k_1ch.pcm", "PCM16LE 16 kHz mono")
 	output := flag.String("output", "processed.pcm", "output file")
@@ -43,6 +44,10 @@ func run() (err error) {
 	defer out.Close()
 	ctx, stop := example.Context()
 	defer stop()
+	return processAudio(ctx, processor, in, out)
+}
+
+func processAudio(ctx context.Context, processor *sdk.AudioProcessor, input io.Reader, output io.Writer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	result := make(chan error, 1)
@@ -50,23 +55,42 @@ func run() (err error) {
 	defer func() { cancel(); <-done }()
 	go func() {
 		defer close(done)
-		for {
-			frame, err := processor.Output().Next(ctx)
-			if err != nil {
-				result <- err
-				return
-			}
-			if _, err := out.Write(frame.Data); err != nil {
-				result <- err
-				return
-			}
-		}
+		result <- writeProcessedAudio(ctx, processor, output)
 	}()
+	if err := feedProcessor(ctx, processor, input, result); err != nil {
+		return err
+	}
+	timer := time.NewTimer(300 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case err := <-result:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+	}
+	cancel()
+	return <-result
+}
+
+func writeProcessedAudio(ctx context.Context, processor *sdk.AudioProcessor, output io.Writer) error {
+	for {
+		frame, err := processor.Output().Next(ctx)
+		if err != nil {
+			return err
+		}
+		if _, err := output.Write(frame.Data); err != nil {
+			return err
+		}
+	}
+}
+
+func feedProcessor(ctx context.Context, processor *sdk.AudioProcessor, input io.Reader, result <-chan error) error {
 	buf := make([]byte, 320)
 	tick := time.NewTicker(10 * time.Millisecond)
 	defer tick.Stop()
 	for {
-		n, err := io.ReadFull(in, buf)
+		n, err := io.ReadFull(input, buf)
 		if errors.Is(err, io.EOF) {
 			break
 		}
@@ -86,15 +110,5 @@ func run() (err error) {
 		case <-tick.C:
 		}
 	}
-	timer := time.NewTimer(300 * time.Millisecond)
-	defer timer.Stop()
-	select {
-	case err := <-result:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-	}
-	cancel()
-	return <-result
+	return nil
 }

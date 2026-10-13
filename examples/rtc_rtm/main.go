@@ -71,6 +71,13 @@ func run() (err error) {
 		return err
 	}
 	log.Printf("RTC UID=%s channel=%s; RTM user=%s channel=%s", session.Info().UserID, channel.Channel, rtmUser, *rtmChannel)
+	if err := sendNotifications(ctx, session, client, *rtmChannel); err != nil {
+		return err
+	}
+	return waitForNotifications(ctx, *listen)
+}
+
+func sendNotifications(ctx context.Context, session *sdk.Session, client *messaging.Client, channel string) error {
 	// Arbitrary bytes, including NUL and non-UTF-8: no application protocol.
 	payload := []byte{0x00, 0x01, 0x02, 0xff}
 	if err := session.SendMessage(payload); err != nil {
@@ -84,7 +91,7 @@ func run() (err error) {
 	if err := session.SendAudioMetadata(payload); err != nil {
 		return err
 	}
-	if err := client.Publish(ctx, *rtmChannel, payload, messaging.PublishOptions{Text: false}); err != nil {
+	if err := client.Publish(ctx, channel, payload, messaging.PublishOptions{Text: false}); err != nil {
 		return err
 	}
 	if err := session.PlayPCM(ctx, bytes.NewReader(make([]byte, 16000*2))); err != nil {
@@ -95,7 +102,11 @@ func run() (err error) {
 	if err := session.WaitPCM(finish); err != nil {
 		return err
 	}
-	timer := time.NewTimer(*listen)
+	return nil
+}
+
+func waitForNotifications(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
 	defer timer.Stop()
 	select {
 	case <-ctx.Done():
@@ -111,18 +122,7 @@ func observe(session *sdk.Session, client *messaging.Client) func() {
 		workers.Add(1)
 		go func() { defer workers.Done(); fn() }()
 	}
-	start(func() {
-		drain(session.Events().Next, func(event sdk.Event) {
-			switch event.Kind {
-			case sdk.AudioMetadata:
-				log.Printf("RTC audio metadata user=%s data=%x", event.UserID, event.Data)
-			case sdk.TokenExpiring, sdk.TokenExpired:
-				log.Print("renew RTC with a numeric-UID RTC token through Session.RenewToken")
-			case sdk.SDKError, sdk.ConnectionFailed:
-				log.Printf("RTC event=%s code=%d message=%s", event.Kind, event.Code, event.Message)
-			}
-		})
-	})
+	start(func() { drain(session.Events().Next, logRTCEvent) })
 	start(func() {
 		drain(session.Messages().Next, func(message sdk.Message) {
 			log.Printf("RTC data user=%s data=%x", message.UserID, message.Data)
@@ -130,17 +130,32 @@ func observe(session *sdk.Session, client *messaging.Client) func() {
 	})
 	start(func() {
 		for event := range client.Events() {
-			switch event.Kind {
-			case messaging.EventMessage:
-				if event.Message != nil {
-					log.Printf("RTM message user=%s type=%d data=%x", event.Message.Publisher, event.Message.Type, event.Message.Data)
-				}
-			case messaging.EventToken, messaging.EventTokenExpiring:
-				log.Print("renew RTM with an RTM user token through Client.RenewToken")
-			}
+			logRTMEvent(event)
 		}
 	})
 	return workers.Wait
+}
+
+func logRTCEvent(event sdk.Event) {
+	switch event.Kind {
+	case sdk.AudioMetadata:
+		log.Printf("RTC audio metadata user=%s data=%x", event.UserID, event.Data)
+	case sdk.TokenExpiring, sdk.TokenExpired:
+		log.Print("renew RTC with a numeric-UID RTC token through Session.RenewToken")
+	case sdk.SDKError, sdk.ConnectionFailed:
+		log.Printf("RTC event=%s code=%d message=%s", event.Kind, event.Code, event.Message)
+	}
+}
+
+func logRTMEvent(event messaging.Event) {
+	switch event.Kind {
+	case messaging.EventMessage:
+		if event.Message != nil {
+			log.Printf("RTM message user=%s type=%d data=%x", event.Message.Publisher, event.Message.Type, event.Message.Data)
+		}
+	case messaging.EventToken, messaging.EventTokenExpiring:
+		log.Print("renew RTM with an RTM user token through Client.RenewToken")
+	}
 }
 
 // Close owns termination for these read-only consumers. Callers must close all
