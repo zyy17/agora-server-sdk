@@ -31,9 +31,9 @@ The pinned Go sender does not marshal texture/EGL/CVPixelBuffer/D3D handles. Tho
 
 ## Track controls
 
-`SetAudioEnabled` / `SetVideoEnabled` toggle an existing track without publishing or unpublishing it. `SetAudioPublishVolume`, `SetAudioSendDelay`, `SetAudioBufferCapacity` and `ClearAudioBuffer` expose the connection-owned audio track. Calls share Session's lifecycle lock; missing native tracks return errors.
+`SetAudioEnabled` and `SetVideoEnabled` toggle tracks without changing publication state. Audio enabled state, publish volume, send delay and buffer capacity are retained across scenario changes and track replacement. Configured audience sessions store these audio settings until promotion; native validation may fail at promotion. `SetVideoEnabled` requires an existing video track, and `ClearAudioBuffer` requires an existing audio track. Calls share Session's lifecycle lock.
 
-Delay is a duration truncated to milliseconds. Buffer capacity counts 10 ms frames. Enabled/delay/capacity native setters are void, so success confirms invocation only. Clearing only affects the local native queue. Stop producers first; received audio cannot be recalled. `InterruptAudio` retains its distinct AI-server unpublish/republish behavior.
+Delay is a duration truncated to milliseconds. Buffer capacity counts 10 ms frames. Enabled/delay/capacity native setters are void, so success confirms local storage or native invocation, not peer acknowledgement. Clearing only affects the local native queue. Stop producers first; received audio cannot be recalled. `InterruptAudio` retains its distinct AI-server unpublish/republish behavior.
 
 ## Processing and voice activity
 

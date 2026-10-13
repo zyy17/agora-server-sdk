@@ -16,8 +16,9 @@ func (s *Session) SetAudioEnabled(enabled bool) error {
 	return s.withNative("set audio enabled", func(c *rtc.RtcConnection) int { return c.SetAudioTrackEnabled(enabled) })
 }
 
-// SetVideoEnabled is the video counterpart of SetAudioEnabled. It does not alter
-// publication state and success is not a peer-rendering acknowledgement.
+// SetVideoEnabled toggles an existing video track without changing publication
+// state. Unlike SetAudioEnabled, it does not defer settings for a missing track.
+// Success is not a peer-rendering acknowledgement.
 func (s *Session) SetVideoEnabled(enabled bool) error {
 	return s.withNative("set video enabled", func(c *rtc.RtcConnection) int { return c.SetVideoTrackEnabled(enabled) })
 }

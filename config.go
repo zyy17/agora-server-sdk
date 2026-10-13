@@ -108,9 +108,11 @@ type VideoMode uint8
 const (
 	// NoVideo disables video publication. It is the default.
 	NoVideo VideoMode = iota
-	// RawVideo publishes tightly packed CPU pixels through Session.SendVideo.
+	// RawVideo publishes CPU pixels through Session.SendVideo (compact layouts)
+	// or Session.SendCPUVideo (explicit stride, crop and pixel format).
 	RawVideo
-	// EncodedVideo publishes H.264 or H.265 packets through Session.SendEncodedVideo.
+	// EncodedVideo publishes encoded packets through Session.SendEncodedVideo.
+	// Codec availability depends on the installed native SDK and receiving peers.
 	EncodedVideo
 )
 
@@ -143,14 +145,15 @@ func (s AudioScenario) native() rtc.AudioScenario {
 }
 
 // PCMFormat describes signed interleaved little-endian PCM16.
-// SampleRate is in Hz and must be 8000, 16000, 32000, 44100, or 48000;
-// Channels must be 1 or 2. Zero fields select 16000 Hz and mono independently.
+// Session audio accepts 8000, 16000, 32000, 44100, or 48000 Hz and one or two
+// channels. Its zero fields select 16000 Hz and mono independently. Processor
+// and decoder APIs document their own supported formats and default rules.
 // Sending and receiving use separate formats; no implicit resampling is performed
 // by the Go wrapper.
 type PCMFormat struct {
-	// SampleRate is the sampling frequency in Hz; zero selects 16000.
+	// SampleRate is the sampling frequency in Hz; Session audio defaults to 16000.
 	SampleRate int
-	// Channels is 1 for mono or 2 for interleaved stereo; zero selects mono.
+	// Channels is 1 for mono or 2 for interleaved stereo; Session audio defaults to mono.
 	Channels int
 }
 

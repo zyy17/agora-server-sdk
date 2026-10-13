@@ -31,9 +31,9 @@ Stride 单位是像素，不是字节。Data 包含全部填充行，裁剪不�
 
 ## 轨道控制
 
-`SetAudioEnabled` / `SetVideoEnabled` 仅开关已有轨道，不发布或取消发布。`SetAudioPublishVolume`、`SetAudioSendDelay`、`SetAudioBufferCapacity`、`ClearAudioBuffer` 操作连接拥有的音轨，与 Session 生命周期共用操作锁；轨道不存在时返回错误。
+`SetAudioEnabled` / `SetVideoEnabled` 开关轨道，不改变发布状态。音频开关、发布音量、发送延时和缓冲容量会在场景切换及轨道重建后保留。已配置音频的观众会话先保存设置，升为主播时应用；原生校验可能在升为主播时失败。`SetVideoEnabled` 要求已有视频轨道，`ClearAudioBuffer` 要求已有音频轨道。所有调用与 Session 生命周期共用操作锁。
 
-Delay 按整数毫秒截断；缓冲容量以 10 ms 帧计。开关、延时和容量的原生 setter 没有返回值，成功仅表示已调用。清空只作用于本地原生队列，建议先停止生产者，无法撤回已送达对端的音频。`InterruptAudio` 保留 AI-server 场景取消发布再重新发布的不同语义。
+Delay 按整数毫秒截断；缓冲容量以 10 ms 帧计。开关、延时和容量的原生 setter 没有返回值，成功仅表示已保存设置或调用原生接口，不代表对端确认。清空只作用于本地原生队列，建议先停止生产者，无法撤回已送达对端的音频。`InterruptAudio` 保留 AI-server 场景取消发布再重新发布的不同语义。
 
 ## 处理器与语音活动
 
