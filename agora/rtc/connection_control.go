@@ -1,5 +1,7 @@
 package agoraservice
 
+import "fmt"
+
 // preparePublishTracks lazily creates the configured tracks when an audience
 // becomes a broadcaster. The caller serializes lifecycle changes with Release.
 func (conn *RtcConnection) preparePublishTracks() int {
@@ -100,4 +102,12 @@ func (conn *RtcConnection) GetPublicationState() (audio, video bool) {
 		return false, false
 	}
 	return conn.localUser.publishFlag, conn.localUser.videoPublishFlag
+}
+
+func configureExtraSendFrameSpeed(params *SendExternalAudioParameters, setParameters func(string) int) int {
+	if params == nil || !params.Enabled || params.SendMs <= 0 || params.SendSpeed <= 1 {
+		return -2001
+	}
+	speed := min(params.SendSpeed, 5)
+	return setParameters(fmt.Sprintf(`{"che.audio.extra_send_frames_per_interval_for_fake_adm":%d}`, speed))
 }

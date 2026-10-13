@@ -540,7 +540,12 @@ func NewRtcConnection(cfg *RtcConnectionConfig, publishConfig *RtcConnectionPubl
 		return nil
 	}
 
-	conn.setExtraSendFrameSpeed(publishConfig.SendExternalAudioParameters)
+	if params := publishConfig.SendExternalAudioParameters; params != nil && params.Enabled {
+		if code := conn.setExtraSendFrameSpeed(params); code != 0 {
+			conn.Release()
+			return nil
+		}
+	}
 	fmt.Printf("______auto create data stream, id: %d\n", conn.dataStreamId)
 	return conn
 }
@@ -1666,23 +1671,9 @@ func (conn *RtcConnection) setExtraSendFrameSpeed(sendExternalAudioParameters *S
 	if conn == nil || conn.cConnection == nil || conn.localUser == nil || conn.localUser.cLocalUser == nil {
 		return -2000
 	}
-	if sendExternalAudioParameters == nil || sendExternalAudioParameters.Enabled == false || sendExternalAudioParameters.SendMs <= 0 || sendExternalAudioParameters.SendSpeed <= 1 {
-		return -2001
+	if code := configureExtraSendFrameSpeed(sendExternalAudioParameters, conn.GetAgoraParameter().SetParameters); code != 0 {
+		return code
 	}
-
-	// check the parameters
-	speed := sendExternalAudioParameters.SendSpeed
-
-	if speed > 5 {
-		speed = 5
-	}
-	if speed < 1 {
-		speed = 1
-	}
-
-	// set the parameters to the connection
-	params := fmt.Sprintf("{\"che.audio.extra_send_frames_per_interval_for_fake_adm\": %d", speed)
-	conn.GetAgoraParameter().SetParameters(params)
 
 	// deliver mute data for fake adm: can only effect at service level, no effect for connection level
 	setDeliverMuteData(sendExternalAudioParameters.DeliverMuteDataForFakeAdm)
