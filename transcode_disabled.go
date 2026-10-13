@@ -2,6 +2,8 @@
 
 package agorasdk
 
+const avcodecAvailable = false
+
 // TranscodeVideo always returns ErrUnsupported in builds without avcodec.
 // With that tag and FFmpeg development libraries, it asynchronously decodes
 // H.264/H.265 into a Broadcaster RawVideo track. Worker acceptance does not

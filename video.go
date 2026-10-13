@@ -1,12 +1,14 @@
 package agorasdk
 
 import (
+	"math"
 	"slices"
 
 	rtc "github.com/zyy17/agora-server-sdk/agora/rtc"
 )
 
-// PixelFormat identifies a tightly packed CPU pixel layout accepted by SendVideo.
+// PixelFormat identifies a CPU pixel layout accepted by the native sender.
+// A named format is not a guarantee of encoder support in every native build.
 type PixelFormat int
 
 const (
@@ -14,16 +16,35 @@ const (
 	I420 PixelFormat = PixelFormat(rtc.VideoPixelI420)
 	// NV12 is 8-bit YUV 4:2:0 with a Y plane followed by interleaved UV.
 	NV12 PixelFormat = PixelFormat(rtc.VideoPixelNV12)
+	// NV21 is 8-bit YUV 4:2:0 with a Y plane followed by interleaved VU.
+	NV21 PixelFormat = PixelFormat(rtc.VideoPixelNV21)
+	// I422 is planar 8-bit YUV 4:2:2 with Y, U, and V planes.
+	I422 PixelFormat = PixelFormat(rtc.VideoPixelI422)
+	// I010 is planar 10-bit YUV 4:2:0 in little-endian 16-bit samples (native preview).
+	I010 PixelFormat = PixelFormat(rtc.VideoPixelI010)
 	// RGBA is packed 8-bit red, green, blue, and alpha in that byte order.
 	RGBA PixelFormat = PixelFormat(rtc.VideoPixelRGBA)
 	// BGRA is packed 8-bit blue, green, red, and alpha in that byte order.
 	BGRA PixelFormat = PixelFormat(rtc.VideoPixelBGRA)
 )
 
-// VideoCodec identifies a native encoded-video codec accepted by this wrapper.
+// VideoCodec identifies a native encoded-video payload. Support for transport,
+// decoding, and encoding varies with the installed native SDK and peer.
 type VideoCodec int
 
 const (
+	// VP8 identifies VP8 video.
+	VP8 VideoCodec = VideoCodec(rtc.VideoCodecTypeVp8)
+	// VP9 identifies VP9 video.
+	VP9 VideoCodec = VideoCodec(rtc.VideoCodecTypeVp9)
+	// AV1 identifies AV1 video.
+	AV1 VideoCodec = VideoCodec(rtc.VideoCodecTypeAv1)
+	// GenericVideo identifies an application-defined native payload.
+	GenericVideo VideoCodec = VideoCodec(rtc.VideoCodecTypeGeneric)
+	// GenericH264 identifies the native generic-H264 payload.
+	GenericH264 VideoCodec = VideoCodec(rtc.VideoCodecTypeGenericH264)
+	// JPEG identifies the native generic-JPEG payload.
+	JPEG VideoCodec = VideoCodec(rtc.VideoCodecTypeGenericJpeg)
 	// H264 identifies H.264/AVC video.
 	H264 VideoCodec = VideoCodec(rtc.VideoCodecTypeH264)
 	// H265 identifies H.265/HEVC video; native and peer support must be verified.
@@ -31,15 +52,17 @@ const (
 )
 
 // VideoFrame contains tightly packed CPU pixels for SendVideo.
-// Textures, hardware buffers, cropping, and native handles require the raw API.
+// For padded rows, cropping, color space, and alpha extraction use CPUVideoFrame.
+// Texture and hardware handles are not supported by the Go CPU sender.
 // Keep all supplied slices unchanged until the send call returns.
 type VideoFrame struct {
-	// Data holds exactly Width*Height*3/2 bytes for I420/NV12 or
-	// Width*Height*4 bytes for RGBA/BGRA. Row padding is not accepted.
+	// Data holds exactly Width*Height*3/2 bytes for I420/NV12/NV21 or
+	// Width*Height*4 bytes for RGBA/BGRA; I422 uses 2 and I010 uses 3 bytes
+	// per pixel. Row padding is not accepted.
 	Data []byte
-	// Width and Height are pixel dimensions in 1–16384. I420 and NV12 require even dimensions.
+	// Width and Height are pixel dimensions in 1–16384. 4:2:0 requires even dimensions; I422 requires even width.
 	Width, Height int
-	// Format selects I420, NV12, RGBA, or BGRA.
+	// Format selects a supported CPU pixel layout.
 	Format PixelFormat
 	// Rotation is clockwise orientation in degrees: 0, 90, 180, or 270.
 	Rotation int
@@ -55,6 +78,14 @@ type VideoFrame struct {
 // Respect the reported strides; receive planes are not guaranteed to be tightly
 // packed like VideoFrame.Data. The value remains valid after the callback or Close.
 type ReceivedVideoFrame struct {
+	// Type, AVSyncType, and AlphaMode preserve native frame descriptors.
+	Type       rtc.VideoBufferType
+	AVSyncType int
+	AlphaMode  AlphaMode
+	// TextureID and Matrix are copied descriptors only, not owned or usable GPU
+	// resources. The borrowed native shared context is intentionally not exposed.
+	TextureID int
+	Matrix    [16]float32
 	// Channel and UserID identify the remote source.
 	Channel, UserID string
 	// Width and Height are pixel dimensions. YStride, UStride, and VStride are
@@ -68,20 +99,27 @@ type ReceivedVideoFrame struct {
 	TimestampMillis int64
 }
 
-// EncodedVideoFrame describes an H.264 or H.265 encoded frame.
+// EncodedVideoFrame describes one native encoded-video frame.
 // Validation checks metadata bounds but does not parse the bitstream or prove
 // codec compatibility. Keep Data and SEI unchanged during a synchronous send.
 type EncodedVideoFrame struct {
 	// Data contains nonempty encoded video in the framing expected by the native
 	// sender and peers. The Go wrapper does not convert container formats.
 	Data []byte
-	// Codec must be H264 or H265.
+	// Codec selects a known native payload type; native/peer support varies.
 	Codec VideoCodec
 	// Width and Height are in pixels, each 1–16384. FPS is the declared frame
 	// rate in 0–240; zero is forwarded to the native SDK without a wrapper default.
 	Width, Height, FPS int
-	// KeyFrame declares an independently decodable key frame; false declares a delta frame.
-	KeyFrame bool
+	// FrameType preserves the native frame classification. Its zero value is blank.
+	// KeyFrame is a convenience: true overrides a blank/default FrameType only;
+	// combining true with an explicit non-key FrameType is rejected.
+	FrameType VideoFrameType
+	KeyFrame  bool
+	// TrackID is the signed native track identifier. UID is the native numeric
+	// media UID, even when the channel uses string identities.
+	TrackID int
+	UID     uint32
 	// TimestampMillis, DecodeTimestampMillis, and PresentationMillis are native
 	// capture, decode, and presentation timestamps in milliseconds, respectively.
 	// They are forwarded unchanged and are not necessarily Unix timestamps.
@@ -107,7 +145,7 @@ func (s *Session) videoObserver() *rtc.VideoFrameObserver {
 		if f == nil {
 			return
 		}
-		s.video.push(ReceivedVideoFrame{Channel: channel, UserID: uid, Width: f.Width, Height: f.Height, YStride: f.YStride, UStride: f.UStride, VStride: f.VStride, Rotation: int(f.Rotation),
+		s.video.push(ReceivedVideoFrame{Type: f.Type, AVSyncType: f.AVSyncType, AlphaMode: AlphaMode(f.AlphaMode), TextureID: f.TextureID, Matrix: f.Matrix, Channel: channel, UserID: uid, Width: f.Width, Height: f.Height, YStride: f.YStride, UStride: f.UStride, VStride: f.VStride, Rotation: int(f.Rotation),
 			Y: slices.Clone(f.YBuffer), U: slices.Clone(f.UBuffer), V: slices.Clone(f.VBuffer), Metadata: slices.Clone(f.MetadataBuffer), Alpha: slices.Clone(f.AlphaBuffer), TimestampMillis: f.RenderTimeMs})
 	}}
 }
@@ -117,7 +155,7 @@ func (s *Session) encodedVideoObserver() *rtc.VideoEncodedFrameObserver {
 		if i == nil {
 			return true
 		}
-		s.encodedVideo.push(ReceivedEncodedVideo{channel, uid, EncodedVideoFrame{Data: slices.Clone(data), Codec: VideoCodec(i.CodecType), Width: i.Width, Height: i.Height, FPS: i.FramesPerSecond, KeyFrame: i.FrameType == rtc.VideoFrameTypeKeyFrame, TimestampMillis: i.CaptureTimeMs, DecodeTimestampMillis: i.DecodeTimeMs, PresentationMillis: i.PresentTimeMs, Rotation: int(i.Rotation), StreamID: i.StreamType, SEI: slices.Clone(i.SeiData)}})
+		s.encodedVideo.push(ReceivedEncodedVideo{channel, uid, EncodedVideoFrame{Data: slices.Clone(data), Codec: VideoCodec(i.CodecType), Width: i.Width, Height: i.Height, FPS: i.FramesPerSecond, FrameType: VideoFrameType(i.FrameType), KeyFrame: i.FrameType == rtc.VideoFrameTypeKeyFrame, TrackID: i.TrackId, UID: i.Uid, TimestampMillis: i.CaptureTimeMs, DecodeTimestampMillis: i.DecodeTimeMs, PresentationMillis: i.PresentTimeMs, Rotation: int(i.Rotation), StreamID: i.StreamType, SEI: slices.Clone(i.SeiData)}})
 		return true
 	}}
 }
@@ -138,63 +176,25 @@ func validateRotation(rotation int) error {
 	}
 }
 
-func (f VideoFrame) validate() error {
-	if err := validateDimensions(f.Width, f.Height); err != nil {
-		return err
-	}
-	if err := validateRotation(f.Rotation); err != nil {
-		return err
-	}
-	var size int
-	switch f.Format {
-	case I420, NV12:
-		if f.Width%2 != 0 || f.Height%2 != 0 {
-			return invalid("YUV dimensions", "must be even")
-		}
-		size = f.Width * f.Height * 3 / 2
-	case RGBA, BGRA:
-		size = f.Width * f.Height * 4
-	default:
-		return invalid("pixel format", "must be I420, NV12, RGBA, or BGRA")
-	}
-	if len(f.Data) != size {
-		return invalid("video data", "size does not match pixel format and dimensions")
-	}
-	if len(f.Alpha) > 0 && len(f.Alpha) != f.Width*f.Height {
-		return invalid("alpha data", "size must equal width × height")
-	}
-	return nil
+func (f VideoFrame) cpuFrame() CPUVideoFrame {
+	return CPUVideoFrame{Data: f.Data, Stride: f.Width, Height: f.Height, Format: f.Format,
+		Rotation: f.Rotation, TimestampMillis: f.TimestampMillis, Metadata: f.Metadata, Alpha: f.Alpha}
 }
 
-// SendVideo validates and submits tightly packed raw CPU pixels.
+func (f VideoFrame) validate() error { return f.cpuFrame().validate() }
+
+// SendVideo validates and submits compact CPU pixels through SendCPUVideo.
 // It requires Broadcaster and RawVideo publication and publishes on first use.
 // The call does not pace frames; keep all input buffers unchanged until it returns.
 // A nil result means local native acceptance, not delivery or rendering by peers.
-func (s *Session) SendVideo(frame VideoFrame) error {
-	if err := frame.validate(); err != nil {
-		return err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return ErrClosed
-	}
-	if s.cfg.Video.Mode != RawVideo {
-		return ErrNotPublishing
-	}
-	if err := s.publishVideoLocked(); err != nil {
-		return err
-	}
-	native := rtc.ExternalVideoFrame{Type: rtc.VideoBufferRawData, Format: rtc.VideoPixelFormat(frame.Format), Buffer: frame.Data, Stride: frame.Width, Height: frame.Height, Rotation: rtc.VideoOrientation(frame.Rotation), Timestamp: frame.TimestampMillis, MetadataBuffer: frame.Metadata, AlphaBuffer: frame.Alpha}
-	return check("send video", s.native.PushVideoFrame(&native))
-}
+func (s *Session) SendVideo(frame VideoFrame) error { return s.SendCPUVideo(frame.cpuFrame()) }
 
 func (f EncodedVideoFrame) validate() error {
 	if len(f.SEI) > 1024 {
 		return invalid("SEI", "must not exceed 1024 bytes")
 	}
-	if len(f.Data) == 0 {
-		return invalid("encoded video", "must not be empty")
+	if len(f.Data) == 0 || uint64(len(f.Data)) > math.MaxUint32 {
+		return invalid("encoded video", "must contain 1–uint32 bytes")
 	}
 	if err := validateDimensions(f.Width, f.Height); err != nil {
 		return err
@@ -205,18 +205,35 @@ func (f EncodedVideoFrame) validate() error {
 	if f.FPS < 0 || f.FPS > 240 {
 		return invalid("video FPS", "must be between 0 and 240")
 	}
-	if f.Codec != H264 && f.Codec != H265 {
-		return invalid("video codec", "must be H264 or H265")
+	if !validVideoCodec(f.Codec) {
+		return invalid("video codec", "is unknown")
+	}
+	if len(f.SEI) != 0 && f.Codec != H264 && f.Codec != H265 {
+		return invalid("SEI", "insertion supports only H264 and H265")
+	}
+	switch f.FrameType {
+	case VideoFrameBlank, VideoFrameKey, VideoFrameDelta, VideoFrameB, VideoFrameDroppable, VideoFrameUnknown:
+	default:
+		return invalid("video frame type", "is unknown")
+	}
+	if f.KeyFrame && f.FrameType != VideoFrameBlank && f.FrameType != VideoFrameKey {
+		return invalid("video frame type", "conflicts with KeyFrame")
+	}
+	if int64(f.TrackID) < math.MinInt32 || int64(f.TrackID) > math.MaxInt32 {
+		return invalid("video track ID", "must fit native int32")
+	}
+	if int64(f.StreamID) < math.MinInt32 || int64(f.StreamID) > math.MaxInt32 {
+		return invalid("video stream ID", "must fit native int32")
 	}
 	return nil
 }
 
 func (f EncodedVideoFrame) nativeInfo() *rtc.EncodedVideoFrameInfo {
-	kind := rtc.VideoFrameTypeDeltaFrame
+	kind := rtc.VideoFrameType(f.FrameType)
 	if f.KeyFrame {
 		kind = rtc.VideoFrameTypeKeyFrame
 	}
-	return &rtc.EncodedVideoFrameInfo{CodecType: rtc.VideoCodecType(f.Codec), Width: f.Width, Height: f.Height, FramesPerSecond: f.FPS, FrameType: kind, CaptureTimeMs: f.TimestampMillis, DecodeTimeMs: f.DecodeTimestampMillis, PresentTimeMs: f.PresentationMillis, Rotation: rtc.VideoOrientation(f.Rotation), StreamType: f.StreamID, SeiData: f.SEI}
+	return &rtc.EncodedVideoFrameInfo{CodecType: rtc.VideoCodecType(f.Codec), Width: f.Width, Height: f.Height, FramesPerSecond: f.FPS, FrameType: kind, TrackId: f.TrackID, Uid: f.UID, CaptureTimeMs: f.TimestampMillis, DecodeTimeMs: f.DecodeTimestampMillis, PresentTimeMs: f.PresentationMillis, Rotation: rtc.VideoOrientation(f.Rotation), StreamType: f.StreamID, SeiData: f.SEI}
 }
 
 // SendEncodedVideo validates metadata and submits an encoded frame without
@@ -252,14 +269,13 @@ func (s *Session) RequestKeyFrame(userID string) error {
 }
 
 // SetVideoEncoder updates the native video encoder configuration.
-// Width and Height must be 1–16384 pixels and Framerate must be 1–240 frames
-// per second. Remaining fields and applicability are validated by the native SDK.
+// Width/Height may both be zero for native sizing or 1–16384 pixels.
+// Framerate is 0–240, with zero forwarded to the SDK. Bitrates are Kbps;
+// negative native bitrate selectors are preserved when conversion fits int32.
+// A valid enum/configuration is not proof of encoder availability.
 func (s *Session) SetVideoEncoder(cfg rtc.VideoEncoderConfiguration) error {
-	if err := validateDimensions(cfg.Width, cfg.Height); err != nil {
+	if err := validateVideoEncoder(&cfg); err != nil {
 		return err
-	}
-	if cfg.Framerate < 1 || cfg.Framerate > 240 {
-		return invalid("video framerate", "must be 1–240")
 	}
 	return s.withNative("set video encoder", func(c *rtc.RtcConnection) int { return c.SetVideoEncoderConfiguration(&cfg) })
 }
@@ -269,4 +285,61 @@ func (s *Session) SetVideoEncoder(cfg rtc.VideoEncoderConfiguration) error {
 // does not change ReceiveConfig or subscriptions.
 func (s *Session) SetSimulcast(enabled bool, cfg rtc.SimulcastStreamConfig) error {
 	return s.withNative("set simulcast", func(c *rtc.RtcConnection) int { return c.SetSimulcastStream(enabled, &cfg) })
+}
+
+func validVideoCodec(codec VideoCodec) bool {
+	switch codec {
+	case VP8, H264, H265, GenericVideo, GenericH264, AV1, VP9, JPEG:
+		return true
+	default:
+		return false
+	}
+}
+
+func validateVideoEncoder(cfg *rtc.VideoEncoderConfiguration) error {
+	if cfg == nil {
+		return nil
+	}
+	if cfg.Width != 0 || cfg.Height != 0 {
+		if err := validateDimensions(cfg.Width, cfg.Height); err != nil {
+			return err
+		}
+	}
+	if cfg.Framerate < 0 || cfg.Framerate > 240 {
+		return invalid("video framerate", "must be 0–240")
+	}
+	if cfg.CodecType != rtc.VideoCodecTypeNone && !validVideoCodec(VideoCodec(cfg.CodecType)) {
+		return invalid("video encoder codec", "is unknown")
+	}
+	for _, rate := range []int{cfg.Bitrate, cfg.MinBitrate} {
+		if int64(rate) < math.MinInt32/1000 || int64(rate) > math.MaxInt32/1000 {
+			return invalid("video bitrate", "Kbps conversion must fit native int32 bits/sec")
+		}
+	}
+	if cfg.OrientationMode < rtc.OrientationModeAdaptive || cfg.OrientationMode > rtc.OrientationModeFixedPortrait {
+		return invalid("video orientation", "is unknown")
+	}
+	if cfg.DegradePreference < rtc.DegradeMaintainQuality || cfg.DegradePreference > rtc.DegradeMaintainBalanced {
+		return invalid("video degradation preference", "is unknown")
+	}
+	if cfg.MirrorMode < rtc.VideoMirrorModeAuto || cfg.MirrorMode > rtc.VideoMirrorModeDisabled {
+		return invalid("video mirror mode", "is unknown")
+	}
+	return nil
+}
+
+func validateEncodedVideoSender(cfg *rtc.VideoEncodedImageSenderOptions) error {
+	if cfg == nil {
+		return nil
+	}
+	if cfg.CodecType != rtc.VideoCodecTypeNone && !validVideoCodec(VideoCodec(cfg.CodecType)) {
+		return invalid("encoded video sender codec", "is unknown")
+	}
+	if cfg.CcMode != rtc.VideoSendCcEnabled && cfg.CcMode != rtc.VideoSendCcDisabled {
+		return invalid("video congestion control", "is unknown")
+	}
+	if cfg.TargetBitrate < 0 || int64(cfg.TargetBitrate) > math.MaxInt32 {
+		return invalid("video target bitrate", "must fit nonnegative int32 Kbps")
+	}
+	return nil
 }
