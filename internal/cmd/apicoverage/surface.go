@@ -10,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
 // symbol is one public declaration, field, or interface method. Signatures omit
@@ -123,7 +125,7 @@ func declarations(file *ast.File, pkg, path string) []symbol {
 						signature := canonical(valueType)
 						if position < len(values) {
 							value := canonical(values[position])
-							if strings.Contains(value, "iota") {
+							if usesIota(values[position]) {
 								value += fmt.Sprintf(" [iota=%d]", index)
 							}
 							signature += " = " + value
@@ -142,6 +144,11 @@ func canonical(node ast.Node) string {
 		return ""
 	}
 	ast.Inspect(node, func(node ast.Node) bool {
+		if literal, ok := node.(*ast.BasicLit); ok && literal.Kind == token.STRING {
+			if value, err := strconv.Unquote(literal.Value); err == nil {
+				literal.Value = strconv.Quote(value)
+			}
+		}
 		if function, ok := node.(*ast.FuncType); ok {
 			function.Params = anonymous(function.Params)
 			function.Results = anonymous(function.Results)
@@ -152,7 +159,7 @@ func canonical(node ast.Node) string {
 	if err := format.Node(&buffer, token.NewFileSet(), node); err != nil {
 		panic(err)
 	}
-	return strings.Join(strings.Fields(buffer.String()), " ")
+	return compactWhitespace(buffer.String())
 }
 
 func anonymous(list *ast.FieldList) *ast.FieldList {
@@ -176,4 +183,49 @@ func sortedSymbols(symbols map[string]symbol) []symbol {
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].key() < result[j].key() })
 	return result
+}
+
+// compactWhitespace keeps signatures on one line without changing string/rune
+// literal contents. Raw strings have already been converted to quoted strings.
+func compactWhitespace(source string) string {
+	var result strings.Builder
+	var quote rune
+	escaped, space := false, false
+	for _, char := range source {
+		if quote != 0 {
+			result.WriteRune(char)
+			if escaped {
+				escaped = false
+			} else if char == '\\' {
+				escaped = true
+			} else if char == quote {
+				quote = 0
+			}
+			continue
+		}
+		if unicode.IsSpace(char) {
+			space = result.Len() > 0
+			continue
+		}
+		if space {
+			result.WriteByte(' ')
+			space = false
+		}
+		if char == '"' || char == '\'' {
+			quote = char
+		}
+		result.WriteRune(char)
+	}
+	return result.String()
+}
+
+func usesIota(expression ast.Expr) bool {
+	found := false
+	ast.Inspect(expression, func(node ast.Node) bool {
+		if name, ok := node.(*ast.Ident); ok && name.Name == "iota" {
+			found = true
+		}
+		return true
+	})
+	return found
 }

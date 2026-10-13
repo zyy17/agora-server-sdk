@@ -111,6 +111,8 @@ func checkEvidence(baseline reference, current map[string]symbol, policy policy)
 		}
 		if !exists {
 			problem("missing official declaration: %s", original.key())
+		} else if strings.HasSuffix(actual.File, "_test.go") {
+			problem("official declaration exists only in a test: %s", original.key())
 		} else if actual.Signature != expected {
 			problem("signature drift %s\n  expected: %s\n  actual:   %s", original.key(), expected, actual.Signature)
 		}
@@ -142,7 +144,7 @@ func checkEvidence(baseline reference, current map[string]symbol, policy policy)
 			problem("%s needs a public entry point", item.ID)
 		}
 		for _, ref := range item.API {
-			if _, exists := current[ref]; !exists {
+			if actual, exists := current[ref]; !exists || strings.HasSuffix(actual.File, "_test.go") {
 				problem("%s public entry point missing: %s", item.ID, ref)
 			}
 		}

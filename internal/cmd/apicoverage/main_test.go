@@ -83,6 +83,7 @@ func TestEvidenceRejectsUnreviewedDrift(t *testing.T) {
 		mutate func(map[string]symbol, *policy)
 	}{
 		{"missing API", func(m map[string]symbol, _ *policy) { delete(m, key) }},
+		{"test-only API", func(m map[string]symbol, _ *policy) { s := m[key]; s.File = "fixture_test.go"; m[key] = s }},
 		{"callback result", func(m map[string]symbol, _ *policy) { s := m[key]; s.Signature = "func([]byte)"; m[key] = s }},
 		{"missing test", func(m map[string]symbol, _ *policy) { delete(m, test.key()) }},
 		{"non-test evidence", func(m map[string]symbol, _ *policy) { s := m[test.key()]; s.File = "source.go"; m[test.key()] = s }},
@@ -158,5 +159,18 @@ func TestReferenceProvenanceCannotSilentlyMove(t *testing.T) {
 	}
 	if _, err := readReference(path); err == nil {
 		t.Fatal("silently changed upstream pin was accepted")
+	}
+}
+
+func TestConstantsPreserveStringContents(t *testing.T) {
+	items := parseSurface(t, "package fixture\nconst Spaces = \"a  b\"\nconst Word = \"iota\"\nconst Raw = `a\nb`\n")
+	for name, want := range map[string]string{
+		"Spaces": `= "a  b"`,
+		"Word":   `= "iota"`,
+		"Raw":    `= "a\nb"`,
+	} {
+		if got := items["fixture:const:"+name].Signature; got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
 	}
 }
