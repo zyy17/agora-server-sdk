@@ -31,6 +31,7 @@ make build-examples
 | [recv_pcm](recv_pcm) | 保存逐用户 PCM，无需音频设备 |
 | [loopback](loopback) | 将接收到的 PCM 返回频道，注意避免反馈循环 |
 | [ai_audio](ai_audio) | VAD、打断、音量及 Token/连接事件 |
+| [voice_agent](voice_agent/README.zh-CN.md) | 指定用户的流式语音对话，使用 ElevenLabs STT/TTS 与 OpenAI |
 | [messages](messages) | 收发 RTC 数据流消息 |
 | [multi_sessions](multi_sessions) | 一个 Service 管理多个只接收会话 |
 | [send_media](send_media) | 将本地 MP4 等文件解码为按节奏发送的 PCM 和原始视频，使用共同时间戳基准 |
@@ -71,6 +72,8 @@ make build-examples
 ## 运行与验证
 
 运行频道类 RTC 示例会加入真实频道，并可能发送或录制媒体；`process_audio` 和 `external_vad` 仅在本地处理音频，不入会。请使用专用测试资源，只在取得参与者授权后录制。构建及离线检查通过不代表已完成真实互通验证。RTM 示例可能修改远端状态，运行前先阅读[对应操作说明](messaging/README.zh-CN.md)。`duplex_pcm` 和 `rtc_rtm` 显式启用数值 RTC 身份，需要匹配数值 UID 的 RTC Token；运行前请阅读各自的 README。
+
+`voice_agent` 会把指定用户的音频发送给 ElevenLabs、识别文本发送给 OpenAI，并输出识别日志，可能产生服务商费用；运行前请取得参与者同意，并阅读其[配置、身份及隐私限制](voice_agent/README.zh-CN.md)。
 
 ## 发送媒体文件
 

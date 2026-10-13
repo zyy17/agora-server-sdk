@@ -204,8 +204,9 @@ func rtcEvents(ctx context.Context, session *sdk.Session, peer string) error {
 }
 
 // subscribeIfPresent permits starting the bot before the selected human joins.
-// Identity syntax is already validated; native -2 means this peer is absent.
-// UserJoined will retry. Other failures must remain visible.
+// Native -2 can mean an absent peer or invalid identity. Syntax is already
+// validated here; tolerate -2 only on this initial attempt and retry on
+// UserJoined, where every subscription error remains fatal.
 func subscribeIfPresent(subscribe func(string) error, peer string) error {
 	err := subscribe(peer)
 	var native *sdk.Error

@@ -31,6 +31,7 @@ Run sender and receiver in separate terminals with different `AGORA_USER_ID` val
 | [recv_pcm](recv_pcm) | Save per-user PCM without audio hardware |
 | [loopback](loopback) | Return received PCM to the channel; avoid feedback loops |
 | [ai_audio](ai_audio) | VAD, interruption, volume and token/connection events |
+| [voice_agent](voice_agent/README.md) | Selected-peer streaming voice conversation with ElevenLabs STT/TTS and OpenAI |
 | [messages](messages) | Send and receive RTC data-stream messages |
 | [multi_sessions](multi_sessions) | Multiple receive-only sessions sharing one service |
 | [send_media](send_media) | Decode a local MP4/media file to paced PCM and raw video with a shared timestamp base |
@@ -71,6 +72,8 @@ All receive modes require `-user` to avoid combining unrelated bitstreams and ov
 ## Safety and verification
 
 Running a channel-based RTC example joins a live channel and may send or record media; `process_audio` and `external_vad` instead process audio locally without joining. Use dedicated test resources and record only with the participants’ authorization. Build and offline test success do not establish live interoperability. RTM scenarios can mutate remote state; read their [specific operations](messaging/README.md) first. `duplex_pcm` and `rtc_rtm` explicitly opt into numeric RTC identities and require matching numeric-UID RTC tokens; see their READMEs before running.
+
+`voice_agent` sends the selected participant's audio to ElevenLabs and transcripts to OpenAI, logs transcript text, and can incur provider charges; obtain participant consent and read its [setup, identity and privacy limits](voice_agent/README.md) before running.
 
 ## Send a media file
 
