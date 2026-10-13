@@ -107,13 +107,20 @@ func (s *Session) SetRole(role Role) error {
 	return nil
 }
 
-func (s *Session) syncRole() {
+func (s *Session) syncNativeState() {
+	snapshot, ok := s.transport.(interface {
+		GetUserRole() int
+		GetPublicationState() (bool, bool)
+	})
+	if !ok {
+		return
+	}
 	role := Broadcaster
-	if s.native.GetLocalUser().GetUserRole() == int(rtc.ClientRoleAudience) {
+	if snapshot.GetUserRole() == int(rtc.ClientRoleAudience) {
 		role = Audience
-		s.audioPublished, s.videoPublished = false, false
 	}
 	s.role.Store(uint32(role))
+	s.audioPublished, s.videoPublished = snapshot.GetPublicationState()
 }
 
 func validateNativeOwnership(cfg ChannelConfig, conn *rtc.RtcConnectionConfig, pub *rtc.RtcConnectionPublishConfig) error {

@@ -77,3 +77,27 @@ func (conn *RtcConnection) prepareAudience() int {
 	}
 	return 0
 }
+
+// GetUserRole returns the most recently requested native role, without implying
+// server acknowledgement. Serialize access with Release.
+func (conn *RtcConnection) GetUserRole() int {
+	if conn == nil {
+		return 0
+	}
+	return conn.localUser.GetUserRole()
+}
+
+// GetPublicationState returns local successful publish/unpublish call state.
+// Partial failures are reflected independently for audio and video; this is not
+// server acknowledgement. Serialize lifecycle access with Release.
+func (conn *RtcConnection) GetPublicationState() (audio, video bool) {
+	if conn == nil {
+		return false, false
+	}
+	conn.audioMu.Lock()
+	defer conn.audioMu.Unlock()
+	if conn.localUser == nil {
+		return false, false
+	}
+	return conn.localUser.publishFlag, conn.localUser.videoPublishFlag
+}

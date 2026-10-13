@@ -307,6 +307,8 @@ func (s *Session) withNative(op string, f func(*rtc.RtcConnection) int) error {
 // escape fn. Do not reenter Session methods, release resources, or replace
 // observers owned by the wrapper; these actions can deadlock or break ownership.
 //
+// The role and local publication state are reconciled after fn returns, even
+// when it returns an error after a partially successful native operation.
 // fn's error is returned unchanged; a closed session returns ErrClosed.
 // Raw operations retain their native validation, result-code, and lifetime
 // contracts, without additional high-level safety guarantees.
@@ -320,9 +322,7 @@ func (s *Session) WithNative(fn func(*rtc.RtcConnection) error) error {
 		return ErrClosed
 	}
 	err := fn(s.native)
-	if s.native != nil {
-		s.syncRole()
-	}
+	s.syncNativeState()
 	return err
 }
 
@@ -379,7 +379,7 @@ func (s *Session) publishVideoLocked() error {
 
 // PublishAudio explicitly publishes the configured audio track.
 // It is idempotent while published; SendPCM and SendEncodedAudio also publish
-// on first use. Audience and NoAudio configurations return ErrNotPublishing.
+// on first use. The current Audience role and NoAudio mode return ErrNotPublishing.
 func (s *Session) PublishAudio() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -391,7 +391,7 @@ func (s *Session) PublishAudio() error {
 
 // PublishVideo explicitly publishes the configured video track.
 // It is idempotent while published; video sends also publish on first use.
-// Audience and NoVideo configurations return ErrNotPublishing.
+// The current Audience role and NoVideo mode return ErrNotPublishing.
 func (s *Session) PublishVideo() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

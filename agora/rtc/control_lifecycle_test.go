@@ -63,3 +63,16 @@ func TestNativeAudiencePromotion(t *testing.T) {
 		conn.Release()
 	}
 }
+
+func TestPublicationStateReflectsPartialOperations(t *testing.T) {
+	conn := &RtcConnection{localUser: &LocalUser{publishFlag: false, videoPublishFlag: true}}
+	conn.localUser.role.Store(int32(ClientRoleBroadcaster))
+	audio, video := conn.GetPublicationState()
+	if audio || !video || conn.GetUserRole() != int(ClientRoleBroadcaster) {
+		t.Fatal("partial native publication state lost")
+	}
+	conn.localUser = nil
+	if audio, video = conn.GetPublicationState(); audio || video || conn.GetUserRole() != 0 {
+		t.Fatal("released native state retained")
+	}
+}

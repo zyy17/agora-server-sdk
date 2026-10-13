@@ -259,7 +259,8 @@ type ChannelConfig struct {
 	UserID string
 	// Info is the optional native connection-information payload. It must not contain NUL.
 	Info string
-	// Role selects publication permission. Zero is Broadcaster.
+	// Role selects initial publication permission. Zero is Broadcaster.
+	// Session.SetRole can change it after joining.
 	Role Role
 	// Mode selects Standard or LargeScale. LargeScale requires manual subscriptions.
 	Mode ChannelMode

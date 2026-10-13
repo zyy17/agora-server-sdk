@@ -260,3 +260,41 @@ func TestDiagnosticAndEncoderControlGuards(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+type nativeStateTransport struct {
+	fakeTransport
+	role         int
+	audio, video bool
+	publishes    int
+}
+
+func (t *nativeStateTransport) GetUserRole() int { return t.role }
+
+func (t *nativeStateTransport) GetPublicationState() (bool, bool) { return t.audio, t.video }
+
+func (t *nativeStateTransport) PublishAudio() int {
+	t.publishes++
+	t.audio = true
+	return 0
+}
+
+func TestWithNativeReconcilesPartialDemotion(t *testing.T) {
+	s, _ := testSession(t)
+	defer s.Close()
+	transport := &nativeStateTransport{role: int(rtc.ClientRoleBroadcaster), audio: true, video: true}
+	s.transport = transport
+	s.audioPublished, s.videoPublished = true, true
+	failure := errors.New("video unpublish failed")
+	err := s.WithNative(func(*rtc.RtcConnection) error {
+		// Model SetUserRole(Audience): audio unpublish succeeds, video unpublish
+		// fails, so the native requested role remains Broadcaster.
+		transport.audio = false
+		return failure
+	})
+	if !errors.Is(err, failure) || s.Role() != Broadcaster || s.audioPublished || !s.videoPublished {
+		t.Fatalf("partial transition not reconciled: %v, role=%v audio=%v video=%v", err, s.Role(), s.audioPublished, s.videoPublished)
+	}
+	if err := s.SendPCM(make([]byte, 320)); err != nil || transport.publishes != 1 {
+		t.Fatalf("send did not republish audio: %v, calls=%d", err, transport.publishes)
+	}
+}
