@@ -17,6 +17,7 @@
 config:
   htmlLabels: false
   flowchart:
+    diagramPadding: 64
     nodeSpacing: 24
     rankSpacing: 32
 ---
@@ -36,6 +37,7 @@ flowchart LR
 config:
   htmlLabels: false
   flowchart:
+    diagramPadding: 64
     nodeSpacing: 24
     rankSpacing: 32
 ---
