@@ -8,23 +8,46 @@ This guide describes the root `agorasdk` package. Defaults and validation below 
 
 Only one high-level `Service` may be open in a process; a second returns `ErrServiceActive`. Create independent sessions with `Service.Join` for each channel/identity. Each session owns its connection, tracks, observers, and six receive queues. An `AudioProcessor` belongs to its service and does not need a channel.
 
+**Join and session close**
+
+After `NewService` succeeds, create sessions with `Service.Join`. Join failures include configuration or connection errors, timeouts, context cancellation, and service closure during join; allocated resources are cleaned up before returning an error.
+
 ```mermaid
-flowchart TD
-    A[NewService] --> B[Service]
-    B --> C[Join]
-    C --> D{Connection succeeds?}
-    D -->|Yes| E[Session: send and receive]
-    D -->|Error, timeout, cancellation| F[Release failed session]
-    E --> G[Session.Close]
-    G --> H[Disconnect and release; close queues]
-    B --> I[Service.Close]
-    I --> J[Close processors and sessions]
-    J --> K[Release native runtime]
+---
+config:
+  htmlLabels: false
+  flowchart:
+    nodeSpacing: 24
+    rankSpacing: 32
+---
+flowchart LR
+    join["Service.Join"] -->|Success| session["Session"]
+    join -->|Failure| failed["Cleanup + error"]
+    session --> close["Session.Close"]
+    close --> released["Release session"]
+```
+
+**Service shutdown**
+
+Cleanup follows this order and continues if a step fails; the returned error combines cleanup failures.
+
+```mermaid
+---
+config:
+  htmlLabels: false
+  flowchart:
+    nodeSpacing: 24
+    rankSpacing: 32
+---
+flowchart LR
+    close["Service.Close"] --> processors["Close processors"]
+    processors --> sessions["Close sessions"]
+    sessions --> runtime["Release runtime"]
 ```
 
 - `Join(ctx, cfg)` waits for connection success, failure, cancellation, or `JoinTimeout`. Failure releases the incomplete session. Canceling the context **after a successful join does not close the session**.
-- `Session.Close` disconnects, releases native resources, closes `Done()`, and closes receive queues. `Done()` signals explicit session closure, not each network disconnection. Read `Info()` for a copied connection snapshot and `Events()` for network changes.
-- `Service.Close` closes its processors and sessions before releasing the runtime. Service, session, and processor `Close` methods are idempotent; inspect returned errors.
+- `Session.Close` disconnects, releases native resources, closes `Done()`, and closes receive queues. `Done()` closes when session closure begins, before native cleanup finishes; it does not signal each network disconnection. Read `Info()` for a copied connection snapshot and `Events()` for network changes.
+- `Service.Close` closes its processors and sessions before releasing the runtime. Service, session, and processor `Close` methods are idempotent; inspect returned errors. A runtime release failure may retain process ownership, so a new service is not guaranteed to succeed.
 - Session methods support concurrent callers by serializing native access. Application-level ordering is your responsibility: use one producer per media track; concurrent `PlayPCM` calls interleave audio. Do not mutate an input buffer while a method is using it.
 - Cancel read/playback contexts and let producer goroutines finish before closing the service. Contexts cannot interrupt a blocking reader or synchronous native call. Do not mix raw `rtc.Initialize` / `rtc.Release` with a live `Service`.
 

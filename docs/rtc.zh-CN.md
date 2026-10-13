@@ -8,23 +8,46 @@
 
 每个进程最多持有一个未关闭的高层 `Service`；重复创建返回 `ErrServiceActive`。不同频道或身份分别调用 `Service.Join`。Session 管理自己的连接、轨道、观察者及六个接收队列。`AudioProcessor` 由 Service 管理，无需加入频道。
 
+**入会与会话关闭**
+
+`NewService` 成功后，使用 `Service.Join` 创建会话。入会失败包括配置或连接错误、超时、context 取消，以及入会期间关闭 Service；返回错误前会清理已分配的资源。
+
 ```mermaid
-flowchart TD
-    A[NewService] --> B[Service]
-    B --> C[Join]
-    C --> D{连接成功？}
-    D -->|成功| E[Session：收发数据]
-    D -->|错误、超时、取消| F[释放失败会话]
-    E --> G[Session.Close]
-    G --> H[断开并释放连接，关闭队列]
-    B --> I[Service.Close]
-    I --> J[关闭处理器及会话]
-    J --> K[释放原生运行时]
+---
+config:
+  htmlLabels: false
+  flowchart:
+    nodeSpacing: 24
+    rankSpacing: 32
+---
+flowchart LR
+    join["Service.Join"] -->|成功| session["Session"]
+    join -->|失败| failed["清理并返回错误"]
+    session --> close["Session.Close"]
+    close --> released["释放会话资源"]
+```
+
+**服务关闭**
+
+按以下顺序尝试所有清理步骤；某一步失败也会继续，最终合并返回错误。
+
+```mermaid
+---
+config:
+  htmlLabels: false
+  flowchart:
+    nodeSpacing: 24
+    rankSpacing: 32
+---
+flowchart LR
+    close["Service.Close"] --> processors["关闭处理器"]
+    processors --> sessions["关闭会话"]
+    sessions --> runtime["释放原生运行时"]
 ```
 
 - `Join(ctx, cfg)` 等待连接成功、失败、取消或 `JoinTimeout`。失败时释放未完成的会话。**入会成功后取消该 context，不会关闭会话**。
-- `Session.Close` 断开并释放连接，关闭 `Done()` 和接收队列。`Done()` 表示显式关闭，不表示每次网络断开。`Info()` 返回连接快照；网络变化通过 `Events()` 交付。
-- `Service.Close` 先关闭处理器和会话，再释放原生运行时。Service、Session 和处理器的 `Close` 均可重复调用；应检查返回错误。
+- `Session.Close` 断开并释放连接，关闭 `Done()` 和接收队列。`Done()` 在关闭开始时关闭，不表示原生清理已完成，也不表示每次网络断开。`Info()` 返回连接快照；网络变化通过 `Events()` 交付。
+- `Service.Close` 先关闭处理器和会话，再释放原生运行时。Service、Session 和处理器的 `Close` 均可重复调用；应检查返回错误。运行时释放失败可能继续占用进程，不保证能立即创建新的 Service。
 - Session 方法支持并发调用，原生访问串行执行。业务顺序需自行保证：每条媒体轨道使用一个发送者；并发 `PlayPCM` 会交错音频。方法使用输入缓冲区期间，不要修改它。
 - 关闭 Service 前，先取消读取和播放 context，再等待发送协程退出。context 无法中断阻塞的 reader 或同步原生调用。`Service` 存活期间，不要混用底层 `rtc.Initialize` / `rtc.Release`。
 
