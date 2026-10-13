@@ -39,15 +39,19 @@
 | RTC 生命周期与身份 | `NewService`、`Service.Join`、`Session.Close`、`Config.IdentityMode` | [入会/关闭测试](../session_test.go)、[身份测试](../identity_test.go) |
 | RTC 高级配置 | `ConfigureNative`、`Session.WithNative`、Service/Session 的 `SetParameters` | [配置测试](../session_config_test.go)；不得保留或释放借用句柄 |
 | PCM、编码音频、调速与打断 | `AudioConfig.Send/Receive`、`SendPCMAt`、`PlayPCM`、`SendEncodedAudio`、`InterruptAudio`、`WaitPCM` | [音频测试](../audio_test.go)；`WaitPCM` 是估算，不是远端播放确认 |
-| CPU/编码视频与订阅 | `SendVideo`、`SendEncodedVideo`、接收流、发布/订阅方法 | [校验](../config_test.go)、[复制回调](../session_test.go)；不保证硬件帧支持 |
+| CPU/编码视频与订阅 | `SendCPUVideo`、`SendVideo`、`SendEncodedVideo`、接收流、发布/订阅方法 | [布局/元数据测试](../video_parity_test.go)、[原生 ABI](../agora/rtc/media_abi_test.go)；拒绝不支持的硬件句柄 |
+| 角色、回退、空闲/代理/扩展控制 | `SetRole`、`SetAudioFallback`、`Config.IdleMode/LocalAccessPoint`、Service 扩展方法 | [控制测试](../control_test.go)；仍受原生能力限制 |
+| 同步媒体决策与观察格式 | `Audio.ReceiveParameters`、`Audio.Callbacks.OnFrame`、`Video.OnEncodedFrame` | [回调隔离/写回/panic 测试](../media_callbacks_test.go)；须遵守回调线程限制 |
+| 独立 VAD/解码器与轨道控制 | `NewAudioVAD`、`NewStereoVAD`、`NewTelemetryVAD`、`NewVideoDecoder`、`NewOpusDecoder`、Session 轨道 setter | [VAD](../vad_test.go)、[解码构建开关](../decoder_test.go)、[轨道测试](../audio_parity_test.go)；解码器需要 `avcodec` |
 | RTC 数据与事件 | `SendMessage`、`Messages`、`Events` | [回调测试](../session_test.go)、[有界队列测试](../stream_test.go) |
 | 外部音频处理 | `Service.NewAudioProcessor`、`SendPCM`、`Output` | [处理器测试](../processor_test.go)；仍受扩展可用性限制 |
 | RTM 生命周期、消息与请求关联 | `messaging.New`、登录/登出/续期、发布/订阅 | [请求测试](../messaging/client_test.go)；取消等待不会回滚原生操作 |
 | RTM Presence、元数据、锁、历史 | `OnlineUsers`、`UserChannels`、状态/元数据/锁方法、`History` | [结果/复制测试](../messaging/client_test.go)、[历史校验](../messaging/history_validation_test.go) |
 | RTM Topic | `NewStream`、加入/退出/续期、Topic 发布/订阅 | [部分结果及所有权测试](../messaging/client_test.go)；Stream Channel 使用 RTC Token |
-| RTM 事件与原生访问 | `Events`、`Next`、`Config.Native`、`WithNative` | [事件/复制测试](../messaging/client_test.go)；不得替换托管 handler |
+| RTM 选项、身份与原生访问 | `Config.Identity/Connection/Log/Proxy/Encryption/Private`、`DisableMessages`、`ExcludeUserID`、`AcquireLockWithOptions`、`WithNative` | [映射/校验测试](../messaging/config_parity_test.go)；重试可能在调用方停止等待后继续 |
+| 完整 RTM 结果事件 | `Config.ResultEvents`、`EventRequestResult`、`RequestResult`、`Events`、`Next` | [完整回调/结果/复制测试](../messaging/results_test.go)；可选事件丢弃不影响请求完成 |
 
-精确的符号、测试链接及更窄的行为契约见覆盖映射，不能仅凭一行表格推断完整功能覆盖。当前映射将扩展 RTC 控制/媒体及 RTM 选项/结果契约保留为 `planned`，待实现与测试集成后再更新，不能提前计为已完成。
+精确的符号、测试链接及更窄的行为契约见覆盖映射，不能仅凭一行表格推断完整功能覆盖。已集成的控制/媒体/RTM 扩展均有明确 API 和回归测试依据。当前没有按计划工作计算的能力记录；以后新增功能须保持 `planned`，直到实现与测试真实存在。精确默认值和回调限制见[媒体契约](media-api.zh-CN.md)与 [RTM 覆盖范围](../messaging/README.zh-CN.md)。
 
 ## 有意的兼容性修改
 

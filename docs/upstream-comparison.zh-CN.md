@@ -39,7 +39,7 @@
 
 配置细节见[完整示例](../README.zh-CN.md#快速开始)与官方实现；`Connect` 返回零本身不等于收到 `OnConnected`。
 
-[`Service`](../service.go) 通过 `ErrServiceActive` 限制一个活跃的高层 RTC 实例，管理其会话与音频处理器，先关闭子资源，再释放运行库。[`Session`](../session.go) 管理连接、轨道、observer 与队列。Close 幂等；`IdleMode` 必须为 false，不采用上游的延迟销毁连接模式。这些约束适用于高层 API，不能在活跃 Service 旁混用原生 `Initialize`/`Release`。
+[`Service`](../service.go) 通过 `ErrServiceActive` 限制一个活跃的高层 RTC 实例，管理其会话与音频处理器，先关闭子资源，再释放运行库。[`Session`](../session.go) 管理连接、轨道、observer 与队列。Close 幂等；`Config.IdleMode` 默认为 false，开启后立即停用回调并清理 Go 资源，延迟销毁原生连接句柄；`Service.Close` 在释放运行库前排空这些句柄。这些约束适用于高层 API，不能在活跃 Service 旁混用原生 `Initialize`/`Release`。
 
 ## Context、错误与接收队列
 
@@ -49,7 +49,7 @@
 
 RTC 的 `Audio`、`Video`、`EncodedAudio`、`EncodedVideo`、`Messages`、`Events` 六个队列默认各 **64 项**。满时丢弃**最旧**项，`Stats()` 提供计数。context 有效时，关闭后读完缓存再返回 `io.EOF`。多个读者竞争消费，不会各收到一份。
 
-RTM 默认缓存 **128 个事件**，满时丢弃**最新**事件，通过 `DroppedEvents()` 统计；读完关闭队列后，`Next` 返回 `messaging.ErrClosed`。请求完成走独立关联路径，不经过可丢弃的事件队列。两者的高层接收载荷均为副本，但都不是无损日志，也不按字节限制内存。应用需持续消费 token/网络事件并处理过载。实现见 [`stream.go`](../stream.go) 和 [`messaging/client.go`](../messaging/client.go)。
+RTM 默认缓存 **128 个事件**，满时丢弃**最新**事件，通过 `DroppedEvents()` 统计；读完关闭队列后，`Next` 返回 `messaging.ErrClosed`。请求完成走独立关联路径，不经过可丢弃的事件队列。两者排队后的高层接收载荷均为副本，但都不是无损日志，也不按字节限制内存。可选 RTC 同步音频/编码视频 hook 是另一套回调线程契约：须及时返回，不得重入生命周期操作或保留缓冲区；仅在读写观察点且返回接受时，音频修改才会写回原生层。应用需持续消费 token/网络事件并处理过载。实现见 [`stream.go`](../stream.go) 和 [`messaging/client.go`](../messaging/client.go)。
 
 ## 媒体与发送节奏
 
@@ -57,9 +57,9 @@ RTM 默认缓存 **128 个事件**，满时丢弃**最新**事件，通过 `Drop
 
 `SendPCM`/`SendPCMAt` 接受完整、整数毫秒的 PCM16 数据；44.1 kHz 需为 10 ms 的倍数。它们不调速、不补齐、不重采样。上游已有可变时长 PCM；本绑定修复其按整数 kHz 计算造成的 44.1 kHz 样本问题，并保留传入的呈现时间值。`PlayPCM` 在 `io.Reader` 上增加可取消的 10 ms 软件调度，末尾完整但不足一帧的数据补静音。`WaitPCM` 只是已发送字节/墙钟估算，不是原生队列排空或对端播放确认。打断前先停止生产者，否则后续发送仍会重新填充。
 
-编码音视频方法接收 codec packet/frame，不接收任意容器文件片段，也不自动调速。高层编码视频输入限于 H.264/H.265，不覆盖所有原生编码格式，更不代表支持 H.265 编码；上游明确其仅支持解码。原始视频有布局/长度校验，实际能力仍受原生平台和 codec 限制。
+编码音视频方法接收 codec packet/frame，不接收任意容器文件片段，也不自动调速。高层编码传输提供固定版本的八个 codec ID，并保留帧类型、轨道 ID 和数值 UID；接受枚举不代表原生 codec 可用。可选 SEI 插入和解码仍限 H.264/H.265；上游将 H.265 列为仅解码。`SendCPUVideo` 保留 CPU 步长、裁剪、色彩和 alpha 选项，并拒绝不支持的硬件句柄。实际能力仍受原生平台与 codec 限制，详见[媒体契约](media-api.zh-CN.md)。
 
-接收音频 VAD v2、独立原生单/双声道 VAD、外部 APM 是不同路径。VAD 不提供语音识别。外部 APM 需要对应扩展；固定 Linux 包缺少 AINS，默认处理器可能初始化失败。可选 `avcodec` 助手异步解码并发布；接受输入不等于完成，关闭也不保证排空。完整契约见 [RTC 指南](rtc.zh-CN.md)。
+接收音频 VAD v2、独立原生单/双声道 VAD、外部 APM 是不同路径。VAD 不提供语音识别。外部 APM 需要对应扩展；固定 Linux 包缺少 AINS，默认处理器可能初始化失败。独立资源管理的 `AudioVAD`、`StereoVAD`、`TelemetryVAD` 提供不同的检测器/遥测契约。可选同步 `VideoDecoder`/`OpusDecoder` 返回复制后的帧；`Session.Transcode*` 仍异步解码并发布。工作线程接受输入不等于完成，关闭也不保证排空。完整契约见 [RTC 指南](rtc.zh-CN.md)。
 
 ## 身份与 Token
 
@@ -73,13 +73,13 @@ RTM 默认缓存 **128 个事件**，满时丢弃**最新**事件，通过 `Drop
 
 取消仅停止等待，不撤销已提交的消息、元数据写入或锁获取。重试前查询状态或使用应用幂等机制。`Close` 结束等待，先释放 Stream 再释放客户端，但不等待优雅 `Logout`/`Leave`。
 
-需检查封装默认值：`SubscribeOptions{}` 只启用消息，Presence/元数据/锁事件默认关闭；禁用原生自动重试获取锁；元数据 revision 的零值原样传递，不转为无条件 `-1`。历史需要项目开通且发布时启用存储。RTM Stream Channel 入会/续期使用 RTC token。`messaging.Stream` 是有生命周期的 RTM Stream Channel，RTC `Stream[T]` 是本地接收队列。RTC 数据流和 RTM 是不同传输，均不承诺接收应用已处理消息。
+需检查封装默认值：`SubscribeOptions{}` 只启用消息，Presence/元数据/锁事件默认关闭；`DisableMessages` 可显式选择仅 Presence 订阅。`AcquireLock` 禁用原生自动重试；`AcquireLockWithOptions` 可开启重试，通过可选 `Config.ResultEvents` 观察迟到结果。取消/超时不会停止原生重试。元数据 revision 的零值原样传递，不转为无条件 `-1`。未提供 `Config.Native` 时 RTM 默认使用字符串身份；`IdentityDefault` 保留传入原生配置的身份选择，显式 `IdentityString`/`IdentityNumeric` 则覆盖它。类型化连接/日志/代理/加密/私有配置和复制后的结果事件覆盖固定 C 边界可用接口。历史需要项目开通且发布时启用存储。RTM Stream Channel 入会/续期使用 RTC token。`messaging.Stream` 是有生命周期的 RTM Stream Channel，RTC `Stream[T]` 是本地接收队列。RTC 数据流和 RTM 是不同传输，均不承诺接收应用已处理消息。
 
 ## 高级访问与覆盖范围
 
 `Config.ConfigureNative`、`ChannelConfig.ConfigureNative` 提供初始化/分配前配置；`Service.SetParameters`、`Session.WithNative` 和 RTM `WithNative` 提供受控高级访问。这些入口不增加原生功能，也不保证所有选项都兼容高层默认行为。
 
-禁止保留借用指针、释放自有对象、替换封装管理的 observer/event handler，或在 `WithNative` 回调中重入同一高层对象。直接使用 `agora/rtc`、`agora/rtm` 仍需处理原生返回码，自行管理生命周期与并发。高层 API 有意小于完整绑定范围，不是即插即用的兼容层。
+禁止保留借用指针、释放自有对象、替换封装管理的 observer/event handler，或在 `WithNative` 回调中重入同一高层对象。直接使用 `agora/rtc`、`agora/rtm` 仍需处理原生返回码，自行管理生命周期与并发。高层 API 覆盖[有源码依据的覆盖清单](api-coverage.zh-CN.md)中列出的应用功能族；底层工具和不可用的原生专属路径仍有明确分类，不是即插即用的兼容层。
 
 ## 本项目的绑定修复
 
@@ -99,7 +99,7 @@ Linux amd64 是主要构建/CI 平台。安装器也支持 macOS amd64/arm64，�
 
 上游已通过 `avcodec` 将解码功能设为可选。本项目同样让默认构建不依赖**系统 FFmpeg 开发库**，并在 CI 检查；可选解码测试单独执行。`send_media` 示例则在运行时使用 FFmpeg 可执行程序。这不表示 Agora 原生包内没有 FFmpeg 相关组件。
 
-[`make check`](../Makefile) 覆盖格式、工具脚本用例、第一方 Staticcheck、全部包 vet/test/race、示例构建、无凭据原生生命周期及严格 cgo 检查下的合成注册 C 回调。Go race detector 不检测原生内部。离线通过不能证明真实迁移成功、远端媒体质量、鉴权正确或项目功能权限，部署前需完成[真实集成清单](development.zh-CN.md#真实联调)。
+[`make check`](../Makefile) 覆盖格式、工具脚本用例、固定离线 API 覆盖检查、第一方 Staticcheck、全部包 vet/test/race、示例构建、无凭据原生生命周期及严格 cgo 检查下的合成注册 C 回调。Go race detector 不检测原生内部。离线通过不能证明真实迁移成功、远端媒体质量、鉴权正确或项目功能权限，部署前需完成[真实集成清单](development.zh-CN.md#真实联调)。
 
 标准包/符号 GoDoc 说明 API 契约；双语 [RTC](rtc.zh-CN.md)、[RTM](../messaging/README.zh-CN.md)、[示例](../examples/README.zh-CN.md)、[开发](development.zh-CN.md)指南说明工作流程。官方[英文][up-en]/[中文][up-zh] README 仍是上游行为的重要来源。[官方中文 Go API](https://doc.shengwang.cn/api-ref/rtc-server-sdk/go/go-api/overview)仅作补充，不能替代固定版本源码与头文件。
 

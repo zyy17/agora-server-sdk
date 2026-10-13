@@ -8,9 +8,9 @@ Build server-side realtime audio, video, and messaging applications with an owne
 
 - One RTC service per process, explicit numeric/string identities, independent channel sessions, bounded joins, and cleanup
 - Independent send/receive PCM formats, variable-duration PCM, paced playback, per-user audio, VAD, and interruption
-- Raw video, subscription control, RTC data streams, metadata, and connection events
+- CPU/encoded video, role and track controls, RTC data streams, metadata, and connection events
 - Independent RTM clients: messaging, Presence, metadata, locks, history, and Stream Topics
-- Copied receive data, bounded queues, visible drop counts, and controlled native access
+- Copied receive queues, optional synchronous media decisions, owned VAD/decoders, and controlled native access
 
 ## Differences from the official SDK
 
@@ -144,7 +144,8 @@ Package overviews: [RTC](doc.go), [RTM](messaging/doc.go), [media packets](media
 | --- | --- |
 | Audio/video, RTC events and data | Root package; [RTC guide](docs/rtc.md) |
 | Application messages, Presence, metadata, locks, history, Topics | `messaging`; [RTM guide](messaging/README.md) |
-| Native-only options | `agora/rtc`, `agora/rtm`; follow the high-level guides’ ownership restrictions |
+| Media layouts, callbacks, VAD and optional decoders | [Media contracts](docs/media-api.md) and [API coverage](docs/api-coverage.md) |
+| Advanced/raw options | `ConfigureNative`, `WithNative`, `agora/rtc`, `agora/rtm`; follow ownership restrictions |
 | Trusted-server RTC token generation | `token.RTC`; [token contract](docs/rtc.md#events-and-tokens) |
 | Runnable scenarios and media file formats | [Examples](examples/README.md) |
 | Installation, checks, optional FFmpeg, deployment | [Development](docs/development.md) |

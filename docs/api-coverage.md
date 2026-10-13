@@ -39,15 +39,19 @@ The machine-readable [coverage map](api-reference/coverage.json) links each capa
 | RTC lifetime and identity | `NewService`, `Service.Join`, `Session.Close`, `Config.IdentityMode` | [Join/close tests](../session_test.go), [identity tests](../identity_test.go) |
 | RTC advanced configuration | `ConfigureNative`, `Session.WithNative`, service/session `SetParameters` | [Configuration tests](../session_config_test.go); borrowed handles cannot be retained or released |
 | PCM, encoded audio, pacing and interruption | `AudioConfig.Send/Receive`, `SendPCMAt`, `PlayPCM`, `SendEncodedAudio`, `InterruptAudio`, `WaitPCM` | [Audio tests](../audio_test.go); `WaitPCM` is an estimate, not remote playback acknowledgement |
-| CPU/encoded video and subscriptions | `SendVideo`, `SendEncodedVideo`, receive streams, publish/subscribe methods | [Validation](../config_test.go), [copied callbacks](../session_test.go); no hardware-frame guarantee |
+| CPU/encoded video and subscriptions | `SendCPUVideo`, `SendVideo`, `SendEncodedVideo`, receive streams, publish/subscribe methods | [Layout/metadata tests](../video_parity_test.go), [native ABI](../agora/rtc/media_abi_test.go); unsupported hardware handles are rejected |
+| Roles, fallback, idle/proxy/extension controls | `SetRole`, `SetAudioFallback`, `Config.IdleMode/LocalAccessPoint`, Service extension methods | [Control tests](../control_test.go); native feature availability still applies |
+| Synchronous media decisions and observation formats | `Audio.ReceiveParameters`, `Audio.Callbacks.OnFrame`, `Video.OnEncodedFrame` | [Callback isolation/copyback/panic tests](../media_callbacks_test.go); callback-thread restrictions apply |
+| Owned VAD/decoders and track controls | `NewAudioVAD`, `NewStereoVAD`, `NewTelemetryVAD`, `NewVideoDecoder`, `NewOpusDecoder`, Session track setters | [VAD](../vad_test.go), [decoder feature gates](../decoder_test.go), [track tests](../audio_parity_test.go); decoders require `avcodec` |
 | RTC data and events | `SendMessage`, `Messages`, `Events` | [Callback tests](../session_test.go), [bounded queue tests](../stream_test.go) |
 | External audio processing | `Service.NewAudioProcessor`, `SendPCM`, `Output` | [Processor tests](../processor_test.go); extension availability still applies |
 | RTM lifecycle, messages and result correlation | `messaging.New`, login/logout/renew, publish/subscribe | [Request tests](../messaging/client_test.go); cancellation does not roll back native actions |
 | RTM Presence, metadata, locks, history | `OnlineUsers`, `UserChannels`, state/metadata/lock methods, `History` | [Result/copy tests](../messaging/client_test.go), [history validation](../messaging/history_validation_test.go) |
 | RTM Topics | `NewStream`, join/leave/renew, topic publish/subscribe | [Partial-result and ownership tests](../messaging/client_test.go); Stream Channel tokens are RTC tokens |
-| RTM events and native access | `Events`, `Next`, `Config.Native`, `WithNative` | [Event/copy tests](../messaging/client_test.go); owned handlers cannot be replaced |
+| RTM options, identity and native access | `Config.Identity/Connection/Log/Proxy/Encryption/Private`, `DisableMessages`, `ExcludeUserID`, `AcquireLockWithOptions`, `WithNative` | [Mapping/validation tests](../messaging/config_parity_test.go); retries can outlive the caller wait |
+| Complete RTM result events | `Config.ResultEvents`, `EventRequestResult`, `RequestResult`, `Events`, `Next` | [All-callback/result/copy tests](../messaging/results_test.go); optional events can drop without dropping request completion |
 
-The exact symbol/test links and narrower semantics live in the coverage map, rather than inferring feature coverage from a table row. The map currently keeps expanded RTC control/media and RTM option/result contracts `planned` until their implementation and tests are integrated. Update those records only after checking the final source.
+The exact symbol/test links and narrower semantics live in the coverage map, rather than inferring feature coverage from a table row. The integrated control/media/RTM additions have explicit API and regression-test evidence. No current capability record is counted as planned work; future additions must remain `planned` until their implementations and tests exist. See the [media contracts](media-api.md) and [RTM coverage](../messaging/README.md) for exact defaults and callback restrictions.
 
 ## Deliberate compatibility changes
 

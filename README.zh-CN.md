@@ -8,9 +8,9 @@
 
 - 每个进程一个 RTC Service，显式选择数值或字符串身份，独立频道会话、有界入会等待和资源释放
 - 独立的收发 PCM 格式、可变时长 PCM、调速播放、逐用户音频、VAD 和音频打断
-- 原始视频、订阅控制、RTC 数据流、元数据和连接事件
+- CPU/编码视频、角色与轨道控制、RTC 数据流、元数据和连接事件
 - 独立 RTM 客户端：消息、在线状态、元数据、锁、历史和 Stream Topic
-- 复制后的接收数据、有界队列、可观测丢弃计数和受控原生访问
+- 复制后的接收队列、可选同步媒体决策、独立资源管理的 VAD/解码器，以及受控原生访问
 
 ## 与官方 SDK 的差异
 
@@ -144,7 +144,8 @@ go doc github.com/zyy17/agora-server-sdk/token
 | --- | --- |
 | 音视频、RTC 事件和数据 | 根包；[RTC 指南](docs/rtc.zh-CN.md) |
 | 业务消息、在线状态、元数据、锁、历史、Topic | `messaging`；[RTM 指南](messaging/README.zh-CN.md) |
-| 仅原生层提供的选项 | `agora/rtc`、`agora/rtm`；遵守高层指南中的资源归属限制 |
+| 媒体布局、回调、VAD 与可选解码器 | [媒体契约](docs/media-api.zh-CN.md)与 [API 覆盖范围](docs/api-coverage.zh-CN.md) |
+| 高级/底层选项 | `ConfigureNative`、`WithNative`、`agora/rtc`、`agora/rtm`；遵守所有权限制 |
 | 可信服务端生成 RTC Token | `token.RTC`；[Token 约定](docs/rtc.zh-CN.md#事件与-token) |
 | 可运行场景和媒体文件格式 | [示例](examples/README.zh-CN.md) |
 | 安装、检查、可选 FFmpeg、部署 | [开发说明](docs/development.zh-CN.md) |
