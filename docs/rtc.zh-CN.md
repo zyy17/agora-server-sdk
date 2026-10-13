@@ -35,10 +35,11 @@ flowchart TD
 | `Config` 字段 | 默认值与约束 |
 | --- | --- |
 | `AppID` | 必填；封装检查长度为 32 字节且不含 NUL |
+| `IdentityMode` | `StringIdentity`；原生 uint32 UID 使用 `NumericIdentity`；作用于全部会话 |
 | `Video` | `false`；收发原始或编码视频前须设为 `true` |
 | `AudioProcessing` | `false`；创建外部音频处理器前须设为 `true` |
 | `LogPath`、`ConfigDir`、`DataDir` | 空值使用原生默认值；生产环境应指定受控路径 |
-| `ConfigureNative` | 可选初始化回调；`UseStringUid` 必须保持 `true`，`IdleMode` 必须保持 `false` |
+| `ConfigureNative` | 可选初始化回调；`UseStringUid` 必须与 `IdentityMode` 一致，`IdleMode` 必须保持 `false` |
 
 ### 频道配置
 
@@ -48,9 +49,9 @@ flowchart TD
 | `Token`、`Info` | 可为空，不含 NUL；`Info` 为可选原生连接信息 |
 | `Role`、`Mode` | `Broadcaster`、`Standard`；原生频道配置为直播模式 |
 | `Audio.Mode` | `PCM`；可选 `EncodedAudio`、`NoAudio` |
-| `Audio.SampleRate`、`Audio.Channels` | 16000 Hz、1；PCM 支持 8000、16000、32000、44100、48000 Hz，1 或 2 声道 |
+| `Audio.Send`、`Audio.Receive` | 独立的 `PCMFormat{SampleRate, Channels}`；分别默认为 16000 Hz 单声道；支持 8000、16000、32000、44100、48000 Hz，1 或 2 声道 |
 | `Audio.Scenario`、`Audio.Profile` | `ScenarioAuto` 映射为原生 AI-server 场景；`Profile` 零值直接传入原生层 |
-| `Audio.VAD`、`Audio.VADConfig` | `false`、`nil`；VAD 要求 16000 Hz 单声道；非空配置会校验并复制 |
+| `Audio.VAD`、`Audio.VADConfig` | `false`、`nil`；VAD 要求在 `AudioBeforeMixing` 接收 16000 Hz 单声道；非空配置会校验并复制 |
 | `Video.Mode` | `NoVideo`；可选 `RawVideo`、`EncodedVideo` |
 | `Video.Encoder`、`Video.EncodedSender` | `nil`；可传入原生编码器和发送器配置 |
 | `Receive.Disabled` | `false`；`true` 跳过 PCM 观察和音频自动订阅，并非关闭全部接收接口 |
@@ -62,27 +63,27 @@ flowchart TD
 | `Encryption` | `nil`；非空时在连接前配置；各端需使用兼容的原生加密设置 |
 | `ConfigureNative` | 可选回调，在分配资源前调整连接与发布配置 |
 
-较旧中文 Go `Connect` 文档规定 ID 最多 **64 字节**；固定头文件定义 256 字节账号长度常量，本封装接受最多 255 字节。三者属于不同版本的约定。跨版本使用时，优先选择 64 字节以内、符合文档 ASCII 字符集的 ID；不能将旧限制视为已验证的原生 4.6 硬上限。所有参与者应采用相同的字符串用户 ID 体系，同一频道内 ID 不重复。`NoAudio` 只关闭音频发布，不关闭接收；`Audience` 禁止发布媒体。
+对于字符串账号，较旧中文 Go `Connect` 文档规定 ID 最多 **64 字节**；固定头文件定义 256 字节账号长度常量，本封装接受最多 255 字节。三者属于不同版本的约定。跨版本使用时，优先选择 64 字节以内、符合文档 ASCII 字符集的 ID；不能将旧限制视为已验证的原生 4.6 硬上限。所有 RTC 参与者应采用相同身份模式，同一频道内 ID 不重复。数值 ID 在 `ChannelConfig.UserID`、订阅、连接快照及事件中仍以十进制字符串表示；有效范围为规范格式的 `0`–`4294967295`，不允许符号、空格或前导零。入会使用 `"0"` 时由原生层分配 UID，成功后从 `Info()` 读取实际 ID，并使用兼容的 Token 策略。订阅的远端 ID 必须非零。纯数字的字符串账号仍属于字符串身份，封装不会自动切换模式。`NoAudio` 只关闭音频发布，不关闭接收；`Audience` 禁止发布媒体。
 
 ## PCM 音频
 
-输入为有符号、交错排列的小端 PCM16，不含 WAV 等容器头。每个 10 ms 帧占 `SampleRate / 100 * Channels * 2` 字节；默认 16 kHz 单声道为 320 字节。
+输入为有符号、交错排列的小端 PCM16，不含 WAV 等容器头。`Audio.Send` 配置发布格式，`Audio.Receive` 配置观察格式，两者不会互相重采样。在 8/16/32/48 kHz 下，1 ms 占 `SampleRate / 1000 * Channels * 2` 字节（16 kHz 单声道为 32 字节）。44.1 kHz 下最小整数毫秒块为每声道 441 个采样，即 10 ms；不会截断小数采样。接收单声道、发送双声道时，分别设置 `Audio.Receive: PCMFormat{16000, 1}` 和 `Audio.Send: PCMFormat{16000, 2}`。
 
 | 操作 | 约定 |
 | --- | --- |
-| `SendPCM(data)` | 非空，必须包含完整的 10 ms 帧；可一次发送多帧；不调速、不重采样 |
-| `SendPCMAt(data, timestamp)` | 校验相同；呈现时间戳单位为毫秒 |
+| `SendPCM(data)` | 非空，包含完整 PCM16 采样且时长为整数毫秒；不调速、不补零、不在封装层缓冲、不重采样 |
+| `SendPCMAt(data, timestamp)` | 校验相同；原样传递 `int64` 呈现值，包括应用自定义的不透明值 |
 | `PlayPCM(ctx, reader)` | 使用一个 10 ms 缓冲区，按 10 ms 间隔安排发送；reader 必须及时返回 |
 | `PlayPCMAt(ctx, reader, timestamp)` | 节奏相同；非零初始呈现时间戳每帧增加 10 ms，零值始终保持零 |
 | `WaitPCM(ctx)` | 每 10 ms 检查 Go 绑定按已发字节数和墙钟计算的估算，包含 180 ms 余量；仅限 PCM，不是原生队列或远端播放反馈 |
 | `InterruptAudio()` | 请求打断原生发送队列；不会取消正在运行的 `PlayPCM` 循环 |
 | `PublishAudio()` / `UnpublishAudio()` | 显式控制轨道；首次发送自动发布，取消发布后再次发送也会重新发布 |
 
-`PlayPCM` 为末尾不足一帧的数据补零；不完整的交错采样（`len % (2 * Channels) != 0`）会报错。软件调度不保证硬实时。停止播放时先取消对应 context，并协调发送者退出，再调用 `InterruptAudio`；否则后续发送可能重新填充原生队列。音视频应使用同一时间戳基准。
+`PlayPCM` 为末尾不足一帧的数据补零；不完整的交错采样（`len % (2 * Channels) != 0`）会报错。软件调度不保证硬实时。停止播放时先取消对应 context，并协调发送者退出，再调用 `InterruptAudio`；否则后续发送可能重新填充原生队列。时间戳表示媒体时间时，音视频应采用兼容基准。呈现值是不透明值、不能递增时，使用 `SendPCMAt`，不要使用 `PlayPCMAt`。
 
 ### 接收音频与 VAD
 
-通过 `session.Audio().Next(ctx)` 读取音频。`AudioFrame.Data` 和 `Speech` 是独立副本，可保留使用。应读取帧内实际的 `SampleRate`、`Channels`、`Position` 及时间戳。VAD 提供活动状态和语音片段，不提供识别文本。
+通过 `session.Audio().Next(ctx)` 读取音频。`AudioFrame.Data` 和 `Speech` 是独立副本，可保留使用。应读取帧内实际的 `SampleRate`、`Channels`、`SamplesPerChannel`、`BytesPerSample`、`Position`、时间戳及信号字段（`AVSyncType`、`FarField`、概率、RMS、音高）。VAD 提供活动状态和语音片段，不提供识别文本。
 
 | 观察位置 | 值 | 含义 |
 | --- | --- | --- |
@@ -92,7 +93,7 @@ flowchart TD
 | `AudioBeforeMixing` | 8 | 逐用户远端音频；提供 `UserID` 和 VAD 字段 |
 | `AudioEarMonitoring` | 16 | 耳返音频 |
 
-使用 `|` 组合位置。是否有回调取决于原生媒体链路；本封装中，混音前以外的位置不提供单个用户的 `UserID`。接收音频 VAD 要求 `Audio.VAD: true`、16 kHz 单声道、启用 PCM 接收，并包含 `AudioBeforeMixing` 观察位置；不依赖外部 APM 处理器。
+使用 `|` 组合位置。是否有回调取决于原生媒体链路；本封装中，混音前以外的位置不提供单个用户的 `UserID`。接收音频 VAD 要求 `Audio.VAD: true`、16 kHz 单声道的 `Audio.Receive`、启用 PCM 接收，并包含 `AudioBeforeMixing` 观察位置；不依赖外部 APM 处理器。
 
 VAD v2 在 Go 绑定中实现，使用 SDK 提供的 `VoiceProb` 和 `Rms`。`VADConfig: nil` 时，实际参与判定的默认设置为：
 
@@ -105,6 +106,14 @@ VAD v2 在 Go 绑定中实现，使用 SDK 提供的 `VoiceProb` 和 `Rms`。`VA
 | `AdaptiveRmsThresholdFactor` | 0.67 |
 
 非空的全零配置不等同于 `nil`，只有部分字段会归一化。高层校验允许计数 0–10000、概率及因子 0–1、语音阈值 0–100、RMS 阈值 −127–0 dB。当前判定使用 `VoiceProb == 1` 或 RMS 超过自适应/回退阈值，再结合连续活动/静音帧数。旧字段 `ActivePercent`、`InactivePercent`、`StartVoiceProb`、`StopVoiceProb` 和 `StopRms` 虽可传入，但不控制该判定路径。调参前参见 [`audio_vad2.go`](../agora/rtc/audio_vad2.go)。
+
+### 独立 VAD 与外部处理
+
+保持 `Audio.VAD` 为 false，即可接收未经门控的 PCM，在应用层运行独立检测器。底层 `agora/rtc` 提供单声道 `NewAudioVad` / `ProcessPcmFrame`，以及左右声道独立检测的 `NewSteroVad` / `ProcessAudioFrame`（底层名称沿用上游拼写）。这些原生检测器独立于自动接收 VAD v2 和外部 APM 处理器，不需要频道或 `Config.AudioProcessing`。
+
+输入必须恰好为一个 10 ms 的 16 kHz PCM16 帧（每声道 160 个采样，单声道 320 字节 / 双声道 640 字节），并正确填写 `Type`、`BytesPerSample`、`Channels`、`SamplesPerSec` 和 `SamplesPerChannel`。原生检测器可能丢弃较大块的尾部采样，因此较大输入会被拒绝，应先拆帧再处理。由高层 `AudioFrame` 构造底层 `rtc.AudioFrame` 时应复制元数据；时长由 `SamplesPerChannel / SamplesPerSec` 计算。不同来源分别持有检测器；双声道各自维护状态。返回语音拥有独立字节副本，`RenderTimeMs` 为检测器累计输出时间，不是输入的不透明呈现值。
+
+构造后检查 `nil`，处理后检查负值错误。处理时的原生 C++ 异常返回 `-2002` 并停用该检测器，继续处理前应创建新实例。`Release` 支持 nil、重复调用，并与处理串行执行。释放检测器前先停止消费者；检测器归调用方所有，`Session.Close` 不会自动关闭它们。封装不提供外部门控引擎或应用层打断策略。参见[独立 VAD 示例](../examples/external_vad/README.zh-CN.md)。
 
 ## 编码音频
 
@@ -142,9 +151,9 @@ VAD v2 在 Go 绑定中实现，使用 SDK 提供的 `VoiceProb` 和 `Rms`。`VA
 
 独立于媒体读取，持续消费 `Events().Next(ctx)`。事件包括连接和用户变化、发布与订阅、媒体状态、错误、统计、音量、元数据、关键帧请求及能力回退。`SetVolumeIndication` 接受 0 至 1 小时的间隔及 0–10 的平滑系数，间隔按整毫秒传给原生层；实际行为仍遵循原生约定。
 
-收到 `TokenExpiring` 或 `TokenExpired` 后，从可信服务端获取新 RTC Token，再调用 `RenewToken`。App ID、频道、**字符串用户账号**及角色权限必须匹配。封装不会获取或自动更新 Token。`CapabilityFallback` 的 `Reason` 为原生建议；封装不会自动接受回退。业务可在回调外通过 `SetAudioScenario` 选择支持的场景。固定上游的 AI-server 路径要求兼容的 AI-client 对端；应验证双端，或显式选择兼容的回退场景。
+收到 `TokenExpiring` 或 `TokenExpired` 后，从可信服务端获取新 RTC Token，再调用 `RenewToken`。App ID、频道、**身份模式及对应的数值 UID / 字符串账号**及角色权限必须匹配。封装不会获取或自动更新 Token。`CapabilityFallback` 的 `Reason` 为原生建议；封装不会自动接受回退。业务可在回调外通过 `SetAudioScenario` 选择支持的场景。固定上游的 AI-server 路径要求兼容的 AI-client 对端；应验证双端，或显式选择兼容的回退场景。
 
-`token.RTC` 是可信服务端可选用的纯 Go AccessToken2 辅助函数。`token.Config` 默认角色为 `Publisher`、有效期为 1 小时；有效期范围为 1 秒至 24 小时，按整秒截断。App ID 和 Certificate 均须为 32 位十六进制字符。它使用字符串账号，不生成 RTM Token。不要将 App Certificate 写入客户端、示例或日志。
+`token.RTC` 是可信服务端可选用的纯 Go AccessToken2 辅助函数。`token.Config` 默认角色为 `Publisher`、有效期为 1 小时；有效期范围为 1 秒至 24 小时，按整秒截断。App ID 和 Certificate 均须为 32 位十六进制字符。它使用字符串账号，不生成 RTM 或 RTC+RTM 联合 Token。数值 RTC 身份应在可信服务端使用官方 `rtctokenbuilder2.BuildTokenWithUid`；联合权限保留官方 `BuildTokenWithRtm` 流程，并遵循其身份和权限约定。仅含 RTC 权限的辅助函数不能代替联合 Token。RTM 客户端身份及 Token 与 RTC 分别配置。不要将 App Certificate 写入客户端、示例或日志。
 
 ### RTC 数据与音频元数据
 
@@ -154,7 +163,7 @@ VAD v2 在 Go 绑定中实现，使用 SDK 提供的 `VoiceProb` 和 `Rms`。`VA
 
 ## 队列与数据生命周期
 
-`Audio`、`Video`、`EncodedAudio`、`EncodedVideo`、`Messages` 和 `Events` 各有独立的有界队列。默认容量为 64 **项**，不是字节数或毫秒数。满队列丢弃最旧项，避免原生回调等待业务消费。`Stats()` 返回 `Capacity`、`Buffered`、`Dropped` 和 `Closed` 的快照。已开启但未消费的流（包括事件）可能溢出。
+`Audio`、`Video`、`EncodedAudio`、`EncodedVideo`、`Messages` 和 `Events` 各有独立的有界队列。默认容量为 64 **项**，不是字节数或毫秒数。满队列丢弃最旧项，避免原生回调等待业务消费。`Stats()` 返回 `Capacity`、`Buffered`、`Dropped` 和 `Closed` 的快照。已开启但未消费的流（包括在线状态和 Token 事件）可能溢出。应及时消费事件并监测丢弃计数，不能将该队列视为无损的在线状态账本。
 
 context 仍有效时，`Next(ctx)` 在关闭后先排空缓冲，再返回 `io.EOF`；已取消的 context 则返回对应错误。多个读者竞争消费；需要每个消费者都收到副本时，应由业务分发。高层接收值不暴露原生内存，但多个协程修改同一个 Go 值仍需同步。[RTM 的溢出与关闭规则不同](../messaging/README.zh-CN.md#事件与队列行为)。
 
@@ -174,6 +183,8 @@ context 仍有效时，`Next(ctx)` 在关闭后先排空缓冲，再返回 `io.E
 成功仅表示输入进入处理路径，不代表解码或发送成功；后续失败不会通过原方法结果返回。视频按定时器发送最新解码帧，可能跳帧或重复帧，不保留任意源时间戳。关闭会停止处理，不保证待处理输入已发布。不要在同一轨道混用辅助接口和其他发送者。`send_media` 示例则在运行时调用 FFmpeg 可执行文件。
 
 ## 高级配置
+
+`Service.SetParameters` 在 Service 生命周期锁保护下应用进程级原生 JSON 对象；设置影响新连接时，应在 `NewService` 之后、`Join` 之前调用。原生错误会返回，`Close` 后返回 `ErrClosed`。参数名称与生效时机仍取决于原生版本，封装不添加应用专用默认值。
 
 `Config.ConfigureNative` 在进程初始化前执行；`ChannelConfig.ConfigureNative` 在分配连接前执行。回调应及时返回，不要保留指针。回调可能改变上述默认行为，调整时须保持高层资源归属和模式约定。
 

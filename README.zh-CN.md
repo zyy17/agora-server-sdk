@@ -6,8 +6,8 @@
 
 ## 功能
 
-- 每个进程一个 RTC Service，独立频道会话、有超时的入会等待、显式资源释放
-- 按节奏发送 PCM、逐用户音频、编码音视频、VAD 和音频打断
+- 每个进程一个 RTC Service，显式选择数值或字符串身份，独立频道会话、有界入会等待和资源释放
+- 独立的收发 PCM 格式、可变时长 PCM、调速播放、逐用户音频、VAD 和音频打断
 - 原始视频、订阅控制、RTC 数据流、元数据和连接事件
 - 独立 RTM 客户端：消息、在线状态、元数据、锁、历史和 Stream Topic
 - 复制后的接收数据、有界队列、可观测丢弃计数和受控原生访问
@@ -91,9 +91,9 @@ func run(ctx context.Context) (err error) {
 
 将代码保存为应用的 `main.go`，通过下方环境脚本运行。示例在 Ctrl+C/SIGTERM 时退出，并显式关闭 Session 和 Service。生产应用还应独立消费会话事件、更新 Token 和监控队列丢弃数。
 
-默认接收格式为有符号 PCM16、小端、16 kHz、单声道。发送时使用 `Broadcaster` 会话：`SendPCM` 接受完整的 10 ms 帧，发送节奏由调用方控制；`PlayPCM` 为 `io.Reader` 控制发送节奏。首次发送自动发布轨道。选择格式和生命周期前，参见 [RTC 约定](docs/rtc.zh-CN.md)。
+默认接收格式为有符号 PCM16、小端、16 kHz、单声道。发送时使用 `Broadcaster` 会话：`SendPCM` 接受完整采样且时长为整数毫秒的 PCM 块（44.1 kHz 要求 10 ms 的整数倍），发送节奏由调用方控制；`PlayPCM` 为 `io.Reader` 控制发送节奏。首次发送自动发布轨道。`Audio.Send` 与 `Audio.Receive` 独立配置；`Config.IdentityMode` 选择字符串账号（默认）或数值 UID。选择格式和生命周期前，参见 [RTC 约定](docs/rtc.zh-CN.md)。
 
-RTC/RTM Token 应由可信服务端签发。RTC 入会无需 App Certificate；项目开启鉴权时必须提供匹配的 Token，否则可传空字符串。可选纯 Go `token.RTC` 仅用于可信服务端生成 RTC AccessToken2，不签发 RTM Token。不要将 Certificate 和 Token 写入提交文件或日志。
+RTC/RTM Token 应由可信服务端签发。RTC 入会无需 App Certificate；项目开启鉴权时必须提供匹配的 Token，否则可传空字符串。可选纯 Go `token.RTC` 仅用于可信服务端生成 RTC AccessToken2，使用字符串账号，不签发 RTM 或 RTC+RTM 联合 Token。需要数值身份或联合权限时，保留已有可信 Token 签发逻辑。不要将 Certificate 和 Token 写入提交文件或日志。
 
 ### 在其他 Go 项目中使用
 

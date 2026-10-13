@@ -6,8 +6,8 @@ Build server-side realtime audio, video, and messaging applications with an owne
 
 ## Features
 
-- One RTC service per process, independent channel sessions, bounded join waits, and explicit cleanup
-- Paced PCM playback, per-user audio, encoded audio/video, VAD, and audio interruption
+- One RTC service per process, explicit numeric/string identities, independent channel sessions, bounded joins, and cleanup
+- Independent send/receive PCM formats, variable-duration PCM, paced playback, per-user audio, VAD, and interruption
 - Raw video, subscription control, RTC data streams, metadata, and connection events
 - Independent RTM clients: messaging, Presence, metadata, locks, history, and Stream Topics
 - Copied receive data, bounded queues, visible drop counts, and controlled native access
@@ -91,9 +91,9 @@ func run(ctx context.Context) (err error) {
 
 Save this as an application’s `main.go` and run it through the environment helper below. The example exits on Ctrl+C/SIGTERM and explicitly closes its session and service. Production applications should separately consume session events, renew tokens, and watch queue drops.
 
-Default received audio is signed PCM16 little-endian, 16 kHz, mono. For sending, use a `Broadcaster` session: `SendPCM` accepts complete 10 ms frames with caller-controlled pacing; `PlayPCM` paces an `io.Reader`. First send publishes the track. See the [RTC contracts](docs/rtc.md) before choosing a format or lifecycle.
+Default received audio is signed PCM16 little-endian, 16 kHz, mono. For sending, use a `Broadcaster` session: `SendPCM` accepts complete integral-millisecond PCM chunks (10 ms multiples at 44.1 kHz) with caller-controlled pacing; `PlayPCM` paces an `io.Reader`. First send publishes the track. Set `Audio.Send` and `Audio.Receive` independently; `Config.IdentityMode` selects string accounts (default) or numeric UIDs. See the [RTC contracts](docs/rtc.md) before choosing a format or lifecycle.
 
-Supply RTC/RTM tokens from a trusted token server. RTC joining does not need an App Certificate; authenticated projects require a matching token, while unsecured projects accept an empty string. The optional pure-Go `token.RTC` helper generates RTC AccessToken2 on trusted servers only; it does not mint RTM tokens. Keep certificates and tokens out of committed files and logs.
+Supply RTC/RTM tokens from a trusted token server. RTC joining does not need an App Certificate; authenticated projects require a matching token, while unsecured projects accept an empty string. The optional pure-Go `token.RTC` helper generates RTC AccessToken2 on trusted servers only; it uses string accounts and does not mint RTM or combined RTC+RTM tokens. Keep existing trusted token generation when numeric identities or combined privileges are required. Keep certificates and tokens out of committed files and logs.
 
 ### Use from another Go module
 

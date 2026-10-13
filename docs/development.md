@@ -41,6 +41,7 @@ Do not replace a checksum to accept an arbitrary archive or mix an older native 
 | `make race` | Offline tests with Go race detector |
 | `make build-examples` | Compile all executable examples |
 | `make native-smoke` | Credential-free native lifecycle with `cgocheck2` and race checks |
+| `make test-callbacks` | Synthetic registered C callbacks with `-tags agora_test`, `cgocheck2`, and race checks |
 | `make check` | All default checks above except mutating `fmt` |
 | `make test-avcodec` | Optional decoder tests; separate from `make check` |
 | `make clean` | Remove generated example binaries; keep SDK and caches |

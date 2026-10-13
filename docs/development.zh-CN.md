@@ -41,6 +41,7 @@ make check
 | `make race` | 使用 Go race detector 运行离线测试 |
 | `make build-examples` | 编译全部可执行示例 |
 | `make native-smoke` | 无凭据的原生生命周期，启用 `cgocheck2` 和 race 检查 |
+| `make test-callbacks` | 用合成数据测试已注册的 C 回调，启用 `-tags agora_test`、`cgocheck2` 和 race 检查 |
 | `make check` | 上述默认检查，不包含会修改文件的 `fmt` |
 | `make test-avcodec` | 可选解码器测试，不属于 `make check` |
 | `make clean` | 删除生成的示例二进制，保留 SDK 和缓存 |
