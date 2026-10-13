@@ -45,7 +45,9 @@ func TestSendVideoCancellationAndSendFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	frames := 0
-	err := source.sendVideo(ctx, bytes.NewReader(make([]byte, 12)), 0, func(sdk.VideoFrame) error {
+	// If both cancellation and the ticker are ready, the next read must also
+	// return cancellation rather than reaching EOF or allowing another send.
+	err := source.sendVideo(ctx, silentReader{ctx: ctx}, 0, func(sdk.VideoFrame) error {
 		frames++
 		cancel()
 		return nil
@@ -60,4 +62,16 @@ func TestSendVideoCancellationAndSendFailure(t *testing.T) {
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
+}
+
+type silentReader struct {
+	ctx context.Context
+}
+
+func (r silentReader) Read(data []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	clear(data)
+	return len(data), nil
 }
