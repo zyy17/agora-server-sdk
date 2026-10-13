@@ -80,8 +80,9 @@ const (
 	BinaryMessage = native.RtmMessageTypeBINARY
 )
 
-// Channel identifies a message or stream channel. Use PublishToUser for direct
-// messages; presence, metadata, history and locks address channels.
+// Channel identifies a target channel. Presence, channel metadata and locks use
+// MessageChannel or StreamChannel; History uses MessageChannel or UserChannel.
+// Use PublishToUser to send direct messages.
 type Channel struct {
 	Name string
 	Type ChannelType
