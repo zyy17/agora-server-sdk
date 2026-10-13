@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 	"unsafe"
-	//"sync/atomic"
 )
 
 type RtcConnectionInfo struct {
@@ -504,149 +503,113 @@ func NewRtcConnection(cfg *RtcConnectionConfig, publishConfig *RtcConnectionPubl
 
 	audioScenario := publishConfig.AudioScenario
 	audioProfile := publishConfig.AudioProfile
-
-	ret := &RtcConnection{
-		cConnection: C.agora_rtc_conn_create(agoraService.service, cCfg),
-		// subAudioConfig: cfg.SubAudioConfig,
-		handler:              nil,
-		localUserObserver:    nil,
-		audioObserver:        nil,
-		videoObserver:        nil,
-		encodedVideoObserver: nil,
-		// remoteVideoRWMutex:          &sync.RWMutex{},
-		// remoteEncodedVideoReceivers: make(map[*VideoEncodedImageReceiver]*videoEncodedImageReceiverInner),
-		enableVad:                   0,
-		audioVadManager:             nil,
-		audioScenario:               audioScenario,
-		audioProfile:                audioProfile,
-		publishConfig:               publishConfig,
-		dataStreamId:                -1,
-		sendExternalAudioParameters: nil,
-		transcodingWorker:           nil,
-		videoEncoderConfiguration:   nil,
-		encodedAudioFrameObserver:   nil,
-		audioTranscodingWorker:      nil,
+	conn := &RtcConnection{
+		cConnection:   C.agora_rtc_conn_create(agoraService.service, cCfg),
+		audioScenario: audioScenario,
+		audioProfile:  audioProfile,
+		publishConfig: publishConfig,
+		dataStreamId:  -1,
 	}
-
-	if ret.cConnection == nil {
+	if conn.cConnection == nil {
 		return nil
 	}
 	if isSupportExternalAudio(publishConfig) {
-		ret.sendExternalAudioParameters = &SendExternalAudioParameters{
-			Enabled:                   publishConfig.SendExternalAudioParameters.Enabled,
-			SendMs:                    publishConfig.SendExternalAudioParameters.SendMs,
-			SendSpeed:                 publishConfig.SendExternalAudioParameters.SendSpeed,
-			DeliverMuteDataForFakeAdm: publishConfig.SendExternalAudioParameters.DeliverMuteDataForFakeAdm,
-		}
+		parameters := *publishConfig.SendExternalAudioParameters
+		conn.sendExternalAudioParameters = &parameters
 	}
-
-	ret.localUser = &LocalUser{
-		cLocalUser:  C.agora_rtc_conn_get_local_user(ret.cConnection),
-		publishFlag: false,
-	}
-	ret.parameter = &AgoraParameter{
-		cParameter: C.agora_rtc_conn_get_agora_parameter(ret.cConnection),
-	}
-
-	if ret.localUser.cLocalUser == nil || ret.parameter.cParameter == nil {
-		C.agora_rtc_conn_destroy(ret.cConnection)
+	if !conn.initializeLocalUser() {
+		C.agora_rtc_conn_destroy(conn.cConnection)
 		return nil
 	}
 
-	ret.pcmConsumeStats = &PcmConsumeStats{
-		startTime:   0,
-		totalLength: 0,
-		duration:    0,
-	}
+	// Make callback routing available before registering native observers.
+	agoraService.setConFromHandle(conn.cConnection, conn, ConTypeCCon)
+	agoraService.setConFromHandle(conn.localUser.cLocalUser, conn, ConTypeCLocalUser)
+	conn.registerCapabilitiesObserver()
 
-	// re set audio scenario now
-	ret.localUser.SetAudioEncoderConfiguration(&AudioEncoderConfiguration{AudioProfile: int(audioProfile)})
-
-	ret.localUser.SetAudioScenario(audioScenario)
-	fmt.Printf("______set audio scenario to %d, audio profile to %d\n", audioScenario, audioProfile)
-
-	// for stero encoding mode: from 2.3.0, developer can set the codectype & bitrate through setparameter api and do
-	// in app layer!
-	/* if agoraService.isSteroEncodeMode {
-		ret.enableSteroEncodeMode()
-	 }*/
-
-	// save to sync map
-	agoraService.setConFromHandle(ret.cConnection, ret, ConTypeCCon)
-	agoraService.setConFromHandle(ret.localUser.cLocalUser, ret, ConTypeCLocalUser)
-
-	// for any senario, we can handle the capabilities changed event
-	// register capabilities observer for any senario: that means we need to handle the capabilities changed event
-	// and the senario for each connection can be updated not only fallback from ai server to default but also
-	// can upgrade from default to ai server
-	// 2025-06-13, weihongqin@agora
-	// register capabilities observer only for audio scenario is AudioScenarioAiServer
-	// and it is an inner observer, so developer can not unregister it
-	if ret.audioScenario == AudioScenarioAiServer {
-		ret.cCapabilitiesObserver = CCapatilitiesObserver()
-		ret.cCapObserverHandle = C.agora_local_user_capabilities_observer_create(ret.cCapabilitiesObserver)
-		agoraService.setConFromHandle(ret.cCapObserverHandle, ret, ConTypeCCapabilitiesObserver)
-		C.agora_local_user_register_capabilities_observer(ret.localUser.cLocalUser, ret.cCapObserverHandle)
-	}
-
-	//fmt.Printf("______register capabilities observer: clocaluser %v, cconHandle %v, capHandle %v\n", ret.localUser.cLocalUser, ret.cConnection, ret.cCapObserverHandle)
-
-	// create  track
-	if publishConfig.IsPublishAudio {
-		// check publish type is not no publish
-		if publishConfig.AudioPublishType == AudioPublishTypeNoPublish {
-			fmt.Printf("WARN:publish audio is no publish, so no audio track created\n")
-		}
-		if publishConfig.AudioPublishType == AudioPublishTypePcm {
-			ret.audioSender = agoraService.mediaFactory.NewAudioPcmDataSender()
-			var isSendExternalAudioForAI bool = false
-			if ret.sendExternalAudioParameters != nil && ret.sendExternalAudioParameters.Enabled == true {
-				isSendExternalAudioForAI = true
-			}
-			ret.audioTrack = NewCustomAudioTrackPcm(ret.audioSender, ret.audioScenario, isSendExternalAudioForAI)
-		} else if publishConfig.AudioPublishType == AudioPublishTypeEncodedPcm {
-			ret.encodedAudioSender = agoraService.mediaFactory.NewAudioEncodedFrameSender()
-			ret.audioTrack = NewCustomAudioTrackEncoded(ret.encodedAudioSender, AudioTrackMixDisabled)
-		}
-		// check if the track is not nil
-		if ret.audioTrack != nil {
-			ret.audioTrack.SetEnabled(true)
-		}
-	}
-	if publishConfig.IsPublishVideo {
-		// check publish type is not no publish
-		if publishConfig.VideoPublishType == VideoPublishTypeNoPublish {
-			fmt.Printf("WARN:publish video is no publish, so no video track created\n")
-		}
-		if publishConfig.VideoPublishType == VideoPublishTypeYuv {
-			ret.videoSender = agoraService.mediaFactory.NewVideoFrameSender()
-			ret.videoTrack = NewCustomVideoTrackFrame(ret.videoSender)
-		} else if publishConfig.VideoPublishType == VideoPublishTypeEncodedImage {
-			ret.encodedVideoSender = agoraService.mediaFactory.NewVideoEncodedImageSender()
-			ret.videoTrack = NewCustomVideoTrackEncoded(ret.encodedVideoSender, ret.publishConfig.VideoEncodedImageSenderOptions)
-		}
-		if ret.videoTrack != nil {
-			ret.videoTrack.SetEnabled(true)
-		}
-	}
-
-	if publishConfig.IsPublishAudio && publishConfig.AudioPublishType != AudioPublishTypeNoPublish && ret.audioTrack == nil {
-		ret.Release()
+	conn.createAudioPublishTrack()
+	conn.createVideoPublishTrack()
+	if publishConfig.IsPublishAudio && publishConfig.AudioPublishType != AudioPublishTypeNoPublish && conn.audioTrack == nil {
+		conn.Release()
 		return nil
 	}
-	if publishConfig.IsPublishVideo && publishConfig.VideoPublishType != VideoPublishTypeNoPublish && ret.videoTrack == nil {
-		ret.Release()
+	if publishConfig.IsPublishVideo && publishConfig.VideoPublishType != VideoPublishTypeNoPublish && conn.videoTrack == nil {
+		conn.Release()
 		return nil
 	}
-	// auto create data stream:move to connect function from 0331 for datastream encryption support
-	//ret.dataStreamId, _ = ret.createDataStream(false, false)
 
-	ret.setExtraSendFrameSpeed(publishConfig.SendExternalAudioParameters)
-	// add best practice for large scale channel on 2026-05-11
-	//ret.setBestPractice(cfg.ChannelType)
-	fmt.Printf("______auto create data stream, id: %d\n", ret.dataStreamId)
+	conn.setExtraSendFrameSpeed(publishConfig.SendExternalAudioParameters)
+	fmt.Printf("______auto create data stream, id: %d\n", conn.dataStreamId)
+	return conn
+}
 
-	return ret
+func (conn *RtcConnection) initializeLocalUser() bool {
+	conn.localUser = &LocalUser{
+		cLocalUser: C.agora_rtc_conn_get_local_user(conn.cConnection),
+	}
+	conn.parameter = &AgoraParameter{
+		cParameter: C.agora_rtc_conn_get_agora_parameter(conn.cConnection),
+	}
+	if conn.localUser.cLocalUser == nil || conn.parameter.cParameter == nil {
+		return false
+	}
+
+	conn.pcmConsumeStats = &PcmConsumeStats{}
+	conn.localUser.SetAudioEncoderConfiguration(&AudioEncoderConfiguration{AudioProfile: int(conn.audioProfile)})
+	conn.localUser.SetAudioScenario(conn.audioScenario)
+	fmt.Printf("______set audio scenario to %d, audio profile to %d\n", conn.audioScenario, conn.audioProfile)
+	return true
+}
+
+// The internal capabilities observer supports audio-scenario fallback for AI
+// server connections and cannot be unregistered by the application.
+func (conn *RtcConnection) registerCapabilitiesObserver() {
+	if conn.audioScenario != AudioScenarioAiServer {
+		return
+	}
+	conn.cCapabilitiesObserver = CCapatilitiesObserver()
+	conn.cCapObserverHandle = C.agora_local_user_capabilities_observer_create(conn.cCapabilitiesObserver)
+	agoraService.setConFromHandle(conn.cCapObserverHandle, conn, ConTypeCCapabilitiesObserver)
+	C.agora_local_user_register_capabilities_observer(conn.localUser.cLocalUser, conn.cCapObserverHandle)
+}
+
+func (conn *RtcConnection) createAudioPublishTrack() {
+	if !conn.publishConfig.IsPublishAudio {
+		return
+	}
+	switch conn.publishConfig.AudioPublishType {
+	case AudioPublishTypeNoPublish:
+		fmt.Printf("WARN:publish audio is no publish, so no audio track created\n")
+	case AudioPublishTypePcm:
+		conn.audioSender = agoraService.mediaFactory.NewAudioPcmDataSender()
+		externalAudio := conn.sendExternalAudioParameters != nil && conn.sendExternalAudioParameters.Enabled
+		conn.audioTrack = NewCustomAudioTrackPcm(conn.audioSender, conn.audioScenario, externalAudio)
+	case AudioPublishTypeEncodedPcm:
+		conn.encodedAudioSender = agoraService.mediaFactory.NewAudioEncodedFrameSender()
+		conn.audioTrack = NewCustomAudioTrackEncoded(conn.encodedAudioSender, AudioTrackMixDisabled)
+	}
+	if conn.audioTrack != nil {
+		conn.audioTrack.SetEnabled(true)
+	}
+}
+
+func (conn *RtcConnection) createVideoPublishTrack() {
+	if !conn.publishConfig.IsPublishVideo {
+		return
+	}
+	switch conn.publishConfig.VideoPublishType {
+	case VideoPublishTypeNoPublish:
+		fmt.Printf("WARN:publish video is no publish, so no video track created\n")
+	case VideoPublishTypeYuv:
+		conn.videoSender = agoraService.mediaFactory.NewVideoFrameSender()
+		conn.videoTrack = NewCustomVideoTrackFrame(conn.videoSender)
+	case VideoPublishTypeEncodedImage:
+		conn.encodedVideoSender = agoraService.mediaFactory.NewVideoEncodedImageSender()
+		conn.videoTrack = NewCustomVideoTrackEncoded(conn.encodedVideoSender, conn.publishConfig.VideoEncodedImageSenderOptions)
+	}
+	if conn.videoTrack != nil {
+		conn.videoTrack.SetEnabled(true)
+	}
 }
 
 func (conn *RtcConnection) Release() {
@@ -662,7 +625,16 @@ func (conn *RtcConnection) Release() {
 	conn.unregisterAudioEncodedFrameObserver()
 	conn.unregisterAudioFrameObserver()
 	conn.unregisterObserver()
-	// delete from sync map
+	conn.removeCallbackMappings()
+	conn.unregisterNativeObservers()
+	conn.destroyNativeConnection()
+	conn.releaseLocalState()
+	conn.releasePublishTracks()
+	conn.releasePublishSenders()
+}
+
+// Teardown helpers run with callbacks paused and audioMu held by Release.
+func (conn *RtcConnection) removeCallbackMappings() {
 	agoraService.deleteConFromHandle(conn.cConnection, ConTypeCCon)
 	agoraService.deleteConFromHandle(conn.localUser.cLocalUser, ConTypeCLocalUser)
 	if conn.cVideoObserver != nil {
@@ -671,43 +643,33 @@ func (conn *RtcConnection) Release() {
 	if conn.cEncodedVideoObserver != nil {
 		agoraService.deleteConFromHandle(conn.cEncodedVideoObserver, ConTypeCEncodedVideoObserver)
 	}
+}
 
-	// get all receiverInners
-	// encodedVideoReceiversInners := make([]*videoEncodedImageReceiverInner, 0, 10)
-	// conn.remoteVideoRWMutex.RLock()
-	// for _, receiverInner := range conn.remoteEncodedVideoReceivers {
-	// 	encodedVideoReceiversInners = append(encodedVideoReceiversInners, receiverInner)
-	// }
-	// conn.remoteVideoRWMutex.RUnlock()
-	// // remove all receiverInners from service
-	// agoraService.remoteVideoRWMutex.Lock()
-	// for _, receiverInner := range encodedVideoReceiversInners {
-	// 	delete(agoraService.remoteEncodedVideoReceivers, receiverInner.cReceiver)
-	// }
-	// agoraService.remoteVideoRWMutex.Unlock()
-
-	localUser := conn.localUser
-
+func (conn *RtcConnection) unregisterNativeObservers() {
 	if conn.cCapObserverHandle != nil {
-		C.agora_local_user_unregister_capabilities_observer(localUser.cLocalUser, conn.cCapObserverHandle)
+		C.agora_local_user_unregister_capabilities_observer(conn.localUser.cLocalUser, conn.cCapObserverHandle)
 	}
 	if conn.cAudioObserver != nil {
-		C.agora_local_user_unregister_audio_frame_observer(localUser.cLocalUser)
+		C.agora_local_user_unregister_audio_frame_observer(conn.localUser.cLocalUser)
 	}
 	if conn.cVideoObserver != nil {
-		C.agora_local_user_unregister_video_frame_observer(localUser.cLocalUser, conn.cVideoObserver)
+		C.agora_local_user_unregister_video_frame_observer(conn.localUser.cLocalUser, conn.cVideoObserver)
 	}
 	if conn.cEncodedVideoObserver != nil {
-		C.agora_local_user_unregister_video_encoded_frame_observer(localUser.cLocalUser, conn.cEncodedVideoObserver)
+		C.agora_local_user_unregister_video_encoded_frame_observer(conn.localUser.cLocalUser, conn.cEncodedVideoObserver)
 	}
 	if conn.cLocalUserObserver != nil {
-		C.agora_local_user_unregister_observer(localUser.cLocalUser)
+		C.agora_local_user_unregister_observer(conn.localUser.cLocalUser)
 	}
 	if conn.cHandler != nil {
 		C.agora_rtc_conn_unregister_observer(conn.cConnection)
 	}
-	// Retain callbacks until destruction even if native unregistration failed.
-	handle := conn.cConnection
+}
+
+// nativeObserverCleanup snapshots the native allocations before the connection's
+// fields are cleared. Even failed unregistrations retain their observers until
+// native connection destruction, including when idle mode delays that destruction.
+func (conn *RtcConnection) nativeObserverCleanup() func() {
 	audioObserver := conn.cAudioObserver
 	videoObserver := conn.cVideoObserver
 	encodedVideoObserver := conn.cEncodedVideoObserver
@@ -717,7 +679,7 @@ func (conn *RtcConnection) Release() {
 	capabilityHandle := conn.cCapObserverHandle
 	retired := conn.retiredObservers
 	agoraService.deleteConFromHandle(capabilityHandle, ConTypeCCapabilitiesObserver)
-	freeObservers := func() {
+	return func() {
 		if audioObserver != nil {
 			FreeCAudioFrameObserver(audioObserver)
 		}
@@ -743,6 +705,11 @@ func (conn *RtcConnection) Release() {
 			cleanup()
 		}
 	}
+}
+
+func (conn *RtcConnection) destroyNativeConnection() {
+	handle := conn.cConnection
+	freeObservers := conn.nativeObserverCleanup()
 	if agoraService.idleMode {
 		addIdleItem(handle, 2000, freeObservers)
 	} else {
@@ -758,20 +725,24 @@ func (conn *RtcConnection) Release() {
 	conn.cCapabilitiesObserver = nil
 	conn.cCapObserverHandle = nil
 	conn.retiredObservers = nil
+}
+
+func (conn *RtcConnection) releaseLocalState() {
 	if conn.audioVadManager != nil {
 		conn.audioVadManager.Release()
 		conn.audioVadManager = nil
 	}
 	conn.parameter = nil
+	localUser := conn.localUser
 	conn.localUser = nil
 	localUser.cLocalUser = nil
-	localUser = nil
 	conn.handler = nil
 	conn.localUserObserver = nil
 	conn.audioObserver = nil
 	conn.videoObserver = nil
+}
 
-	// finally to release all tracks
+func (conn *RtcConnection) releasePublishTracks() {
 	if conn.audioTrack != nil {
 		conn.audioTrack.Release()
 		conn.audioTrack = nil
@@ -780,8 +751,9 @@ func (conn *RtcConnection) Release() {
 		conn.videoTrack.Release()
 		conn.videoTrack = nil
 	}
+}
 
-	// finally to release all senders
+func (conn *RtcConnection) releasePublishSenders() {
 	if conn.audioSender != nil {
 		conn.audioSender.Release()
 		conn.audioSender = nil
@@ -798,14 +770,6 @@ func (conn *RtcConnection) Release() {
 		conn.encodedVideoSender.Release()
 		conn.encodedVideoSender = nil
 	}
-
-	// and set all to nil
-	conn.audioTrack = nil
-	conn.videoTrack = nil
-	conn.audioSender = nil
-	conn.videoSender = nil
-	conn.encodedAudioSender = nil
-	conn.encodedVideoSender = nil
 }
 
 func (conn *RtcConnection) GetLocalUser() *LocalUser {

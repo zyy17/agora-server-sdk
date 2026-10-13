@@ -96,6 +96,7 @@ func TestNativeLifecycle(t *testing.T) {
 		conn.Disconnect()
 		conn.Release()
 		callbacks.Wait()
+		assertConnectionReleased(t, conn)
 		conn.Release()
 		if code := Release(); code != 0 {
 			t.Fatalf("release: %d", code)
@@ -103,5 +104,24 @@ func TestNativeLifecycle(t *testing.T) {
 		if code := Release(); code != 0 {
 			t.Fatalf("repeat release: %d", code)
 		}
+	}
+}
+
+func assertConnectionReleased(t *testing.T, conn *RtcConnection) {
+	t.Helper()
+	if conn.cConnection != nil || conn.cAudioObserver != nil || conn.cVideoObserver != nil || conn.cEncodedVideoObserver != nil ||
+		conn.cLocalUserObserver != nil || conn.cHandler != nil || conn.cCapabilitiesObserver != nil || conn.cCapObserverHandle != nil {
+		t.Fatal("released connection retained native handles")
+	}
+	if conn.localUser != nil || conn.parameter != nil || conn.audioVadManager != nil || conn.retiredObservers != nil {
+		t.Fatal("released connection retained local state")
+	}
+	if conn.audioTrack != nil || conn.videoTrack != nil || conn.audioSender != nil || conn.videoSender != nil ||
+		conn.encodedAudioSender != nil || conn.encodedVideoSender != nil {
+		t.Fatal("released connection retained publishing resources")
+	}
+	if conn.callbacks.begin() {
+		conn.callbacks.end()
+		t.Fatal("released connection admitted a callback")
 	}
 }

@@ -222,20 +222,8 @@ func Initialize(cfg *AgoraServiceConfig) int {
 		return ret
 	}
 
-	// save service config
-	agoraService.serviceConfig = cfg
-	// validity check: if local audio track with apm is enabled, but local audio track apm config is not set, set default config
-	if cfg.EnableLocalAudioTrackWithAPM {
-		if cfg.LocalAudioTrackAPMConfig == nil {
-			LocalAudioTrackAPMConfig := NewAPMConfig()
-			LocalAudioTrackAPMConfig.AgcConfig.Enabled = true
-			LocalAudioTrackAPMConfig.AiNsConfig.NsEnabled = false
-			LocalAudioTrackAPMConfig.AiAecConfig.Enabled = false
-			agoraService.serviceConfig.LocalAudioTrackAPMConfig = LocalAudioTrackAPMConfig
-		}
-	}
+	agoraService.storeConfig(cfg)
 
-	// agoraService.mediaFactory = C.agora_service_create_media_node_factory(agoraService.service)
 	cParam := C.agora_service_get_agora_parameter(agoraService.service)
 	cParamStr := C.CString("rtc.set_app_type")
 	defer C.free(unsafe.Pointer(cParamStr))
@@ -243,48 +231,8 @@ func Initialize(cfg *AgoraServiceConfig) int {
 
 	agoraParam := GetAgoraParameter()
 
-	if cfg.EnableSteroEncodeMode < 1 { // disable stereo encode mode,can enabel audio label
-		// enable audio label generator
-		EnableExtension("agora.builtin", "agora_audio_label_generator", "", true)
-
-		// enable vad v2 model
-		agoraParam.SetParameters("{\"che.audio.label.enable\": true}")
-
-		//should load extension for linux only
-		if runtime.GOOS != "darwin" {
-			ret = LoadExtensionProvider("libagora_ai_noise_suppression_extension.so", true)
-			if ret != 0 {
-				fmt.Printf("load ains.so failed, ret: %d\n", ret)
-			}
-		}
-
-		// enable apm filter but disable 3a by default！must enable this extension for vad
-		// or vad will not work
-		EnableExtension("agora.builtin", "audio_processing_remote_playback", "", true)
-		if isSupportExternalAudioProcessor(cfg.APMModel) {
-			EnableExtension("agora.builtin", "audio_processing_pcm_source", "", true)
-		}
-	}
-
-	if isEnableAPM(cfg.APMModel) {
-		if cfg.APMConfig == nil {
-			agoraService.apmConfig = NewAPMConfig()
-		} else {
-			agoraService.apmConfig = cfg.APMConfig
-		}
-	}
-	agoraService.apmModel = cfg.APMModel
-	// from version 2.2.1
-	if cfg.ShouldCallbackWhenMuted > 0 {
-		agoraParam.SetParameters("{\"rtc.audio.enable_user_silence_packet\": true}")
-	}
-	// date: 2025-09-09
-	// to disable av1 resolution limitation: for any resolution,
-	// it will be encoded as av1 if config is av1 or it only work for resolution >= 360p
-	agoraParam.SetParameters("{\"che.video.min_enc_level\": 0}")
-
-	// date: 2026-02-26, default set the minor stream intra request to true
-	agoraParam.SetParameters("{\"rtc.video.enable_minor_stream_intra_request\":true}")
+	agoraService.configureAudioProcessing(cfg, agoraParam)
+	configureServiceParameters(cfg, agoraParam)
 
 	agoraService.mediaFactory = newMediaNodeFactory()
 	if agoraService.mediaFactory == nil {
@@ -303,6 +251,68 @@ func Initialize(cfg *AgoraServiceConfig) int {
 	}
 	return 0
 }
+
+// storeConfig keeps the caller-owned nested settings and supplies local APM defaults
+// only on the service's configuration copy.
+func (s *AgoraService) storeConfig(cfg *AgoraServiceConfig) {
+	s.serviceConfig = cfg
+	if cfg.EnableLocalAudioTrackWithAPM && cfg.LocalAudioTrackAPMConfig == nil {
+		localAPM := NewAPMConfig()
+		localAPM.AgcConfig.Enabled = true
+		localAPM.AiNsConfig.NsEnabled = false
+		localAPM.AiAecConfig.Enabled = false
+		s.serviceConfig.LocalAudioTrackAPMConfig = localAPM
+	}
+}
+
+func (s *AgoraService) configureAudioProcessing(cfg *AgoraServiceConfig, agoraParam *AgoraParameter) {
+	if cfg.EnableSteroEncodeMode < 1 { // disable stereo encode mode,can enabel audio label
+		// enable audio label generator
+		EnableExtension("agora.builtin", "agora_audio_label_generator", "", true)
+
+		// enable vad v2 model
+		agoraParam.SetParameters("{\"che.audio.label.enable\": true}")
+
+		//should load extension for linux only
+		if runtime.GOOS != "darwin" {
+			ret := LoadExtensionProvider("libagora_ai_noise_suppression_extension.so", true)
+			if ret != 0 {
+				fmt.Printf("load ains.so failed, ret: %d\n", ret)
+			}
+		}
+
+		// enable apm filter but disable 3a by default！must enable this extension for vad
+		// or vad will not work
+		EnableExtension("agora.builtin", "audio_processing_remote_playback", "", true)
+		if isSupportExternalAudioProcessor(cfg.APMModel) {
+			EnableExtension("agora.builtin", "audio_processing_pcm_source", "", true)
+		}
+	}
+
+	if isEnableAPM(cfg.APMModel) {
+		if cfg.APMConfig == nil {
+			s.apmConfig = NewAPMConfig()
+		} else {
+			s.apmConfig = cfg.APMConfig
+		}
+	}
+	s.apmModel = cfg.APMModel
+}
+
+func configureServiceParameters(cfg *AgoraServiceConfig, agoraParam *AgoraParameter) {
+	// from version 2.2.1
+	if cfg.ShouldCallbackWhenMuted > 0 {
+		agoraParam.SetParameters("{\"rtc.audio.enable_user_silence_packet\": true}")
+	}
+	// date: 2025-09-09
+	// to disable av1 resolution limitation: for any resolution,
+	// it will be encoded as av1 if config is av1 or it only work for resolution >= 360p
+	agoraParam.SetParameters("{\"che.video.min_enc_level\": 0}")
+
+	// date: 2026-02-26, default set the minor stream intra request to true
+	agoraParam.SetParameters("{\"rtc.video.enable_minor_stream_intra_request\":true}")
+}
+
 func timerTask() {
 	// check the idle queue
 	//fmt.Printf("timerTask: idle queue size: %d\n", 1)
