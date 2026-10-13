@@ -6,11 +6,21 @@ import (
 	native "github.com/zyy17/agora-server-sdk/agora/rtm"
 )
 
-// History returns one page for a MessageChannel or UserChannel. Count is 1..100;
-// zero selects 100. Start and End use the native SDK's timestamp unit. Queries
-// run newest to oldest: Start is the exclusive newer bound, End the inclusive
-// older bound, and zero leaves a bound unset. Pass the previous result's
-// NextStart as Start for pagination; NextStart == 0 means there are no more pages.
+// History returns one page of stored messages for a MessageChannel or
+// UserChannel; stream-channel history is not supported. User-channel history
+// addresses a user channel, not a bidirectional conversation log. Messages must
+// have been published with PublishOptions.StoreInHistory, and the project must
+// have history access.
+//
+// Count is 1 through 100, with zero selecting 100. Start is the exclusive newer
+// bound, End the inclusive older bound, and zero leaves either bound unset.
+// Nonzero bounds must satisfy Start >= End. All timestamps retain native SDK
+// units, and native interval and retention limits still apply.
+//
+// To retrieve older pages, pass the previous NextStart as Start, checking that it
+// fits int64 before conversion and retaining the other query options. NextStart
+// of zero means there are no more pages. The returned payloads are Go-owned.
+// On any error, History returns an empty page rather than partial callback data.
 func (c *Client) History(ctx context.Context, ch Channel, o HistoryOptions) (HistoryPage, error) {
 	options, err := historyQueryOptions(ch, o)
 	if err != nil {

@@ -7,6 +7,14 @@ import (
 	native "github.com/zyy17/agora-server-sdk/agora/rtm"
 )
 
+// OnlineUsers returns one page of users in a message or stream channel.
+// User IDs are always requested; o.IncludeState optionally requests their state.
+// Use an empty o.Page initially, then pass each nonempty NextPage unchanged.
+// Membership can change between pages, so the result is not an atomic snapshot.
+// The method does not subscribe to presence events.
+//
+// The returned data is Go-owned. On an SDK or context error, the returned page
+// is empty, even if a native callback also supplied partial data.
 func (c *Client) OnlineUsers(ctx context.Context, ch Channel, o PresenceOptions) (PresencePage, error) {
 	if err := ch.validate(); err != nil {
 		return PresencePage{}, err
@@ -30,6 +38,9 @@ func (c *Client) OnlineUsers(ctx context.Context, ch Channel, o PresenceOptions)
 	return v.(PresencePage), nil
 }
 
+// UserChannels queries the message and stream channels associated with userID.
+// The user ID must be nonempty UTF-8 without NUL. It returns a Go-owned list
+// reported by the SDK, or nil on error; it does not create any subscription.
 func (c *Client) UserChannels(ctx context.Context, userID string) ([]Channel, error) {
 	if err := validText("user ID", userID, true); err != nil {
 		return nil, err
@@ -49,6 +60,14 @@ func (c *Client) UserChannels(ctx context.Context, userID string) ([]Channel, er
 	return v.([]Channel), nil
 }
 
+// SetState sets the current client's channel-scoped presence keys in a message
+// or stream channel. State must be nonempty, with nonempty keys; keys and values
+// must be UTF-8 without NUL. Existing keys not supplied are not requested for
+// removal. Use RemoveState to remove keys.
+//
+// The map is copied before submission; do not mutate it concurrently with the
+// call. Presence state is not durable metadata. Cancellation does not undo an
+// already submitted update.
 func (c *Client) SetState(ctx context.Context, ch Channel, state map[string]string) error {
 	if err := ch.validate(); err != nil {
 		return err
@@ -90,7 +109,10 @@ func stateItems(state map[string]string) ([]*native.StateItem, error) {
 	return items, nil
 }
 
-// RemoveState removes the supplied keys; an empty key list removes all state.
+// RemoveState removes the supplied presence keys for the current user in a
+// message or stream channel. An empty key list removes all state. Supplied keys
+// must be nonempty UTF-8 without NUL. The key list is copied before submission.
+// Cancellation does not undo an already submitted removal.
 func (c *Client) RemoveState(ctx context.Context, ch Channel, keys ...string) error {
 	if err := ch.validate(); err != nil {
 		return err
@@ -112,6 +134,9 @@ func (c *Client) RemoveState(ctx context.Context, ch Channel, keys ...string) er
 	})
 }
 
+// State queries userID's presence state in a message or stream channel.
+// The user ID must be nonempty UTF-8 without NUL. The returned map is Go-owned;
+// on any error, the returned UserState is its zero value.
 func (c *Client) State(ctx context.Context, ch Channel, userID string) (UserState, error) {
 	if err := ch.validate(); err != nil {
 		return UserState{}, err

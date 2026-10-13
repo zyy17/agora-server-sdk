@@ -39,15 +39,30 @@ func metadataOptions(o MetadataOptions) (*native.MetadataOptions, error) {
 	return &native.MetadataOptions{RecordTs: o.RecordTimestamp, RecordUserId: o.RecordUserID}, nil
 }
 
-// SetChannelMetadata creates or replaces the supplied items, respecting Revision.
+// SetChannelMetadata creates or replaces the supplied metadata items in a
+// message or stream channel. It waits for the SDK result and honors the supplied
+// collection and item revisions. For unconditional writes, explicitly set both
+// Metadata.Revision and every MetadataItem.Revision to -1.
+//
+// Items must be nonempty with unique, nonempty keys; all text must be UTF-8
+// without NUL. o.LockName optionally protects the write. The service validates
+// revisions, quotas, and lock ownership. Cancellation does not undo the write.
 func (c *Client) SetChannelMetadata(ctx context.Context, ch Channel, m Metadata, o MetadataOptions) error {
 	return c.channelMetadata(ctx, "set", ch, m, o)
 }
 
+// UpdateChannelMetadata updates existing metadata items in a message or stream
+// channel and waits for the SDK result. Input validation, revision preconditions,
+// optional locking, and cancellation follow SetChannelMetadata. The native SDK
+// reports missing-item and revision conflicts.
 func (c *Client) UpdateChannelMetadata(ctx context.Context, ch Channel, m Metadata, o MetadataOptions) error {
 	return c.channelMetadata(ctx, "update", ch, m, o)
 }
 
+// RemoveChannelMetadata removes the supplied metadata keys in a message or
+// stream channel and waits for the SDK result. It requires at least one item;
+// an empty collection does not mean remove all. Validation and revision checks
+// follow SetChannelMetadata, including the optional channel lock.
 func (c *Client) RemoveChannelMetadata(ctx context.Context, ch Channel, m Metadata, o MetadataOptions) error {
 	return c.channelMetadata(ctx, "remove", ch, m, o)
 }
@@ -83,6 +98,9 @@ func (c *Client) channelMetadata(ctx context.Context, action string, ch Channel,
 	})
 }
 
+// ChannelMetadata queries metadata for a message or stream channel.
+// The returned collection is a Go-owned copy. On any error it returns the zero
+// Metadata value; querying does not subscribe to metadata changes.
 func (c *Client) ChannelMetadata(ctx context.Context, ch Channel) (Metadata, error) {
 	if err := ch.validate(); err != nil {
 		return Metadata{}, err
@@ -102,14 +120,24 @@ func (c *Client) ChannelMetadata(ctx context.Context, ch Channel) (Metadata, err
 	return v.(Metadata), nil
 }
 
+// SetUserMetadata creates or replaces the supplied user's metadata items and
+// waits for the SDK result. userID must be nonempty UTF-8 without NUL. Item
+// validation and revision preconditions follow SetChannelMetadata, but a nonempty
+// o.LockName is invalid for user metadata. Cancellation does not undo the write.
 func (c *Client) SetUserMetadata(ctx context.Context, userID string, m Metadata, o MetadataOptions) error {
 	return c.userMetadata(ctx, "set", userID, m, o)
 }
 
+// UpdateUserMetadata updates existing metadata items for userID and waits for
+// the SDK result. Validation and revision checks follow SetUserMetadata. The
+// native SDK reports missing-item, permission, and revision conflicts.
 func (c *Client) UpdateUserMetadata(ctx context.Context, userID string, m Metadata, o MetadataOptions) error {
 	return c.userMetadata(ctx, "update", userID, m, o)
 }
 
+// RemoveUserMetadata removes the supplied metadata keys for userID and waits
+// for the SDK result. At least one item is required; an empty collection does not
+// remove all metadata. Validation and revision checks follow SetUserMetadata.
 func (c *Client) RemoveUserMetadata(ctx context.Context, userID string, m Metadata, o MetadataOptions) error {
 	return c.userMetadata(ctx, "remove", userID, m, o)
 }
@@ -148,6 +176,9 @@ func (c *Client) userMetadata(ctx context.Context, action, userID string, m Meta
 	})
 }
 
+// UserMetadata queries userID's metadata without subscribing to changes.
+// The user ID must be nonempty UTF-8 without NUL. The result is a Go-owned copy;
+// on any error it returns the zero Metadata value.
 func (c *Client) UserMetadata(ctx context.Context, userID string) (Metadata, error) {
 	if err := validText("user ID", userID, true); err != nil {
 		return Metadata{}, err
@@ -167,6 +198,9 @@ func (c *Client) UserMetadata(ctx context.Context, userID string) (Metadata, err
 	return v.(Metadata), nil
 }
 
+// SubscribeUserMetadata requests metadata-change notifications for userID and
+// waits for the SDK result. The user ID must be nonempty UTF-8 without NUL.
+// Notifications arrive as EventStorage events and are subject to queue overflow.
 func (c *Client) SubscribeUserMetadata(ctx context.Context, userID string) error {
 	if err := validText("user ID", userID, true); err != nil {
 		return err
@@ -182,6 +216,9 @@ func (c *Client) SubscribeUserMetadata(ctx context.Context, userID string) error
 	})
 }
 
+// UnsubscribeUserMetadata removes the metadata-change subscription for userID
+// and waits for the SDK result. The user ID must be nonempty UTF-8 without NUL.
+// Already queued storage events are not removed.
 func (c *Client) UnsubscribeUserMetadata(ctx context.Context, userID string) error {
 	if err := validText("user ID", userID, true); err != nil {
 		return err

@@ -16,13 +16,18 @@ type result struct {
 	details string
 	err     error
 }
+
 type waiter struct {
 	result chan result
 	owner  *Stream
 }
 
-// Client owns its native client and all streams created from it. Its methods
-// are safe to call concurrently. Close must be called to release native memory.
+// Client owns a native RTM client and all streams created from it.
+// Create one with New; its zero value is not usable. Methods are safe to call
+// concurrently, but a Client must not be copied after creation. Native initiation
+// is serialized, while asynchronous requests wait independently for their own
+// results. Call Close to release native resources even if login or another
+// operation fails.
 type Client struct {
 	native    *native.IRtmClient
 	gate      chan struct{}
@@ -44,8 +49,14 @@ func newClient(buffer int, timeout time.Duration) *Client {
 	return c
 }
 
-// New creates a native client but does not log in or make an application-level
-// network request. RTM support is supplied by the SDK pinned by this repository.
+// New creates an owned native client without logging in or making an
+// application-level network request. Call Client.Login before service operations
+// and Client.Close when finished. Creation does not establish connectivity or
+// project feature access.
+//
+// New validates Config, returning an error wrapping ErrInvalidArgument for
+// invalid inputs. Native initialization failures return *Error or ErrUnavailable.
+// The linked native SDK and its shared libraries must be available.
 func New(cfg Config) (*Client, error) {
 	if err := validText("app ID", cfg.AppID, true); err != nil {
 		return nil, err
@@ -86,17 +97,30 @@ func New(cfg Config) (*Client, error) {
 	return c, nil
 }
 
-// Version returns the linked RTM native SDK version.
+// Version returns the linked native RTM SDK version.
+// It is the RTM core version, which can differ from the distribution's RTC version.
 func Version() string { return native.GetVersion() }
 
-// Events returns a bounded, receive-only event queue. Events own their data and
-// remain valid after Close. When full, the newest event is dropped; request
-// completions never use this queue. Close closes the queue after queued events.
+// Events returns the client's bounded, receive-only event queue.
+// Events own their payloads and remain valid after Close. When the queue is full,
+// the incoming (newest) event is dropped and DroppedEvents increases. Request
+// completions use a separate path and are not dropped by event-queue overflow.
+//
+// Close closes this channel; buffered events remain available before a receive
+// reports closure. Events and Next consume the same queue. Multiple consumers
+// compete for events rather than receiving a broadcast.
 func (c *Client) Events() <-chan Event { return c.events }
 
+// DroppedEvents returns the cumulative count of incoming events discarded
+// because the event queue was full. It includes all event kinds and is not reset
+// when the queue is drained. It does not count notifications ignored after Close.
 func (c *Client) DroppedEvents() uint64 { c.mu.Lock(); defer c.mu.Unlock(); return c.dropped }
 
-// Next waits for an event or cancellation. Consumers can instead range Events.
+// Next waits for one event from the same queue returned by Events.
+// It returns ErrClosed once the closed queue has been drained, or the context's
+// error when cancellation wins. A context already canceled on entry is rejected
+// before consuming an event. A nil context returns ErrInvalidArgument.
+// Config.RequestTimeout does not apply to event waits.
 func (c *Client) Next(ctx context.Context) (Event, error) {
 	if ctx == nil {
 		return Event{}, invalid("nil context")
@@ -252,8 +276,15 @@ func (c *Client) closeState(owner *Stream) {
 	}
 }
 
-// Close releases streams before their client and unblocks all requests. It is
-// idempotent. It does not wait for Logout; call Logout first when needed.
+// Close releases all remaining streams before the native client, closes the
+// event queue, and unblocks pending requests with ErrClosed. It is idempotent:
+// subsequent calls return the first close result. If native releases fail, Close
+// returns the first such *Error and still attempts the remaining releases.
+//
+// Close does not perform or wait for Logout or Stream.Leave. Call them first
+// with a fresh bounded context when graceful departure is required, then close
+// even if they fail. Close waits for serialized native access; a blocking native
+// call or WithNative callback can delay it.
 func (c *Client) Close() error {
 	c.closeOnce.Do(func() {
 		<-c.gate
@@ -276,6 +307,13 @@ func (c *Client) Close() error {
 	return c.closeErr
 }
 
+// Login authenticates the configured user and waits for the SDK login result.
+// Use an RTM token issued for Config.AppID and Config.UserID, not the RTC token
+// used to join a stream channel. The wrapper allows an empty token, but project
+// authentication settings may reject it. Tokens must be UTF-8 without NUL.
+//
+// The wait is bounded by ctx and Config.RequestTimeout. Cancellation does not
+// undo a submitted login or stop native reconnection attempts.
 func (c *Client) Login(ctx context.Context, token string) error {
 	if err := validText("token", token, false); err != nil {
 		return err
@@ -283,10 +321,18 @@ func (c *Client) Login(ctx context.Context, token string) error {
 	return c.call(ctx, "login", func() (int, uint64) { return c.native.Login(token) })
 }
 
+// Logout requests logout and waits for the SDK result within ctx and
+// Config.RequestTimeout. It does not release the client or its streams; call
+// Close to free them. Cancellation does not undo an already submitted logout.
 func (c *Client) Logout(ctx context.Context) error {
 	return c.call(ctx, "logout", func() (int, uint64) { return c.native.Logout() })
 }
 
+// RenewToken submits a replacement RTM login token and waits for the SDK result.
+// Obtain a token for the configured project and user from a trusted token service.
+// Stream-channel RTC tokens must instead be renewed through Stream.RenewToken.
+// Empty tokens pass local validation; all tokens must be UTF-8 without NUL.
+// There is no automatic token renewal.
 func (c *Client) RenewToken(ctx context.Context, token string) error {
 	if err := validText("token", token, false); err != nil {
 		return err
@@ -294,10 +340,23 @@ func (c *Client) RenewToken(ctx context.Context, token string) error {
 	return c.call(ctx, "renew token", func() (int, uint64) { return c.native.RenewToken(token) })
 }
 
+// Publish sends data to a message channel and waits for the SDK result.
+// Login is required; subscribing to the channel is not required to publish.
+// The channel must be nonempty UTF-8 without NUL, and data must be nonempty.
+// Text messages require valid UTF-8 but may contain embedded NUL bytes.
+//
+// Publish copies data before native submission; do not modify data concurrently
+// with the call. Native size, permission, and rate limits still apply. A nil error
+// reports SDK completion, not recipient application processing. Cancellation or
+// timeout stops waiting without undoing a submitted publication.
 func (c *Client) Publish(ctx context.Context, channel string, data []byte, options PublishOptions) error {
 	return c.publish(ctx, channel, MessageChannel, data, options)
 }
 
+// PublishToUser sends a direct message to userID and waits for the SDK result.
+// The recipient is a user identity, not a message-channel subscription. userID
+// must be nonempty UTF-8 without NUL. Payload copying, validation, completion,
+// and cancellation follow Client.Publish.
 func (c *Client) PublishToUser(ctx context.Context, userID string, data []byte, options PublishOptions) error {
 	return c.publish(ctx, userID, UserChannel, data, options)
 }
@@ -324,6 +383,10 @@ func (c *Client) publish(ctx context.Context, target string, kind ChannelType, d
 	return c.call(ctx, "publish", func() (int, uint64) { return c.native.Publish(target, payload, options) })
 }
 
+// Subscribe subscribes to a message channel and waits for the SDK result.
+// Messages are always enabled; presence, metadata, and lock events are opt-in
+// through o. The channel must be nonempty UTF-8 without NUL. Received events
+// arrive through Events or Next and are subject to the queue's overflow policy.
 func (c *Client) Subscribe(ctx context.Context, channel string, o SubscribeOptions) error {
 	if err := validText("channel", channel, true); err != nil {
 		return err
@@ -332,6 +395,9 @@ func (c *Client) Subscribe(ctx context.Context, channel string, o SubscribeOptio
 	return c.call(ctx, "subscribe", func() (int, uint64) { return c.native.Subscribe(channel, options) })
 }
 
+// Unsubscribe removes a message-channel subscription and waits for the SDK
+// result. The channel must be nonempty UTF-8 without NUL. Events already queued
+// are not removed by this operation.
 func (c *Client) Unsubscribe(ctx context.Context, channel string) error {
 	if err := validText("channel", channel, true); err != nil {
 		return err
@@ -339,7 +405,11 @@ func (c *Client) Unsubscribe(ctx context.Context, channel string) error {
 	return c.call(ctx, "unsubscribe", func() (int, uint64) { return c.native.Unsubscribe(channel) })
 }
 
-// SetParameters accepts an SDK parameter JSON object for advanced configuration.
+// SetParameters passes a JSON object to the native SDK for advanced configuration.
+// Invalid JSON, null, and non-object values return ErrInvalidArgument; the native
+// SDK validates supported parameter names and values. It uses WithNative, so ctx
+// bounds waiting for access but cannot interrupt the synchronous native call.
+// Config.RequestTimeout does not apply.
 func (c *Client) SetParameters(ctx context.Context, parameters string) error {
 	var object map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(parameters), &object); err != nil || object == nil {
@@ -348,10 +418,16 @@ func (c *Client) SetParameters(ctx context.Context, parameters string) error {
 	return c.WithNative(ctx, func(n *native.IRtmClient) error { return sdkError("set parameters", n.SetParameters(parameters)) })
 }
 
-// WithNative provides serialized access to the entire native API. The function
-// must return promptly, must not reenter this Client, and must not release or
-// retain native objects. Do not replace the event handler. Asynchronous native
-// results are owned by this package; prefer the context-aware public methods.
+// WithNative lends fn serialized access to the native client and returns fn's
+// error unchanged. A nil fn or ctx returns ErrInvalidArgument. The context bounds
+// waiting for access; Config.RequestTimeout does not apply, and cancellation
+// cannot interrupt fn once it is running.
+//
+// The function must return promptly and must not reenter this Client or any of
+// its Streams, retain or release borrowed native objects, or replace the event
+// handler. Such reentry can deadlock, including when calling Close. Asynchronous
+// native result callbacks belong to this package; use the public context-aware
+// methods for supported operations.
 func (c *Client) WithNative(ctx context.Context, fn func(*native.IRtmClient) error) error {
 	if fn == nil {
 		return invalid("nil native function")
