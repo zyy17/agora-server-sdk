@@ -5,6 +5,7 @@ package agoraservice
 /*
 #include <stdint.h>
 #include "observer_bindings.h"
+#include "agora_audio_track.h"
 
 static int callback_test_pcm(void *local, int position) {
   audio_frame_observer observer = {0};
@@ -22,10 +23,26 @@ static int callback_test_pcm(void *local, int position) {
   }
   return accepted + ((int)samples[0] << 8);
 }
+static void callback_test_missing_ai_capability(void *handle) {
+  capabilites_observer observer = {0};
+  bind_capabilites_observer(&observer);
+  capabilities caps = { .capability_type = 19 };
+  observer.on_capabilities_changed(handle, &caps, 1);
+}
 */
 import "C"
 
 func (f *callbackABIFixture) pcm(position int) (accepted bool, first byte) {
 	result := int(C.callback_test_pcm(f.local, C.int(position)))
 	return result&255 != 0, byte(result >> 8)
+}
+
+func inspectNativeAudioTrack(track *LocalAudioTrack) (enabled bool, volume, code int) {
+	var nativeVolume C.int
+	result := C.agora_local_audio_track_get_publish_volume(track.cTrack, &nativeVolume)
+	return C.agora_local_audio_track_is_enabled(track.cTrack) != 0, int(nativeVolume), int(result)
+}
+
+func invokeMissingAIQoSCapability(conn *RtcConnection) {
+	C.callback_test_missing_ai_capability(conn.cCapObserverHandle)
 }

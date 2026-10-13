@@ -350,6 +350,7 @@ func (s *Session) SetParameters(parameters string) error {
 }
 
 func (s *Session) publishAudioLocked() error {
+	s.syncNativeState()
 	if s.Role() == Audience || s.cfg.Audio.Mode == NoAudio {
 		return ErrNotPublishing
 	}
@@ -364,6 +365,7 @@ func (s *Session) publishAudioLocked() error {
 }
 
 func (s *Session) publishVideoLocked() error {
+	s.syncNativeState()
 	if s.Role() == Audience || s.cfg.Video.Mode == NoVideo {
 		return ErrNotPublishing
 	}
@@ -409,9 +411,11 @@ func (s *Session) UnpublishAudio() error {
 	if s.closed {
 		return ErrClosed
 	}
-	if !s.audioPublished {
+	if !s.audioPublished && (s.Role() == Audience || s.cfg.Audio.Mode == NoAudio) {
 		return nil
 	}
+	// The raw call also cancels a pending retry after failed scenario rollback,
+	// even if the latest snapshot reports that no track is currently published.
 	if err := check("unpublish audio", s.transport.UnpublishAudio()); err != nil {
 		return err
 	}

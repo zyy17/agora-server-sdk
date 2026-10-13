@@ -426,19 +426,22 @@ type RtcConnection struct {
 	cCapabilitiesObserver *C.struct__capabilites_observer
 
 	// audio scenario
-	audioScenario AudioScenario
-	audioProfile  AudioProfile
+	audioScenario      AudioScenario
+	audioScenarioDirty bool
+	audioProfile       AudioProfile
 
 	// publish option
 	publishConfig *RtcConnectionPublishConfig
 
 	// track & sender
-	audioTrack         *LocalAudioTrack
-	videoTrack         *LocalVideoTrack
-	audioSender        *AudioPcmDataSender
-	videoSender        *VideoFrameSender
-	encodedAudioSender *AudioEncodedFrameSender
-	encodedVideoSender *VideoEncodedImageSender
+	audioSettings            audioTrackSettings
+	audioPublicationRecovery bool
+	audioTrack               *LocalAudioTrack
+	videoTrack               *LocalVideoTrack
+	audioSender              *AudioPcmDataSender
+	videoSender              *VideoFrameSender
+	encodedAudioSender       *AudioEncodedFrameSender
+	encodedVideoSender       *VideoEncodedImageSender
 
 	// pcm consumption stats for raw pcm data only
 	pcmConsumeStats *PcmConsumeStats
@@ -597,6 +600,10 @@ func (conn *RtcConnection) createAudioPublishTrack() {
 	}
 	if conn.audioTrack != nil {
 		conn.audioTrack.SetEnabled(true)
+		if code := conn.audioSettings.apply(conn.audioTrack); code != 0 {
+			conn.audioTrack.Release()
+			conn.audioTrack = nil
+		}
 	}
 }
 
@@ -1279,7 +1286,9 @@ func (conn *RtcConnection) handleCapabilitiesChanged(caps *C.struct__capabilitie
 		userDefinedSenario := conn.handler.OnAIQoSCapabilityMissing(conn, int(AudioScenarioChorus))
 		if userDefinedSenario >= 0 {
 			fmt.Printf("onAIQoSCapabilityMissing, userDefinedSenario: %d\n", userDefinedSenario)
-			conn.UpdateAudioSenario(AudioScenario(userDefinedSenario))
+			if code := conn.UpdateAudioSenario(AudioScenario(userDefinedSenario)); code != 0 && conn.handler.OnError != nil {
+				conn.handler.OnError(conn, code, "automatic audio scenario fallback failed")
+			}
 		}
 	}
 	return 0
@@ -1304,6 +1313,9 @@ func (conn *RtcConnection) PublishAudio() int {
 	}
 	//conn.audioTrack.SetEnabled(true)
 	ret := conn.localUser.publishAudio(conn.audioTrack)
+	if ret == 0 {
+		conn.audioPublicationRecovery = false
+	}
 	return int(ret)
 }
 
@@ -1323,6 +1335,9 @@ func (conn *RtcConnection) UnpublishAudio() int {
 	}
 	//conn.audioTrack.SetEnabled(false)
 	ret := conn.localUser.unpublishAudio(conn.audioTrack)
+	if ret == 0 {
+		conn.audioPublicationRecovery = false
+	}
 	return int(ret)
 }
 
@@ -1446,7 +1461,7 @@ func (conn *RtcConnection) UpdateAudioSenario(scenario AudioScenario) int {
 	if conn.cConnection == nil || conn.localUser == nil {
 		return -2000
 	}
-	if conn.audioScenario == scenario {
+	if conn.audioScenario == scenario && !conn.audioScenarioDirty {
 		return 0
 	}
 	oldScenario := conn.audioScenario
@@ -1455,6 +1470,7 @@ func (conn *RtcConnection) UpdateAudioSenario(scenario AudioScenario) int {
 		ret := conn.localUser.SetAudioScenario(scenario)
 		if ret == 0 {
 			conn.audioScenario = scenario
+			conn.audioScenarioDirty = false
 		}
 		return ret
 	}
@@ -1463,14 +1479,18 @@ func (conn *RtcConnection) UpdateAudioSenario(scenario AudioScenario) int {
 	if replacement == nil {
 		return -1
 	}
+	if code := conn.audioSettings.apply(replacement); code != 0 {
+		conn.audioSender.audioScenario = oldScenario
+		replacement.Release()
+		return code
+	}
 	oldTrack := conn.audioTrack
 	wasPublished := conn.localUser.publishFlag
 	rollback := func() {
-		conn.localUser.SetAudioScenario(oldScenario)
+		conn.rollbackAudioScenario(oldScenario, wasPublished, conn.localUser.SetAudioScenario, func() int {
+			return conn.localUser.publishAudio(oldTrack)
+		})
 		conn.audioSender.audioScenario = oldScenario
-		if wasPublished {
-			conn.localUser.publishAudio(oldTrack)
-		}
 		replacement.Release()
 	}
 	if wasPublished {
@@ -1492,6 +1512,7 @@ func (conn *RtcConnection) UpdateAudioSenario(scenario AudioScenario) int {
 	}
 	conn.audioTrack = replacement
 	conn.audioScenario = scenario
+	conn.audioScenarioDirty = false
 	oldTrack.Release()
 	if conn.pcmConsumeStats != nil {
 		conn.pcmConsumeStats.reset()

@@ -298,3 +298,34 @@ func TestWithNativeReconcilesPartialDemotion(t *testing.T) {
 		t.Fatalf("send did not republish audio: %v, calls=%d", err, transport.publishes)
 	}
 }
+
+func TestSendRefreshesAsynchronousPublicationState(t *testing.T) {
+	s, _ := testSession(t)
+	defer s.Close()
+	transport := &nativeStateTransport{role: int(rtc.ClientRoleBroadcaster), audio: false}
+	s.transport = transport
+	// An automatic native fallback can fail to republish without a managed call.
+	s.audioPublished = true
+	if err := s.SendPCM(make([]byte, 320)); err != nil || transport.publishes != 1 || !s.audioPublished {
+		t.Fatalf("stale callback publication state was used: %v, calls=%d", err, transport.publishes)
+	}
+}
+
+type recoveryCancelTransport struct {
+	fakeTransport
+	unpublishes int
+}
+
+func (t *recoveryCancelTransport) UnpublishAudio() int { t.unpublishes++; return 0 }
+
+func TestUnpublishCancelsRecoveryAfterFailedScenario(t *testing.T) {
+	s, _ := testSession(t)
+	defer s.Close()
+	transport := &recoveryCancelTransport{}
+	s.transport = transport
+	// SetAudioScenario has reconciled a failed rollback as currently unpublished.
+	s.audioPublished = false
+	if err := s.UnpublishAudio(); err != nil || transport.unpublishes != 1 {
+		t.Fatalf("pending native recovery was not cancelled: %v calls=%d", err, transport.unpublishes)
+	}
+}

@@ -2,17 +2,21 @@ package agoraservice
 
 // SetAudioTrackEnabled enables or disables the connection-owned local audio
 // track without changing publication state. Serialize raw lifecycle operations
-// externally. Returns -2000 if absent; native SetEnabled has no result code.
+// externally. An audience with configured audio stores the setting until
+// promotion. Native SetEnabled has no result code; NoPublish returns -2000.
 func (conn *RtcConnection) SetAudioTrackEnabled(enabled bool) int {
 	if conn == nil {
 		return -2000
 	}
 	conn.audioMu.Lock()
 	defer conn.audioMu.Unlock()
-	if conn.cConnection == nil || conn.audioTrack == nil || conn.audioTrack.cTrack == nil {
+	if !conn.canConfigureAudioTrack() {
 		return -2000
 	}
-	conn.audioTrack.SetEnabled(enabled)
+	if conn.audioTrack != nil {
+		conn.audioTrack.SetEnabled(enabled)
+	}
+	conn.audioSettings.enabledSet, conn.audioSettings.enabled = true, enabled
 	return 0
 }
 
@@ -35,10 +39,16 @@ func (conn *RtcConnection) AdjustAudioPublishVolume(volume int) int {
 	}
 	conn.audioMu.Lock()
 	defer conn.audioMu.Unlock()
-	if conn.cConnection == nil || conn.audioTrack == nil {
+	if !conn.canConfigureAudioTrack() {
 		return -2000
 	}
-	return conn.audioTrack.AdjustPublishVolume(volume)
+	if conn.audioTrack != nil {
+		if code := conn.audioTrack.AdjustPublishVolume(volume); code != 0 {
+			return code
+		}
+	}
+	conn.audioSettings.volumeSet, conn.audioSettings.volume = true, volume
+	return 0
 }
 
 // SetAudioSendDelayMs forwards the local audio track's send delay in milliseconds.
@@ -49,10 +59,16 @@ func (conn *RtcConnection) SetAudioSendDelayMs(delay int) int {
 	}
 	conn.audioMu.Lock()
 	defer conn.audioMu.Unlock()
-	if conn.cConnection == nil || conn.audioTrack == nil {
+	if !conn.canConfigureAudioTrack() {
 		return -2000
 	}
-	return conn.audioTrack.SetSendDelayMs(delay)
+	if conn.audioTrack != nil {
+		if code := conn.audioTrack.SetSendDelayMs(delay); code != 0 {
+			return code
+		}
+	}
+	conn.audioSettings.delaySet, conn.audioSettings.delay = true, delay
+	return 0
 }
 
 // SetAudioBufferCapacity sets the local sender capacity in 10 ms frames.
@@ -64,10 +80,13 @@ func (conn *RtcConnection) SetAudioBufferCapacity(frames int) int {
 	}
 	conn.audioMu.Lock()
 	defer conn.audioMu.Unlock()
-	if conn.cConnection == nil || conn.audioTrack == nil || conn.audioTrack.cTrack == nil {
+	if !conn.canConfigureAudioTrack() {
 		return -2000
 	}
-	conn.audioTrack.SetMaxBufferedAudioFrameNumber(frames)
+	if conn.audioTrack != nil {
+		conn.audioTrack.SetMaxBufferedAudioFrameNumber(frames)
+	}
+	conn.audioSettings.capacitySet, conn.audioSettings.capacity = true, frames
 	return 0
 }
 
@@ -104,6 +123,9 @@ func (conn *RtcConnection) PushAudioFrame(frame *AudioFrame) int {
 	defer conn.audioMu.Unlock()
 	if conn.cConnection == nil || conn.audioSender == nil {
 		return -2000
+	}
+	if code := conn.recoverAudioPublication(func() int { return conn.localUser.publishAudio(conn.audioTrack) }); code != 0 {
+		return code
 	}
 	if conn.pcmConsumeStats != nil && conn.pcmConsumeStats.isNewRound(frame.SamplesPerSec, frame.Channels) {
 		conn.setTotalExtraSendMs()

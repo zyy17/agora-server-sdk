@@ -72,6 +72,10 @@ func (conn *RtcConnection) prepareAudience() int {
 			return code
 		}
 	}
+	conn.audioPublicationRecovery = false
+	if conn.pcmConsumeStats != nil {
+		conn.pcmConsumeStats.reset()
+	}
 	if conn.videoTrack != nil && conn.localUser.videoPublishFlag {
 		if code := conn.localUser.unpublishVideo(conn.videoTrack); code != 0 {
 			return code

@@ -70,6 +70,7 @@ const (
 	KeyFrameRequested EventKind = "keyframe_requested"
 	// CapabilityFallback reports a missing AI-QoS capability, recommended native
 	// scenario in Reason, and the immediate AudioFallbackDecision in Data.
+	// A failed native application of the decision is reported separately as SDKError.
 	CapabilityFallback EventKind = "capability_fallback"
 	// CallbackPanic reports a contained panic in an application media callback.
 	CallbackPanic EventKind = "callback_panic"

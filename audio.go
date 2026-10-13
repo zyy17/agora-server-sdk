@@ -414,7 +414,8 @@ func (s *Session) SetVolumeIndication(interval time.Duration, smoothing int, rep
 
 // SetAudioScenario selects native processing outside the callback thread.
 // Handle CapabilityFallback events and call this method if the application
-// chooses a supported fallback; the wrapper does not accept one automatically.
+// chooses a supported fallback. AudioConfig.Fallback or SetAudioFallback can
+// also select automatic native fallback without blocking on the event queue.
 // Changing the scenario does not change configured send/receive PCM formats.
 // A native rejection is returned as *Error.
 func (s *Session) SetAudioScenario(scenario AudioScenario) error {
@@ -426,6 +427,7 @@ func (s *Session) SetAudioScenario(scenario AudioScenario) error {
 	if s.closed {
 		return ErrClosed
 	}
+	defer s.syncNativeState()
 	if err := check("set audio scenario", s.native.UpdateAudioSenario(scenario.native())); err != nil {
 		return err
 	}
