@@ -167,3 +167,60 @@ func ExampleClient_Close() {
 	}
 	_ = shutdown
 }
+
+func ExampleConfig_numericIdentity() {
+	cfg := messaging.Config{
+		AppID: "project-app-id", UserID: "42", Identity: messaging.IdentityNumeric,
+		ResultEvents: true,
+		Connection: &messaging.ConnectionConfig{
+			Area: messaging.AreaEurope, Protocol: messaging.ProtocolTCPOnly,
+			PresenceTimeout: 30 * time.Second, HeartbeatInterval: 5 * time.Second,
+			ReconnectTimeout: time.Minute,
+		},
+	}
+	fmt.Println(cfg.UserID, cfg.Identity == messaging.IdentityNumeric, cfg.ResultEvents)
+	// Output: 42 true true
+}
+
+func ExampleClient_AcquireLockWithOptions() {
+	// Supply a dedicated logged-in client CREATED WITH Config{ResultEvents: true}.
+	// This function takes ownership and closes it on EVERY exit to stop retry.
+	// It has one event consumer and one acquisition for this target, requests
+	// ownership only as a probe, and releases the first successful result.
+	probe := func(app context.Context, client *messaging.Client) (err error) {
+		defer func() { err = errors.Join(err, client.Close()) }()
+		channel := messaging.Channel{Name: "locks", Type: messaging.MessageChannel}
+		attempt, cancel := context.WithTimeout(app, time.Second)
+		err = client.AcquireLockWithOptions(attempt, channel, "mutex", messaging.AcquireLockOptions{Retry: true})
+		cancel()
+		if err != nil {
+			// Neither a context error nor a failed acquisition callback proves
+			// the native retry has stopped. Continue until success or shutdown.
+			fmt.Println("initial acquisition result:", err)
+		}
+		// A context error has NOT canceled native retry. Keep handling events
+		// using the application context, not the expired acquisition context.
+		for {
+			event, err := client.Next(app)
+			if err != nil {
+				return err
+			} // Deferred Close stops this dedicated client and its retries.
+			if client.DroppedEvents() != 0 {
+				// Query Locks with a fresh context and reconcile ownership. A
+				// single snapshot cannot prove an in-flight retry will not win later.
+				return fmt.Errorf("result events were dropped; reconcile locks before continuing")
+			}
+			r := event.RequestResult
+			if r == nil || r.Operation != messaging.RequestAcquireLock || r.Channel != channel || r.LockName != "mutex" {
+				continue
+			}
+			if r.Error != nil {
+				continue // A failed attempt is not proof native retry stopped.
+			}
+			cleanup, stop := context.WithTimeout(context.Background(), 3*time.Second)
+			defer stop()
+			return client.ReleaseLock(cleanup, channel, "mutex")
+		}
+	}
+	_ = probe
+}

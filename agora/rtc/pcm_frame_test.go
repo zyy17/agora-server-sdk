@@ -26,3 +26,24 @@ func TestPCMFramePreservesSamplesAndPTS(t *testing.T) {
 		}
 	}
 }
+
+func TestPCMExplicitFrameValidation(t *testing.T) {
+	f := AudioFrame{Buffer: []byte{1, 2}, Type: AudioFrameTypePCM16, BytesPerSample: 2, Channels: 1, SamplesPerChannel: 1, SamplesPerSec: 16000, RenderTimeMs: 4294967295, PresentTimeMs: -9223372036854775808}
+	if err := f.ValidatePCM(); err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []func(*AudioFrame){
+		func(f *AudioFrame) { f.Type = 1 },
+		func(f *AudioFrame) { f.RenderTimeMs = -1 },
+		func(f *AudioFrame) { f.RenderTimeMs = 4294967296 },
+		func(f *AudioFrame) { f.SamplesPerChannel = 2 },
+		func(f *AudioFrame) { f.SamplesPerSec = 0 },
+		func(f *AudioFrame) { f.BytesPerSample = 1 },
+	} {
+		copy := f
+		change(&copy)
+		if err := copy.ValidatePCM(); err == nil {
+			t.Fatal("invalid frame accepted", copy)
+		}
+	}
+}

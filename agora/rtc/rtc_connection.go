@@ -381,13 +381,24 @@ type RtcConnectionPublishConfig struct {
 	SendExternalAudioParameters *SendExternalAudioParameters
 }
 
-// note: DeliverMuteDataForFakeAdm can only set to rtc engine level, can not
-// set to connection level
-// so if once a connection has set to true, wihich will affect all the connections,
+// SendExternalAudioParameters configures the native external-audio AI send path.
+// SendSpeed (clamped to 5) and DeliverMuteDataForFakeAdm are engine-wide,
+// not independent per connection. Each first successfully applied enabled option
+// selects its value until successful service Release. Matching requests are
+// idempotent; conflicts or native setter failures cause NewRtcConnection to fail.
+// Successfully applied options remain selected if a later setup step fails.
+// Closing the selecting connection does not reset these runtime-wide settings.
+// Native parameter acceptance does not guarantee achieved send throughput.
 type SendExternalAudioParameters struct {
-	Enabled                   bool
-	SendMs                    int
-	SendSpeed                 int
+	// Enabled opts into the native external-audio send path.
+	Enabled bool
+	// SendMs is the positive per-track extra-send budget in milliseconds.
+	SendMs int
+	// SendSpeed selects the engine-wide extra-frame parameter. Enabled requests
+	// require a value greater than 1; values greater than 5 are clamped to 5.
+	SendSpeed int
+	// DeliverMuteDataForFakeAdm selects the engine-wide mute-data option.
+	// Concurrent sessions must request the same value within one runtime.
 	DeliverMuteDataForFakeAdm bool
 }
 
@@ -426,19 +437,22 @@ type RtcConnection struct {
 	cCapabilitiesObserver *C.struct__capabilites_observer
 
 	// audio scenario
-	audioScenario AudioScenario
-	audioProfile  AudioProfile
+	audioScenario      AudioScenario
+	audioScenarioDirty bool
+	audioProfile       AudioProfile
 
 	// publish option
 	publishConfig *RtcConnectionPublishConfig
 
 	// track & sender
-	audioTrack         *LocalAudioTrack
-	videoTrack         *LocalVideoTrack
-	audioSender        *AudioPcmDataSender
-	videoSender        *VideoFrameSender
-	encodedAudioSender *AudioEncodedFrameSender
-	encodedVideoSender *VideoEncodedImageSender
+	audioSettings            audioTrackSettings
+	audioPublicationRecovery bool
+	audioTrack               *LocalAudioTrack
+	videoTrack               *LocalVideoTrack
+	audioSender              *AudioPcmDataSender
+	videoSender              *VideoFrameSender
+	encodedAudioSender       *AudioEncodedFrameSender
+	encodedVideoSender       *VideoEncodedImageSender
 
 	// pcm consumption stats for raw pcm data only
 	pcmConsumeStats *PcmConsumeStats
@@ -522,6 +536,8 @@ func NewRtcConnection(cfg *RtcConnectionConfig, publishConfig *RtcConnectionPubl
 		return nil
 	}
 
+	conn.localUser.role.Store(int32(cfg.ClientRole))
+
 	// Make callback routing available before registering native observers.
 	agoraService.setConFromHandle(conn.cConnection, conn, ConTypeCCon)
 	agoraService.setConFromHandle(conn.localUser.cLocalUser, conn, ConTypeCLocalUser)
@@ -538,7 +554,12 @@ func NewRtcConnection(cfg *RtcConnectionConfig, publishConfig *RtcConnectionPubl
 		return nil
 	}
 
-	conn.setExtraSendFrameSpeed(publishConfig.SendExternalAudioParameters)
+	if params := publishConfig.SendExternalAudioParameters; params != nil && params.Enabled {
+		if code := conn.setExtraSendFrameSpeed(params); code != 0 {
+			conn.Release()
+			return nil
+		}
+	}
 	fmt.Printf("______auto create data stream, id: %d\n", conn.dataStreamId)
 	return conn
 }
@@ -590,6 +611,10 @@ func (conn *RtcConnection) createAudioPublishTrack() {
 	}
 	if conn.audioTrack != nil {
 		conn.audioTrack.SetEnabled(true)
+		if code := conn.audioSettings.apply(conn.audioTrack); code != 0 {
+			conn.audioTrack.Release()
+			conn.audioTrack = nil
+		}
 	}
 }
 
@@ -1272,7 +1297,9 @@ func (conn *RtcConnection) handleCapabilitiesChanged(caps *C.struct__capabilitie
 		userDefinedSenario := conn.handler.OnAIQoSCapabilityMissing(conn, int(AudioScenarioChorus))
 		if userDefinedSenario >= 0 {
 			fmt.Printf("onAIQoSCapabilityMissing, userDefinedSenario: %d\n", userDefinedSenario)
-			conn.UpdateAudioSenario(AudioScenario(userDefinedSenario))
+			if code := conn.UpdateAudioSenario(AudioScenario(userDefinedSenario)); code != 0 && conn.handler.OnError != nil {
+				conn.handler.OnError(conn, code, "automatic audio scenario fallback failed")
+			}
 		}
 	}
 	return 0
@@ -1297,6 +1324,9 @@ func (conn *RtcConnection) PublishAudio() int {
 	}
 	//conn.audioTrack.SetEnabled(true)
 	ret := conn.localUser.publishAudio(conn.audioTrack)
+	if ret == 0 {
+		conn.audioPublicationRecovery = false
+	}
 	return int(ret)
 }
 
@@ -1316,6 +1346,9 @@ func (conn *RtcConnection) UnpublishAudio() int {
 	}
 	//conn.audioTrack.SetEnabled(false)
 	ret := conn.localUser.unpublishAudio(conn.audioTrack)
+	if ret == 0 {
+		conn.audioPublicationRecovery = false
+	}
 	return int(ret)
 }
 
@@ -1381,30 +1414,11 @@ func (conn *RtcConnection) PushAudioPcmData(data []byte, sampleRate int, channel
 	if conn == nil {
 		return -2000
 	}
-	conn.audioMu.Lock()
-	defer conn.audioMu.Unlock()
-	if conn == nil || conn.cConnection == nil || conn.audioSender == nil {
-		return -2000
-	}
 	frame, valid := makePCMFrame(data, sampleRate, channels, startPtsInMs)
 	if !valid {
 		return -2
 	}
-	readLen := len(data)
-
-	//for ai server limited mode only
-	// for every new round, should call the function to set the total extra send ms
-	// automatically set the total extra send ms when the pcm data is sent
-	isNewRound := conn.pcmConsumeStats.isNewRound(sampleRate, channels)
-	if isNewRound {
-		conn.setTotalExtraSendMs()
-	}
-
-	ret := conn.audioSender.SendAudioPcmData(frame)
-	if ret == 0 {
-		conn.pcmConsumeStats.addPcmData(readLen, sampleRate, channels)
-	}
-	return ret
+	return conn.PushAudioFrame(frame)
 }
 
 func (conn *RtcConnection) PushAudioEncodedData(data []byte, frameInfo *EncodedAudioFrameInfo) int {
@@ -1458,7 +1472,7 @@ func (conn *RtcConnection) UpdateAudioSenario(scenario AudioScenario) int {
 	if conn.cConnection == nil || conn.localUser == nil {
 		return -2000
 	}
-	if conn.audioScenario == scenario {
+	if conn.audioScenario == scenario && !conn.audioScenarioDirty {
 		return 0
 	}
 	oldScenario := conn.audioScenario
@@ -1467,6 +1481,7 @@ func (conn *RtcConnection) UpdateAudioSenario(scenario AudioScenario) int {
 		ret := conn.localUser.SetAudioScenario(scenario)
 		if ret == 0 {
 			conn.audioScenario = scenario
+			conn.audioScenarioDirty = false
 		}
 		return ret
 	}
@@ -1475,14 +1490,18 @@ func (conn *RtcConnection) UpdateAudioSenario(scenario AudioScenario) int {
 	if replacement == nil {
 		return -1
 	}
+	if code := conn.audioSettings.apply(replacement); code != 0 {
+		conn.audioSender.audioScenario = oldScenario
+		replacement.Release()
+		return code
+	}
 	oldTrack := conn.audioTrack
 	wasPublished := conn.localUser.publishFlag
 	rollback := func() {
-		conn.localUser.SetAudioScenario(oldScenario)
+		conn.rollbackAudioScenario(oldScenario, wasPublished, conn.localUser.SetAudioScenario, func() int {
+			return conn.localUser.publishAudio(oldTrack)
+		})
 		conn.audioSender.audioScenario = oldScenario
-		if wasPublished {
-			conn.localUser.publishAudio(oldTrack)
-		}
 		replacement.Release()
 	}
 	if wasPublished {
@@ -1504,6 +1523,7 @@ func (conn *RtcConnection) UpdateAudioSenario(scenario AudioScenario) int {
 	}
 	conn.audioTrack = replacement
 	conn.audioScenario = scenario
+	conn.audioScenarioDirty = false
 	oldTrack.Release()
 	if conn.pcmConsumeStats != nil {
 		conn.pcmConsumeStats.reset()
@@ -1580,13 +1600,23 @@ func (consumer *PcmConsumeStats) reset() {
 	consumer.duration = 0
 }
 
+// SetVideoEncoderConfiguration applies an encoder configuration to the owned
+// video track. An audience connection with configured video stores a copy until
+// promotion creates the track; the caller may reuse cfg after this call.
 func (conn *RtcConnection) SetVideoEncoderConfiguration(cfg *VideoEncoderConfiguration) int {
 	// validate the connection
-	if conn == nil || conn.cConnection == nil || conn.videoTrack == nil || conn.videoTrack.cTrack == nil {
+	if conn == nil || conn.cConnection == nil || cfg == nil {
 		return -1000
 	}
-	// keep configure
-	conn.videoEncoderConfiguration = cfg
+	// Audience sessions retain a copied encoder setting for lazy promotion.
+	copy := *cfg
+	conn.videoEncoderConfiguration = &copy
+	if conn.videoTrack == nil || conn.videoTrack.cTrack == nil {
+		if conn.publishConfig != nil && conn.publishConfig.VideoPublishType != VideoPublishTypeNoPublish {
+			return 0
+		}
+		return -1000
+	}
 
 	// validate the cfg
 
@@ -1673,27 +1703,20 @@ func (conn *RtcConnection) setExtraSendFrameSpeed(sendExternalAudioParameters *S
 	if conn == nil || conn.cConnection == nil || conn.localUser == nil || conn.localUser.cLocalUser == nil {
 		return -2000
 	}
-	if sendExternalAudioParameters == nil || sendExternalAudioParameters.Enabled == false || sendExternalAudioParameters.SendMs <= 0 || sendExternalAudioParameters.SendSpeed <= 1 {
+	if sendExternalAudioParameters == nil || !sendExternalAudioParameters.Enabled || sendExternalAudioParameters.SendMs <= 0 || sendExternalAudioParameters.SendSpeed <= 1 {
 		return -2001
 	}
-
-	// check the parameters
-	speed := sendExternalAudioParameters.SendSpeed
-
-	if speed > 5 {
-		speed = 5
-	}
-	if speed < 1 {
-		speed = 1
+	// The pinned native SDK accepts this key on the service parameter interface,
+	// not the connection interface. Keep its engine-wide scope explicit.
+	speed := min(sendExternalAudioParameters.SendSpeed, 5)
+	if code := agoraService.extraSendSpeed.apply(speed, func(int) int {
+		return configureExtraSendFrameSpeed(sendExternalAudioParameters, GetAgoraParameter().SetParameters)
+	}); code != 0 {
+		return code
 	}
 
-	// set the parameters to the connection
-	params := fmt.Sprintf("{\"che.audio.extra_send_frames_per_interval_for_fake_adm\": %d", speed)
-	conn.GetAgoraParameter().SetParameters(params)
-
-	// deliver mute data for fake adm: can only effect at service level, no effect for connection level
-	setDeliverMuteData(sendExternalAudioParameters.DeliverMuteDataForFakeAdm)
-	return 0
+	// This is engine-wide. Never silently override an existing runtime choice.
+	return setDeliverMuteData(sendExternalAudioParameters.DeliverMuteDataForFakeAdm)
 }
 
 func (conn *RtcConnection) setTotalExtraSendMs() int {
@@ -1713,23 +1736,6 @@ func isSupportExternalAudio(publishConfig *RtcConnectionPublishConfig) bool {
 		return true
 	}
 	return false
-}
-
-// add a closer function to set only once the extra audio send ms the agora parameter
-var deliverMuteDataHasSet bool = false
-
-func setDeliverMuteData(deliverMuteData bool) bool {
-
-	fmt.Printf("createDeliverMuteDataSetter, deliverMuteData: %t\n", deliverMuteDataHasSet)
-
-	if !deliverMuteData && !deliverMuteDataHasSet {
-		agoraParameterHandler := GetAgoraParameter()
-		agoraParameterHandler.SetParameters("{\"che.audio.deliver_mute_data_for_fake_adm\":false}")
-		deliverMuteDataHasSet = true // set the flag to ensure only once
-		fmt.Printf("createDeliverMuteDataSetter, deliverMuteData: %t, deliverMuteDataHasSet: %t\n", deliverMuteData, deliverMuteDataHasSet)
-	}
-
-	return deliverMuteDataHasSet
 }
 
 // send intra request to the remote user to request a new key frame

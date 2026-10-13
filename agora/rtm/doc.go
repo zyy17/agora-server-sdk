@@ -3,7 +3,9 @@
 // Applications that want context-aware operations and managed ownership should
 // use github.com/zyy17/agora-server-sdk/messaging. This package follows the
 // linked native SDK's data types, numeric errors, and callback model rather than
-// providing an independent Go service state machine.
+// providing an independent Go service state machine. Named error, protocol, event,
+// link-state, operation, and reason enums preserve the pinned C-header values.
+// [RtmErrorCode.Reason] delegates signed codes to the linked SDK description.
 //
 // # Ownership and concurrency
 //
@@ -39,4 +41,10 @@
 // differ from the distribution's RTC version. Service permissions, supported
 // features, naming restrictions, and limits are validated by that SDK and the
 // Agora service.
+//
+// The C ABI has OnLinkStateEvent, not the upstream Go source's obsolete
+// OnConnectionStateChanged callback. It does not expose C++ stream setParameters,
+// message/presence/topic/lock/storage event timestamps, interval totalOccupancy,
+// or per-request cancellation. The Go binding does not fabricate those values.
+// RtmConfig includes the ABI-supported ISPPolicyEnabled and creation Parameters.
 package agorartm

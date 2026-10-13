@@ -1,0 +1,1660 @@
+{
+  "exceptions": [
+    {
+      "symbol": "agora/rtc:field:RemoteAudioTrackStats.MosValue",
+      "replacement": "",
+      "reason": "Use actual remote_audio_track_stats from pinned agora_audio_track.h; removed fields belong to a different native structure.",
+      "tests": [
+        "agora/rtc:func:TestNativeCallbackStatisticsABI"
+      ]
+    },
+    {
+      "symbol": "agora/rtc:field:RemoteAudioTrackStats.PublishDuration",
+      "replacement": "",
+      "reason": "Use actual remote_audio_track_stats from pinned agora_audio_track.h; removed fields belong to a different native structure.",
+      "tests": [
+        "agora/rtc:func:TestNativeCallbackStatisticsABI"
+      ]
+    },
+    {
+      "symbol": "agora/rtc:field:RemoteAudioTrackStats.TotalActiveTime",
+      "replacement": "",
+      "reason": "Use actual remote_audio_track_stats from pinned agora_audio_track.h; removed fields belong to a different native structure.",
+      "tests": [
+        "agora/rtc:func:TestNativeCallbackStatisticsABI"
+      ]
+    },
+    {
+      "symbol": "agora/rtc:field:VideoFrameObserver.OnFrame",
+      "replacement": "func(string, string, *VideoFrame)",
+      "reason": "Pinned raw-video observer returns void; a boolean return was an ABI mismatch, not a usable native decision.",
+      "tests": [
+        "agora/rtc:func:TestNativeCallbackFrameABI"
+      ]
+    },
+    {
+      "symbol": "agora/rtc:func:GoRemoteAudioStats",
+      "replacement": "func(*C.struct__remote_audio_track_stats) *RemoteAudioTrackStats",
+      "reason": "Use actual remote_audio_track_stats from pinned agora_audio_track.h; removed fields belong to a different native structure.",
+      "tests": [
+        "agora/rtc:func:TestNativeCallbackStatisticsABI"
+      ]
+    },
+    {
+      "symbol": "agora/rtc:var:DebugMonoPcm",
+      "replacement": "",
+      "reason": "Remove process-global debug file handles and implicit PCM recording; these are not SDK media capabilities.",
+      "tests": [
+        "agora/rtc:func:TestNativeStandaloneVADLifecycle"
+      ]
+    },
+    {
+      "symbol": "agora/rtc:var:LeftFile",
+      "replacement": "",
+      "reason": "Remove process-global debug file handles and implicit PCM recording; these are not SDK media capabilities.",
+      "tests": [
+        "agora/rtc:func:TestNativeStandaloneVADLifecycle"
+      ]
+    },
+    {
+      "symbol": "agora/rtc:var:RightFile",
+      "replacement": "",
+      "reason": "Remove process-global debug file handles and implicit PCM recording; these are not SDK media capabilities.",
+      "tests": [
+        "agora/rtc:func:TestNativeStandaloneVADLifecycle"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:field:RtmEventHandler.OnConnectionStateChanged",
+      "replacement": "",
+      "reason": "Pinned C_IRtmEventHandler has no legacy connection-state callback; use OnLinkStateEvent.",
+      "tests": [
+        "agora/rtm:func:TestCallbackRegistryAndUnsubscribeBridge"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:field:RtmEventHandler.OnGetLocksResult",
+      "replacement": "func(uint64, string, RtmChannelType, []LockDetail, int)",
+      "reason": "Copy every native array element to a Go slice instead of exposing a single element or unsafe pointer/count pair.",
+      "tests": [
+        "agora/rtm:func:TestArrayResultCallbacksIncludeEveryElement"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:field:RtmEventHandler.OnGetOnlineUsersResult",
+      "replacement": "func(uint64, []UserState, string, int)",
+      "reason": "Copy every native array element to a Go slice instead of exposing a single element or unsafe pointer/count pair.",
+      "tests": [
+        "agora/rtm:func:TestArrayResultCallbacksIncludeEveryElement"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:field:RtmEventHandler.OnGetUserChannelsResult",
+      "replacement": "func(uint64, []ChannelInfo, int)",
+      "reason": "Copy every native array element to a Go slice instead of exposing a single element or unsafe pointer/count pair.",
+      "tests": [
+        "agora/rtm:func:TestArrayResultCallbacksIncludeEveryElement"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:field:RtmEventHandler.OnWhereNowResult",
+      "replacement": "func(uint64, []ChannelInfo, int)",
+      "reason": "Copy every native array element to a Go slice instead of exposing a single element or unsafe pointer/count pair.",
+      "tests": [
+        "agora/rtm:func:TestArrayResultCallbacksIncludeEveryElement"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:field:RtmEventHandler.OnWhoNowResult",
+      "replacement": "func(uint64, []UserState, string, int)",
+      "reason": "Copy every native array element to a Go slice instead of exposing a single element or unsafe pointer/count pair.",
+      "tests": [
+        "agora/rtm:func:TestArrayResultCallbacksIncludeEveryElement"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmLock.AcquireLock",
+      "replacement": "(*IRtmLock) func(string, RtmChannelType, string, bool, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmLock.GetLocks",
+      "replacement": "(*IRtmLock) func(string, RtmChannelType, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmLock.ReleaseLock",
+      "replacement": "(*IRtmLock) func(string, RtmChannelType, string, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmLock.RemoveLock",
+      "replacement": "(*IRtmLock) func(string, RtmChannelType, string, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmLock.RevokeLock",
+      "replacement": "(*IRtmLock) func(string, RtmChannelType, string, string, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmLock.SetLock",
+      "replacement": "(*IRtmLock) func(string, RtmChannelType, string, uint32, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmStorage.GetChannelMetadata",
+      "replacement": "(*IRtmStorage) func(string, RtmChannelType, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmStorage.GetUserMetadata",
+      "replacement": "(*IRtmStorage) func(string, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmStorage.RemoveChannelMetadata",
+      "replacement": "(*IRtmStorage) func(string, RtmChannelType, *IMetadata, *MetadataOptions, string, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmStorage.RemoveUserMetadata",
+      "replacement": "(*IRtmStorage) func(string, *IMetadata, *MetadataOptions, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmStorage.SetUserMetadata",
+      "replacement": "(*IRtmStorage) func(string, *IMetadata, *MetadataOptions, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmStorage.SubscribeUserMetadata",
+      "replacement": "(*IRtmStorage) func(string, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmStorage.UnsubscribeUserMetadata",
+      "replacement": "(*IRtmStorage) func(string) (int, uint64)",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmStorage.UpdateChannelMetadata",
+      "replacement": "(*IRtmStorage) func(string, RtmChannelType, *IMetadata, *MetadataOptions, string, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IRtmStorage.UpdateUserMetadata",
+      "replacement": "(*IRtmStorage) func(string, *IMetadata, *MetadataOptions, *uint64) int",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IStreamChannel.GetSubscribedUserList",
+      "replacement": "(*IStreamChannel) func(string) (int, uint64)",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IStreamChannel.PublishTopicMessage",
+      "replacement": "(*IStreamChannel) func(string, string, uint, *TopicMessageOptions) (int, uint64)",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IStreamChannel.RenewToken",
+      "replacement": "(*IStreamChannel) func(string) (int, uint64)",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    },
+    {
+      "symbol": "agora/rtm:method:IStreamChannel.UnsubscribeTopic",
+      "replacement": "(*IStreamChannel) func(string, *TopicOptions) (int, uint64)",
+      "reason": "Preserve native immediate status and request ID for error propagation and asynchronous result correlation.",
+      "tests": [
+        "agora/rtm:func:TestNilHandlesAndLocalValidation",
+        "messaging:func:TestRequestCallbackBeforeReturn"
+      ]
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "rtc-lifecycle",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:func:Initialize",
+        "agora/rtc:func:Release",
+        "agora/rtc:func:NewRtcConnection",
+        "agora/rtc:method:RtcConnection.Connect",
+        "agora/rtc:method:RtcConnection.Disconnect",
+        "agora/rtc:method:RtcConnection.Release",
+        "agora/rtc:method:RtcConnection.RenewToken",
+        "agora/rtc:method:RtcConnection.GetConnectionInfo"
+      ],
+      "api": [
+        ".:func:NewService",
+        ".:method:Service.Join",
+        ".:method:Session.Close",
+        ".:method:Service.Close",
+        ".:method:Session.RenewToken",
+        ".:method:Session.Info"
+      ],
+      "tests": [
+        ".:func:TestJoinWait",
+        ".:func:TestServiceOwnsSessions",
+        ".:func:TestCanceledConnectDoesNotStartTransport"
+      ],
+      "notes": "Owned lifecycle and bounded join; successful native submission is not a connected callback. Mixing raw runtime ownership is unsupported."
+    },
+    {
+      "id": "rtc-identity",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:field:AgoraServiceConfig.UseStringUid"
+      ],
+      "api": [
+        ".:field:Config.IdentityMode",
+        ".:field:ChannelConfig.UserID"
+      ],
+      "tests": [
+        ".:func:TestServiceIdentityConfig",
+        ".:func:TestNumericIdentityValidation"
+      ],
+      "notes": "Explicit service-wide string/numeric identity; token privileges must match."
+    },
+    {
+      "id": "rtc-native-configuration",
+      "status": "managed-advanced",
+      "upstream": [
+        "agora/rtc:type:AgoraServiceConfig",
+        "agora/rtc:type:RtcConnectionConfig",
+        "agora/rtc:type:RtcConnectionPublishConfig"
+      ],
+      "api": [
+        ".:field:Config.ConfigureNative",
+        ".:field:ChannelConfig.ConfigureNative",
+        ".:method:Session.WithNative"
+      ],
+      "tests": [
+        ".:func:TestSessionNativeConfigOverride",
+        ".:func:TestSessionNativeConfigValidatesAfterOverride"
+      ],
+      "notes": "Only combinations that preserve owned observers, lifecycle and publication contracts are supported."
+    },
+    {
+      "id": "rtc-parameters",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:AgoraParameter.SetParameters"
+      ],
+      "api": [
+        ".:method:Service.SetParameters",
+        ".:method:Session.SetParameters"
+      ],
+      "tests": [
+        ".:func:TestServiceParametersBeforeJoin",
+        ".:func:TestServiceParametersSerializeWithClose"
+      ],
+      "notes": "Parameters are passed to the native SDK; a valid JSON object is not proof of option support."
+    },
+    {
+      "id": "rtc-pcm",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.PushAudioPcmData",
+        "agora/rtc:method:AudioPcmDataSender.SendAudioPcmData",
+        "agora/rtc:method:LocalUser.SetPlaybackAudioFrameBeforeMixingParameters",
+        "agora/rtc:method:LocalUser.SetPlaybackAudioFrameParameters",
+        "agora/rtc:method:LocalUser.SetMixedAudioFrameParameters",
+        "agora/rtc:method:LocalUser.SetRecordingAudioFrameParameters"
+      ],
+      "api": [
+        ".:method:Session.SendPCM",
+        ".:method:Session.SendPCMAt",
+        ".:method:Session.PlayPCM",
+        ".:field:AudioConfig.Send",
+        ".:field:AudioConfig.Receive"
+      ],
+      "tests": [
+        ".:func:TestPCMIndependentFormatsAndOpaquePTS",
+        ".:func:TestPlayPCMPaddingAndTimestamp"
+      ],
+      "notes": "Independent send/receive PCM formats; integral-millisecond input, caller/native timing limits, copied receive frames."
+    },
+    {
+      "id": "rtc-encoded-audio",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.PushAudioEncodedData",
+        "agora/rtc:type:EncodedAudioFrameInfo"
+      ],
+      "api": [
+        ".:method:Session.SendEncodedAudio",
+        ".:method:Session.EncodedAudio",
+        ".:type:EncodedAudioFrame"
+      ],
+      "tests": [
+        ".:func:TestEncodedAudioRejectsInvalidBeforeNative"
+      ],
+      "notes": "Codec packets with named native codec IDs, SendEvenIfEmpty, explicit metadata and OpusMultiChannel with 3–8 channels; native codec support is conditional."
+    },
+    {
+      "id": "rtc-interruption",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.InterruptAudio",
+        "agora/rtc:method:RtcConnection.IsPushToRtcCompleted"
+      ],
+      "api": [
+        ".:method:Session.InterruptAudio",
+        ".:method:Session.WaitPCM"
+      ],
+      "tests": [
+        ".:func:TestPlayPCMCancellationStopsFutureFrames"
+      ],
+      "notes": "WaitPCM is a sent-byte/wall-clock estimate, not native drain or peer playback acknowledgement."
+    },
+    {
+      "id": "rtc-raw-video",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.PushVideoFrame",
+        "agora/rtc:type:ExternalVideoFrame"
+      ],
+      "api": [
+        ".:method:Session.SendVideo",
+        ".:method:Session.Video",
+        ".:type:VideoFrame"
+      ],
+      "tests": [
+        ".:func:TestVideoValidation",
+        ".:func:TestCopiedVideoCallback"
+      ],
+      "notes": "Validated compact and explicitly padded/cropped CPU layouts; no GPU/hardware handles are accepted."
+    },
+    {
+      "id": "rtc-encoded-video",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.PushVideoEncodedData",
+        "agora/rtc:type:EncodedVideoFrameInfo"
+      ],
+      "api": [
+        ".:method:Session.SendEncodedVideo",
+        ".:method:Session.EncodedVideo",
+        ".:type:EncodedVideoFrame"
+      ],
+      "tests": [
+        ".:func:TestVideoValidation"
+      ],
+      "notes": "Encoded frames only; peer/native codec availability remains conditional."
+    },
+    {
+      "id": "rtc-publication-subscription",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:LocalUser.SubscribeAudio",
+        "agora/rtc:method:LocalUser.UnsubscribeAudio",
+        "agora/rtc:method:LocalUser.SubscribeVideo",
+        "agora/rtc:method:LocalUser.UnsubscribeVideo",
+        "agora/rtc:method:RtcConnection.PublishAudio",
+        "agora/rtc:method:RtcConnection.PublishVideo",
+        "agora/rtc:method:RtcConnection.UnpublishAudio",
+        "agora/rtc:method:RtcConnection.UnpublishVideo",
+        "agora/rtc:method:LocalUser.SubscribeAllAudio",
+        "agora/rtc:method:LocalUser.SubscribeAllVideo",
+        "agora/rtc:method:LocalUser.UnsubscribeAllAudio",
+        "agora/rtc:method:LocalUser.UnsubscribeAllVideo"
+      ],
+      "api": [
+        ".:method:Session.PublishAudio",
+        ".:method:Session.UnpublishAudio",
+        ".:method:Session.PublishVideo",
+        ".:method:Session.UnpublishVideo",
+        ".:method:Session.SubscribeAudio",
+        ".:method:Session.SubscribeVideo"
+      ],
+      "tests": [
+        ".:func:TestSessionNativeConfigModes",
+        ".:func:TestSessionNativeConfigValidatesAfterOverride"
+      ],
+      "notes": "High-level methods cover normal publication/subscription; manual subscription must be configured explicitly."
+    },
+    {
+      "id": "rtc-stream-messages",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.SendStreamMessage"
+      ],
+      "api": [
+        ".:method:Session.SendMessage",
+        ".:method:Session.Messages"
+      ],
+      "tests": [
+        ".:func:TestCopiedMessageCallback"
+      ],
+      "notes": "RTC data streams are distinct from RTM; local submission does not confirm recipient processing."
+    },
+    {
+      "id": "rtc-events-and-queues",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:type:RtcConnectionObserver",
+        "agora/rtc:type:LocalUserObserver"
+      ],
+      "api": [
+        ".:method:Session.Events",
+        ".:type:Event"
+      ],
+      "tests": [
+        ".:func:TestCallbacksRaceClose",
+        ".:func:TestCallbackQueueNeverBlocksJoin",
+        ".:func:TestStreamBoundedDropOldest"
+      ],
+      "notes": "Owned observer delivery and bounded copied queues; detailed callback decisions/configuration are classified separately."
+    },
+    {
+      "id": "rtc-external-audio-processing",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:func:NewExternalAudioProcessor",
+        "agora/rtc:type:APMConfig",
+        "agora/rtc:method:ExternalAudioProcessor.Initialize",
+        "agora/rtc:method:ExternalAudioProcessor.PushAudioPcmData",
+        "agora/rtc:method:ExternalAudioProcessor.Release"
+      ],
+      "api": [
+        ".:method:Service.NewAudioProcessor",
+        ".:method:AudioProcessor.SendPCM",
+        ".:method:AudioProcessor.Output"
+      ],
+      "tests": [
+        ".:func:TestProcessorConfigDefaultsAndOwnership",
+        ".:func:TestProcessorObserverCopiesFrames"
+      ],
+      "notes": "Extension-dependent external APM; pinned Linux archive lacks AINS, so initialization can fail."
+    },
+    {
+      "id": "rtm-lifecycle-and-correlation",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:func:NewRtmClient",
+        "agora/rtm:method:IRtmClient.Login",
+        "agora/rtm:method:IRtmClient.Logout",
+        "agora/rtm:method:IRtmClient.RenewToken",
+        "agora/rtm:method:IRtmClient.Release"
+      ],
+      "api": [
+        "messaging:func:New",
+        "messaging:method:Client.Login",
+        "messaging:method:Client.Logout",
+        "messaging:method:Client.RenewToken",
+        "messaging:method:Client.Close"
+      ],
+      "tests": [
+        "messaging:func:TestRequestCallbackBeforeReturn",
+        "messaging:func:TestCloseUnblocksRequestsAndIsIdempotent"
+      ],
+      "notes": "Bounded request waits and ownership; cancellation stops waiting and does not roll back submitted native actions."
+    },
+    {
+      "id": "rtm-publish-subscribe",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:method:IRtmClient.Publish",
+        "agora/rtm:method:IRtmClient.Subscribe",
+        "agora/rtm:method:IRtmClient.Unsubscribe",
+        "agora/rtm:method:IRtmClient.SendChannelMessage",
+        "agora/rtm:method:IRtmClient.SendUserMessage"
+      ],
+      "api": [
+        "messaging:method:Client.Publish",
+        "messaging:method:Client.PublishToUser",
+        "messaging:method:Client.Subscribe",
+        "messaging:method:Client.Unsubscribe"
+      ],
+      "tests": [
+        "messaging:func:TestValidation",
+        "messaging:func:TestAsynchronousFailure"
+      ],
+      "notes": "Messaging and user targets with explicit options; feature entitlements and peer delivery require integration checks."
+    },
+    {
+      "id": "rtm-presence",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:method:IRtmPresence.WhoNow",
+        "agora/rtm:method:IRtmPresence.WhereNow",
+        "agora/rtm:method:IRtmPresence.GetOnlineUsers",
+        "agora/rtm:method:IRtmPresence.GetUserChannels",
+        "agora/rtm:method:IRtmPresence.SetState",
+        "agora/rtm:method:IRtmPresence.RemoveState",
+        "agora/rtm:method:IRtmPresence.GetState"
+      ],
+      "api": [
+        "messaging:method:Client.OnlineUsers",
+        "messaging:method:Client.UserChannels",
+        "messaging:method:Client.SetState",
+        "messaging:method:Client.RemoveState",
+        "messaging:method:Client.State"
+      ],
+      "tests": [
+        "messaging:func:TestPresenceAndMetadataCopy",
+        "messaging:func:TestStateItemsSortedAndCopied"
+      ],
+      "notes": "Presence queries and copied state; legacy WhoNow/WhereNow map to equivalent query families rather than duplicated high-level method names."
+    },
+    {
+      "id": "rtm-metadata",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:method:IRtmStorage.SetChannelMetadata",
+        "agora/rtm:method:IRtmStorage.UpdateChannelMetadata",
+        "agora/rtm:method:IRtmStorage.RemoveChannelMetadata",
+        "agora/rtm:method:IRtmStorage.GetChannelMetadata",
+        "agora/rtm:method:IRtmStorage.SetUserMetadata",
+        "agora/rtm:method:IRtmStorage.UpdateUserMetadata",
+        "agora/rtm:method:IRtmStorage.RemoveUserMetadata",
+        "agora/rtm:method:IRtmStorage.GetUserMetadata",
+        "agora/rtm:method:IRtmStorage.SubscribeUserMetadata",
+        "agora/rtm:method:IRtmStorage.UnsubscribeUserMetadata"
+      ],
+      "api": [
+        "messaging:method:Client.SetChannelMetadata",
+        "messaging:method:Client.UpdateChannelMetadata",
+        "messaging:method:Client.RemoveChannelMetadata",
+        "messaging:method:Client.ChannelMetadata",
+        "messaging:method:Client.SetUserMetadata",
+        "messaging:method:Client.UpdateUserMetadata",
+        "messaging:method:Client.RemoveUserMetadata",
+        "messaging:method:Client.UserMetadata",
+        "messaging:method:Client.SubscribeUserMetadata",
+        "messaging:method:Client.UnsubscribeUserMetadata"
+      ],
+      "tests": [
+        "messaging:func:TestPresenceAndMetadataCopy"
+      ],
+      "notes": "Revision zero is forwarded unchanged; use explicit revisions and account for asynchronous completion."
+    },
+    {
+      "id": "rtm-locks",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:method:IRtmLock.SetLock",
+        "agora/rtm:method:IRtmLock.GetLocks",
+        "agora/rtm:method:IRtmLock.RemoveLock",
+        "agora/rtm:method:IRtmLock.AcquireLock",
+        "agora/rtm:method:IRtmLock.ReleaseLock",
+        "agora/rtm:method:IRtmLock.RevokeLock"
+      ],
+      "api": [
+        "messaging:method:Client.SetLock",
+        "messaging:method:Client.Locks",
+        "messaging:method:Client.RemoveLock",
+        "messaging:method:Client.AcquireLock",
+        "messaging:method:Client.ReleaseLock",
+        "messaging:method:Client.RevokeLock"
+      ],
+      "tests": [
+        "messaging:func:TestHistoryAndMultiElementResult"
+      ],
+      "notes": "High-level operations default to no native acquisition retry; AcquireLockWithOptions permits explicit retry with documented late outcomes."
+    },
+    {
+      "id": "rtm-history",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:method:IRtmHistory.GetMessages"
+      ],
+      "api": [
+        "messaging:method:Client.History",
+        "messaging:type:HistoryOptions"
+      ],
+      "tests": [
+        "messaging:func:TestHistoryValidation",
+        "messaging:func:TestHistoryAndMultiElementResult"
+      ],
+      "notes": "Requires native/project history support and history-enabled publishing; binary messages are copied by explicit length."
+    },
+    {
+      "id": "rtm-topics",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:method:IRtmClient.CreateStreamChannel",
+        "agora/rtm:method:IStreamChannel.Join",
+        "agora/rtm:method:IStreamChannel.Leave",
+        "agora/rtm:method:IStreamChannel.RenewToken",
+        "agora/rtm:method:IStreamChannel.JoinTopic",
+        "agora/rtm:method:IStreamChannel.LeaveTopic",
+        "agora/rtm:method:IStreamChannel.PublishTopicMessage",
+        "agora/rtm:method:IStreamChannel.SubscribeTopic",
+        "agora/rtm:method:IStreamChannel.UnsubscribeTopic",
+        "agora/rtm:method:IStreamChannel.GetSubscribedUserList",
+        "agora/rtm:method:IStreamChannel.Release",
+        "agora/rtm:method:IStreamChannel.GetChannelName"
+      ],
+      "api": [
+        "messaging:method:Client.NewStream",
+        "messaging:method:Stream.Join",
+        "messaging:method:Stream.Leave",
+        "messaging:method:Stream.RenewToken",
+        "messaging:method:Stream.JoinTopic",
+        "messaging:method:Stream.LeaveTopic",
+        "messaging:method:Stream.Publish",
+        "messaging:method:Stream.SubscribeTopic",
+        "messaging:method:Stream.UnsubscribeTopic",
+        "messaging:method:Stream.Subscribers",
+        "messaging:method:Stream.Close",
+        "messaging:method:Stream.Name"
+      ],
+      "tests": [
+        "messaging:func:TestPartialTopicSubscriptionPreservesResult",
+        "messaging:func:TestStreamCloseStateOnlyCancelsItsRequests"
+      ],
+      "notes": "Owned stream channels and partial-subscription results. Stream join/renew uses RTC tokens."
+    },
+    {
+      "id": "rtm-events",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:type:RtmEventHandler",
+        "agora/rtm:field:RtmEventHandler.OnLinkStateEvent",
+        "agora/rtm:field:RtmEventHandler.OnMessageEvent",
+        "agora/rtm:field:RtmEventHandler.OnPresenceEvent"
+      ],
+      "api": [
+        "messaging:method:Client.Events",
+        "messaging:method:Client.Next",
+        "messaging:type:Event"
+      ],
+      "tests": [
+        "messaging:func:TestEventQueueNeverBlocksAndCopies",
+        "messaging:func:TestPresenceAndMetadataCopy"
+      ],
+      "notes": "Copied event payloads with bounded drop-newest queue; request correlation is separate from that queue."
+    },
+    {
+      "id": "rtm-native-configuration",
+      "status": "managed-advanced",
+      "upstream": [
+        "agora/rtm:type:RtmConfig",
+        "agora/rtm:method:IRtmClient.SetParameters"
+      ],
+      "api": [
+        "messaging:field:Config.Native",
+        "messaging:method:Client.WithNative",
+        "messaging:method:Client.SetParameters"
+      ],
+      "tests": [
+        "messaging:func:TestValidation",
+        "messaging:func:TestRequestNativeUnavailable"
+      ],
+      "notes": "Borrowed native handles cannot outlive the callback, replace owned handlers, or release owned objects."
+    },
+    {
+      "id": "rtc-abi-corrections",
+      "status": "safe-compatibility",
+      "upstream": [
+        "agora/rtc:field:VideoFrameObserver.OnFrame",
+        "agora/rtc:func:GoRemoteAudioStats"
+      ],
+      "api": [
+        "agora/rtc:field:VideoFrameObserver.OnFrame",
+        "agora/rtc:func:GoRemoteAudioStats"
+      ],
+      "tests": [
+        "agora/rtc:func:TestNativeCallbackFrameABI",
+        "agora/rtc:func:TestNativeCallbackStatisticsABI"
+      ],
+      "notes": "Pinned C callback ABI overrides unsafe upstream Go signatures; not drop-in source compatibility."
+    },
+    {
+      "id": "rtm-abi-corrections",
+      "status": "safe-compatibility",
+      "upstream": [
+        "agora/rtm:field:RtmEventHandler.OnGetLocksResult",
+        "agora/rtm:field:RtmEventHandler.OnWhoNowResult"
+      ],
+      "api": [
+        "agora/rtm:field:RtmEventHandler.OnGetLocksResult",
+        "agora/rtm:field:RtmEventHandler.OnWhoNowResult"
+      ],
+      "tests": [
+        "agora/rtm:func:TestArrayResultCallbacksIncludeEveryElement"
+      ],
+      "notes": "Slice callbacks retain every native array element; method status/request-ID fixes are listed individually in exceptions."
+    },
+    {
+      "id": "rtc-metadata-profile-volume",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.SendAudioMetaData",
+        "agora/rtc:method:RtcConnection.UpdateAudioSenario",
+        "agora/rtc:method:LocalUser.SetAudioScenario",
+        "agora/rtc:method:LocalUser.SetAudioVolumeIndicationParameters",
+        "agora/rtc:method:LocalUser.SetAudioEncoderConfiguration"
+      ],
+      "api": [
+        ".:method:Session.SendAudioMetadata",
+        ".:method:Session.SetAudioScenario",
+        ".:method:Session.SetVolumeIndication",
+        ".:field:AudioConfig.Profile"
+      ],
+      "tests": [
+        ".:func:TestBinaryAudioMetadataPreservesOwnership",
+        ".:func:TestConfigDefaults"
+      ],
+      "notes": "Binary metadata is copied; audio profile/scenario and volume indication keep native behavior and limits."
+    },
+    {
+      "id": "rtc-video-controls",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.SendIntraRequest",
+        "agora/rtc:method:RtcConnection.SetSimulcastStream",
+        "agora/rtc:method:RtcConnection.SetVideoEncoderConfiguration"
+      ],
+      "api": [
+        ".:method:Session.RequestKeyFrame",
+        ".:method:Session.SetSimulcast",
+        ".:method:Session.SetVideoEncoder"
+      ],
+      "tests": [
+        ".:func:TestVideoValidation",
+        ".:func:TestConfigCopiesPointers"
+      ],
+      "notes": "Exposes native keyframe requests, encoder configuration and simulcast; no claim that native codecs accept every configuration."
+    },
+    {
+      "id": "rtc-received-vad",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:func:NewAudioVadV2",
+        "agora/rtc:func:NewAudioVadManager",
+        "agora/rtc:method:AudioVadV2.Process",
+        "agora/rtc:method:AudioVadManager.Process"
+      ],
+      "api": [
+        ".:field:AudioConfig.VAD",
+        ".:field:AudioConfig.VADConfig"
+      ],
+      "tests": [
+        ".:func:TestIndependentAudioDefaultsAndVAD",
+        "agora/rtc:func:TestVadManagerSeparatesChannelUserPairs"
+      ],
+      "notes": "Received-audio VAD v2 is separate from standalone native VAD and external APM; 16 kHz mono per-user receive constraints apply."
+    },
+    {
+      "id": "rtc-encryption",
+      "status": "managed-advanced",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.EnableEncryption",
+        "agora/rtc:type:EncryptionConfig"
+      ],
+      "api": [
+        ".:field:ChannelConfig.Encryption"
+      ],
+      "tests": [
+        ".:func:TestConfigCopiesPointers"
+      ],
+      "notes": "Copied native encryption configuration is applied during setup; interoperability and privileges need a live check."
+    },
+    {
+      "id": "rtc-optional-transcoding",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:RtcConnection.PushAudioEncodedDataForTranscode",
+        "agora/rtc:method:RtcConnection.PushVideoEncodedDataForTranscode"
+      ],
+      "api": [
+        ".:method:Session.TranscodeOpus",
+        ".:method:Session.TranscodeVideo"
+      ],
+      "tests": [
+        "agora/rtc:func:TestOptionalWorkersLifecycle"
+      ],
+      "notes": "High-level entry points exist with and without avcodec; actual decoding requires optional FFmpeg libraries. Acceptance does not report asynchronous decode/send completion."
+    },
+    {
+      "id": "rtc-sei-tools",
+      "status": "raw-only",
+      "upstream": [
+        "agora/rtc:func:AddSEI",
+        "agora/rtc:func:FindSEI",
+        "agora/rtc:func:InsertSEIToEncodedData"
+      ],
+      "api": [
+        "agora/rtc:func:AddSEI",
+        "agora/rtc:func:FindSEI",
+        "agora/rtc:func:InsertSEIToEncodedData"
+      ],
+      "tests": [
+        "agora/rtc:func:TestSEIRoundTrip",
+        "agora/rtc:func:TestSEIInsertionPreservesInput"
+      ],
+      "notes": "Pure packet helpers are retained in raw package; they are not an end-to-end SEI transport guarantee."
+    },
+    {
+      "id": "native-only-and-unavailable",
+      "status": "native-unavailable",
+      "upstream": [],
+      "api": [],
+      "tests": [],
+      "notes": "Media player, RTMP publishing and device APIs are not in official Go v2.6.5. C++-only RTM stream parameters/timestamps and hardware-video marshalling lack corresponding pinned Go/C surfaces; these are not lost official-Go methods. Extensions/codecs remain conditional."
+    },
+    {
+      "id": "rtc-role-and-publication-control",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:LocalUser.SetUserRole",
+        "agora/rtc:field:RtcConnectionConfig.ClientRole"
+      ],
+      "api": [
+        ".:method:Session.SetRole",
+        ".:method:Session.Role",
+        ".:method:Session.WithNative"
+      ],
+      "tests": [
+        ".:func:TestRoleChangesAndPublication",
+        ".:func:TestRoleFailureLeavesRequestedState",
+        ".:func:TestRoleConcurrentClose",
+        ".:func:TestWithNativeReconcilesPartialDemotion"
+      ],
+      "notes": "Audience promotion lazily creates configured tracks; demotion unpublishes them. Native hook partial operations are reconciled with current role/publication state."
+    },
+    {
+      "id": "rtc-idle-local-proxy-extensions",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:field:AgoraServiceConfig.IdleMode",
+        "agora/rtc:func:SetLocalAccessPoint",
+        "agora/rtc:func:LoadExtensionProvider",
+        "agora/rtc:func:EnableExtension",
+        "agora/rtc:func:DisableExtension"
+      ],
+      "api": [
+        ".:field:Config.IdleMode",
+        ".:field:Config.LocalAccessPoint",
+        ".:method:Service.LoadExtensionProvider",
+        ".:method:Service.EnableExtension",
+        ".:method:Service.DisableExtension"
+      ],
+      "tests": [
+        ".:func:TestIdleAndLocalAccessPointConfiguration",
+        ".:func:TestServiceExtensionLifecycleGuards"
+      ],
+      "notes": "Idle mode retires observers/Go resources immediately and delays native handle destruction until service drains it. Local access point applies before first Connect. Extension success depends on installed native libraries."
+    },
+    {
+      "id": "rtc-fallback-and-event-payloads",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:field:LocalUserObserver.OnUserVideoTrackSubscribed",
+        "agora/rtc:field:LocalUserObserver.OnUserAudioTrackStateChanged",
+        "agora/rtc:field:LocalUserObserver.OnUserVideoTrackStateChanged",
+        "agora/rtc:type:VideoTrackInfo",
+        "agora/rtc:method:RtcConnection.GetSid"
+      ],
+      "api": [
+        ".:method:Session.SetAudioFallback",
+        ".:type:AudioFallbackPolicy",
+        ".:type:AudioFallbackDecision",
+        ".:field:AudioConfig.Fallback",
+        ".:field:Event.ElapsedMillis",
+        ".:field:Event.Data",
+        ".:method:Session.SessionID",
+        ".:method:Session.SetAudioProfile"
+      ],
+      "tests": [
+        ".:func:TestAudioFallbackDecisions",
+        ".:func:TestAudioFallbackConcurrentCallback",
+        ".:func:TestCompleteEventPayloads",
+        ".:func:TestAllOfficialObserversHaveHandlers"
+      ],
+      "notes": "Nil fallback rejects the synchronous native suggestion; fixed/recommended policy is atomic. Queued events preserve elapsed time, copied video-track information and requested fallback decision, not success confirmation."
+    },
+    {
+      "id": "rtc-synchronous-media-observers",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:field:AudioFrameObserver.OnPlaybackAudioFrame",
+        "agora/rtc:field:AudioFrameObserver.OnRecordAudioFrame",
+        "agora/rtc:field:AudioFrameObserver.OnMixedAudioFrame",
+        "agora/rtc:field:AudioFrameObserver.OnEarMonitoringAudioFrame",
+        "agora/rtc:field:AudioFrameObserver.OnPlaybackAudioFrameBeforeMixing",
+        "agora/rtc:field:VideoEncodedFrameObserver.OnEncodedVideoFrame"
+      ],
+      "api": [
+        ".:field:AudioConfig.ReceiveParameters",
+        ".:field:AudioCallbacks.OnFrame",
+        ".:field:VideoConfig.OnEncodedFrame",
+        ".:type:AudioFrameParameters"
+      ],
+      "tests": [
+        ".:func:TestAudioObserverIndependentParameters",
+        ".:func:TestAudioObserverHookIsolationAndWriteback",
+        ".:func:TestBeforeMixingHookIsReadOnlyAndPanicsReject",
+        ".:func:TestEncodedVideoHookDecisionsAndIsolation",
+        "agora/rtc:func:TestNativeCallbackWritablePCM"
+      ],
+      "notes": "Synchronous accept/reject hooks receive isolated copies; queued observations remain independent, including rejected frames. PCM edits copy back only at read/write mixed/local points on acceptance; before-mixing stays read-only. Panics reject and emit CallbackPanic. Hooks must return promptly and avoid lifecycle reentry."
+    },
+    {
+      "id": "rtc-cpu-video-layouts",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:type:ExternalVideoFrame",
+        "agora/rtc:field:ExternalVideoFrame.Stride",
+        "agora/rtc:field:ExternalVideoFrame.CropLeft",
+        "agora/rtc:field:ExternalVideoFrame.ColorSpace",
+        "agora/rtc:field:ExternalVideoFrame.FillAlphaBuffer",
+        "agora/rtc:field:ExternalVideoFrame.AlphaMode"
+      ],
+      "api": [
+        ".:type:CPUVideoFrame",
+        ".:method:Session.SendCPUVideo",
+        ".:field:CPUVideoFrame.Stride",
+        ".:field:CPUVideoFrame.ColorSpace",
+        ".:field:CPUVideoFrame.BufferType"
+      ],
+      "tests": [
+        ".:func:TestCPUVideoLayoutsAndCrop",
+        ".:func:TestCPUVideoRejectsUnsafeLayouts",
+        "agora/rtc:func:TestNativeMediaFrameABI"
+      ],
+      "notes": "CPU raw/array only, explicit pixel stride/crop/color/alpha and I420/NV12/NV21/I422/I010/RGBA/BGRA. Native preview/codec support remains conditional; texture/EGL/CVPixelBuffer/D3D handles are rejected."
+    },
+    {
+      "id": "rtc-encoded-media-fields",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:field:EncodedAudioFrameInfo.SendEvenIfEmpty",
+        "agora/rtc:field:EncodedVideoFrameInfo.FrameType",
+        "agora/rtc:field:EncodedVideoFrameInfo.TrackId",
+        "agora/rtc:field:EncodedVideoFrameInfo.Uid"
+      ],
+      "api": [
+        ".:field:EncodedAudioFrame.SendEvenIfEmpty",
+        ".:field:EncodedVideoFrame.FrameType",
+        ".:field:EncodedVideoFrame.TrackID",
+        ".:field:EncodedVideoFrame.UID"
+      ],
+      "tests": [
+        ".:func:TestEncodedAudioOptions",
+        ".:func:TestEncodedVideoParity",
+        ".:func:TestReceiveVideoPreservesDescriptorsAndOwnership",
+        "agora/rtc:func:TestNativeMediaEncodedABI"
+      ],
+      "notes": "All named native codec IDs are exposed; OpusMultiChannel accepts 3–8 channels. Encoded-video transport accepts 8 codec IDs; SEI insertion and optional decoding remain H264/H265-only. Enum acceptance is not live codec support."
+    },
+    {
+      "id": "rtc-track-controls",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:LocalAudioTrack.AdjustPublishVolume",
+        "agora/rtc:method:LocalAudioTrack.ClearSenderBuffer",
+        "agora/rtc:method:LocalAudioTrack.SetEnabled",
+        "agora/rtc:method:LocalAudioTrack.SetMaxBufferedAudioFrameNumber",
+        "agora/rtc:method:LocalAudioTrack.SetSendDelayMs",
+        "agora/rtc:method:LocalVideoTrack.SetEnabled"
+      ],
+      "api": [
+        ".:method:Session.SetAudioEnabled",
+        ".:method:Session.SetVideoEnabled",
+        ".:method:Session.SetAudioPublishVolume",
+        ".:method:Session.SetAudioSendDelay",
+        ".:method:Session.SetAudioBufferCapacity",
+        ".:method:Session.ClearAudioBuffer"
+      ],
+      "tests": [
+        ".:func:TestTrackControlValidationAndClose"
+      ],
+      "notes": "Controls connection-owned tracks under lifecycle lock; missing tracks fail, void native setter success means invocation only, and clearing a local queue cannot recall received media."
+    },
+    {
+      "id": "rtc-explicit-pcm-and-processing",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:method:AudioPcmDataSender.SendAudioPcmData",
+        "agora/rtc:method:ExternalAudioProcessor.Initialize",
+        "agora/rtc:method:ExternalAudioProcessor.PushAudioPcmData",
+        "agora/rtc:field:ExternalAudioProcessor.InStreamInMs",
+        "agora/rtc:field:ExternalAudioProcessor.ProcessedStreamInMs"
+      ],
+      "api": [
+        ".:method:Session.SendPCMFrame",
+        ".:field:ProcessorConfig.Input",
+        ".:field:ProcessorConfig.DisableAPM",
+        ".:method:AudioProcessor.SendPCMAt",
+        ".:method:AudioProcessor.SendPCMFormat",
+        ".:method:AudioProcessor.SendPCMFrame",
+        ".:method:AudioProcessor.Stats"
+      ],
+      "tests": [
+        ".:func:TestPCMFrameExplicitMetadata",
+        ".:func:TestProcessorVADOnlyAndInputFormat",
+        ".:func:TestProcessorForwardsInputAndSignedPresentation",
+        ".:func:TestNativeProcessorVADOnlyLifecycle"
+      ],
+      "notes": "Frame send preserves explicit sample/capture/presentation fields. Processor input/output are independent; DisableAPM requires VAD. Stats are durations, not flush acknowledgement."
+    },
+    {
+      "id": "rtc-owned-vad",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:func:NewAudioVad",
+        "agora/rtc:method:AudioVad.ProcessPcmFrame",
+        "agora/rtc:method:AudioVad.Release",
+        "agora/rtc:func:NewSteroVad",
+        "agora/rtc:method:SteroAudioVad.ProcessAudioFrame",
+        "agora/rtc:method:SteroAudioVad.Release",
+        "agora/rtc:func:NewAudioVadV2",
+        "agora/rtc:method:AudioVadV2.Process",
+        "agora/rtc:method:AudioVadV2.Release"
+      ],
+      "api": [
+        ".:func:NewAudioVAD",
+        ".:type:AudioVAD",
+        ".:func:NewStereoVAD",
+        ".:type:StereoVAD",
+        ".:func:NewTelemetryVAD",
+        ".:type:TelemetryVAD"
+      ],
+      "tests": [
+        ".:func:TestMonoVADCopiesOutputAndPreservesErrors",
+        ".:func:TestStereoVADPreservesPartialResultsAndErrors",
+        ".:func:TestTelemetryVADOwnsRetainedFramesAndStates",
+        ".:func:TestNativeOwnedVADLifecycle"
+      ],
+      "notes": "Standalone mono/stereo classifiers accept exactly 10 ms of 16 kHz PCM16. TelemetryVAD is a Go segmenter using native telemetry, not an independent classifier. Detectors own resources and copied selected speech."
+    },
+    {
+      "id": "rtc-owned-decoders",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtc:func:NewVideoDecoder",
+        "agora/rtc:method:VideoDecoder.DecodeAndSave",
+        "agora/rtc:method:VideoDecoder.Close",
+        "agora/rtc:func:NewOpusDecoder",
+        "agora/rtc:method:OpusDecoder.Decode",
+        "agora/rtc:method:OpusDecoder.Release"
+      ],
+      "api": [
+        ".:func:NewVideoDecoder",
+        ".:type:VideoDecoder",
+        ".:func:NewOpusDecoder",
+        ".:type:OpusDecoder"
+      ],
+      "tests": [
+        ".:func:TestDecoderConfigurationAndClosed",
+        ".:func:TestOptionalMediaDecoders"
+      ],
+      "notes": "Synchronous owned H264/H265→I420 and Opus→PCM helpers require avcodec/FFmpeg. Default constructors return ErrUnsupported; Close discards pending output. No upstream flush API."
+    },
+    {
+      "id": "rtm-typed-configuration",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:field:RtmConfig.UseStringUserId",
+        "agora/rtm:field:RtmConfig.AreaCode",
+        "agora/rtm:field:RtmConfig.ProtocolType",
+        "agora/rtm:field:RtmConfig.PresenceTimeout",
+        "agora/rtm:field:RtmConfig.HeartbeatInterval",
+        "agora/rtm:field:RtmConfig.Multipath",
+        "agora/rtm:field:RtmConfig.LogConfig",
+        "agora/rtm:field:RtmConfig.ProxyConfig",
+        "agora/rtm:field:RtmConfig.EncryptionConfig",
+        "agora/rtm:field:RtmConfig.PrivateConfig"
+      ],
+      "api": [
+        "messaging:field:Config.Identity",
+        "messaging:field:Config.Connection",
+        "messaging:field:Config.Log",
+        "messaging:field:Config.Proxy",
+        "messaging:field:Config.Encryption",
+        "messaging:field:Config.Private",
+        "messaging:field:Config.Parameters"
+      ],
+      "tests": [
+        "messaging:func:TestIdentityModes",
+        "messaging:func:TestTypedConfigPreservesAllNativeOptions",
+        "messaging:func:TestConfigNativeCopyAndExplicitOverrides",
+        "messaging:func:TestConfigParityValidation"
+      ],
+      "notes": "Default uses string identity without Native; IdentityDefault preserves Native.UseStringUserId when provided. Explicit modes override it. Typed configs deep-copy mutable input and preserve native timing/proxy/encryption/private options."
+    },
+    {
+      "id": "rtm-subscription-presence-lock-options",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:field:SubscribeOptions.WithMessage",
+        "agora/rtm:field:PresenceOptions.IncludeUserId",
+        "agora/rtm:method:IRtmLock.AcquireLock"
+      ],
+      "api": [
+        "messaging:field:SubscribeOptions.DisableMessages",
+        "messaging:field:PresenceOptions.ExcludeUserID",
+        "messaging:method:Client.AcquireLockWithOptions",
+        "messaging:field:AcquireLockOptions.Retry"
+      ],
+      "tests": [
+        "messaging:func:TestSubscriptionAndPresenceBooleanParity",
+        "messaging:func:TestAcquireLockOptionsForwardRetryAndRequestID",
+        "messaging:func:TestRetryFailureThenSuccessRemainsObservable"
+      ],
+      "notes": "Presence-only subscriptions and omitted user IDs are explicit. Retry can continue after caller cancellation/timeout; opt-in result events expose later native outcomes, which the application must reconcile."
+    },
+    {
+      "id": "rtm-complete-result-events",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:type:RtmEventHandler"
+      ],
+      "api": [
+        "messaging:field:Config.ResultEvents",
+        "messaging:const:EventRequestResult",
+        "messaging:type:RequestResult"
+      ],
+      "tests": [
+        "messaging:func:TestEveryNativeCallbackHasManagedHandler",
+        "messaging:func:TestEveryResultProducesTypedNotification",
+        "messaging:func:TestCanceledRetryRemainsObservable",
+        "messaging:func:TestResultPayloadDoesNotAliasMethodReturnOrNative",
+        "messaging:func:TestResultOverflowDoesNotDropRequestCompletion"
+      ],
+      "notes": "All 46 native callbacks have managed handlers: 8 unsolicited and 38 typed results. Opt-in copied result notifications include late/repeated outcomes without changing request completion or requiring lossless event delivery."
+    },
+    {
+      "id": "rtm-named-enums",
+      "status": "high-level",
+      "upstream": [
+        "agora/rtm:func:GetErrorReason",
+        "agora/rtm:func:GetVersion",
+        "agora/rtm:type:RtmMessageType",
+        "agora/rtm:type:RtmChannelType"
+      ],
+      "api": [
+        "messaging:type:ErrorCode",
+        "agora/rtm:method:RtmErrorCode.Reason",
+        "messaging:func:Version"
+      ],
+      "tests": [
+        "agora/rtm:func:TestPinnedEnumCoverage",
+        "agora/rtm:func:TestErrorCodeReasonAndMetadataAccessor"
+      ],
+      "notes": "Pinned C enum names and typed error reasons are exposed. Header-based enum tests verify values independently of this official-Go snapshot; new C-surface names are additions beyond the official Go baseline."
+    },
+    {
+      "id": "remaining-raw-callables",
+      "status": "raw-only",
+      "upstream": [
+        "agora/rtc:func:CAgoraServiceConfig",
+        "agora/rtc:func:CAudioEncodedFrameObserver",
+        "agora/rtc:func:CAudioFrameObserver",
+        "agora/rtc:func:CCapatilitiesObserver",
+        "agora/rtc:func:CIntFromBool",
+        "agora/rtc:func:CLocalUserObserver",
+        "agora/rtc:func:CRtcConnectionConfig",
+        "agora/rtc:func:CRtcConnectionObserver",
+        "agora/rtc:func:CVideoEncodedFrameObserver",
+        "agora/rtc:func:CVideoFrameObserver",
+        "agora/rtc:func:FreeCAgoraServiceConfig",
+        "agora/rtc:func:FreeCAudioFrameObserver",
+        "agora/rtc:func:FreeCCapatilitiesObserver",
+        "agora/rtc:func:FreeCEncodedVideoFrameObserver",
+        "agora/rtc:func:FreeCLocalUserObserver",
+        "agora/rtc:func:FreeCRtcConnectionConfig",
+        "agora/rtc:func:FreeCRtcConnectionObserver",
+        "agora/rtc:func:FreeCVideoFrameObserver",
+        "agora/rtc:func:GenerateWAVHeader",
+        "agora/rtc:func:GetAgoraParameter",
+        "agora/rtc:func:GoAudioVolumeInfo",
+        "agora/rtc:func:GoLocalAudioStats",
+        "agora/rtc:func:GoLocalVideoStats",
+        "agora/rtc:func:GoPcmAudioFrame",
+        "agora/rtc:func:GoRemoteVideoStats",
+        "agora/rtc:func:GoRtcConnectionInfo",
+        "agora/rtc:func:GoSinkAudioFrame",
+        "agora/rtc:func:GoVideoFrame",
+        "agora/rtc:func:GoVideoTrackInfo",
+        "agora/rtc:func:NewAPMConfig",
+        "agora/rtc:func:NewAgoraServiceConfig",
+        "agora/rtc:func:NewAudioConsumer",
+        "agora/rtc:func:NewAudioTranscodingWorker",
+        "agora/rtc:func:NewCustomAudioTrackEncoded",
+        "agora/rtc:func:NewCustomAudioTrackPcm",
+        "agora/rtc:func:NewCustomVideoTrackEncoded",
+        "agora/rtc:func:NewCustomVideoTrackFrame",
+        "agora/rtc:func:NewDirectCustomAudioTrackPcm",
+        "agora/rtc:func:NewLockFreeRingBuffer",
+        "agora/rtc:func:NewPrecisionTimer",
+        "agora/rtc:func:NewQueue",
+        "agora/rtc:func:NewRemoteAudioTrack",
+        "agora/rtc:func:NewRtcConPublishConfig",
+        "agora/rtc:func:NewTranscodingWorker",
+        "agora/rtc:func:NewVadDump",
+        "agora/rtc:func:NewVideoEncoderConfiguration",
+        "agora/rtc:func:Uint8PtrToUintptr",
+        "agora/rtc:method:AudioConsumer.Clear",
+        "agora/rtc:method:AudioConsumer.Consume",
+        "agora/rtc:method:AudioConsumer.IsDirectMode",
+        "agora/rtc:method:AudioConsumer.IsPushToRtcCompleted",
+        "agora/rtc:method:AudioConsumer.Len",
+        "agora/rtc:method:AudioConsumer.PushPCMData",
+        "agora/rtc:method:AudioConsumer.Release",
+        "agora/rtc:method:AudioEncodedFrameSender.Release",
+        "agora/rtc:method:AudioEncodedFrameSender.SendEncodedAudioFrame",
+        "agora/rtc:method:AudioPcmDataSender.Release",
+        "agora/rtc:method:AudioTranscodingWorker.PushEncodedData",
+        "agora/rtc:method:AudioTranscodingWorker.Start",
+        "agora/rtc:method:AudioTranscodingWorker.Stop",
+        "agora/rtc:method:AudioVadManager.Release",
+        "agora/rtc:method:LocalAudioTrack.Release",
+        "agora/rtc:method:LocalVideoTrack.Release",
+        "agora/rtc:method:LockFreeRingBuffer.Capacity",
+        "agora/rtc:method:LockFreeRingBuffer.IsEmpty",
+        "agora/rtc:method:LockFreeRingBuffer.Size",
+        "agora/rtc:method:LockFreeRingBuffer.TryRead",
+        "agora/rtc:method:LockFreeRingBuffer.TryReadBatch",
+        "agora/rtc:method:LockFreeRingBuffer.TryWrite",
+        "agora/rtc:method:LockFreeRingBuffer.TryWriteBatch",
+        "agora/rtc:method:MediaNodeFactory.NewAudioEncodedFrameSender",
+        "agora/rtc:method:MediaNodeFactory.NewAudioPcmDataSender",
+        "agora/rtc:method:MediaNodeFactory.NewVideoEncodedImageSender",
+        "agora/rtc:method:MediaNodeFactory.NewVideoFrameSender",
+        "agora/rtc:method:PrecisionTimer.Start",
+        "agora/rtc:method:PrecisionTimer.Stop",
+        "agora/rtc:method:Queue.Clear",
+        "agora/rtc:method:Queue.Dequeue",
+        "agora/rtc:method:Queue.Enqueue",
+        "agora/rtc:method:Queue.IsEmpty",
+        "agora/rtc:method:Queue.Peek",
+        "agora/rtc:method:Queue.Size",
+        "agora/rtc:method:RtcConnection.GetAgoraParameter",
+        "agora/rtc:method:RtcConnection.GetLocalUser",
+        "agora/rtc:method:RtcConnection.NewRemoteVideoTrack",
+        "agora/rtc:method:RtcConnection.RegisterAudioEncodedFrameObserver",
+        "agora/rtc:method:RtcConnection.RegisterAudioFrameObserver",
+        "agora/rtc:method:RtcConnection.RegisterLocalUserObserver",
+        "agora/rtc:method:RtcConnection.RegisterObserver",
+        "agora/rtc:method:RtcConnection.RegisterVideoEncodedFrameObserver",
+        "agora/rtc:method:RtcConnection.RegisterVideoFrameObserver",
+        "agora/rtc:method:TransCodeStatus.Reset",
+        "agora/rtc:method:TranscodingWorker.PushEncodedData",
+        "agora/rtc:method:TranscodingWorker.Start",
+        "agora/rtc:method:TranscodingWorker.Stop",
+        "agora/rtc:method:VadDump.Close",
+        "agora/rtc:method:VadDump.Open",
+        "agora/rtc:method:VadDump.Write",
+        "agora/rtc:method:VideoEncodedImageSender.Release",
+        "agora/rtc:method:VideoEncodedImageSender.SendEncodedVideoImage",
+        "agora/rtc:method:VideoFrameSender.Release",
+        "agora/rtc:method:VideoFrameSender.SendVideoFrame",
+        "agora/rtm:func:CChannelInfoToChannelInfo",
+        "agora/rtm:func:CHistoryMessageToHistoryMessage",
+        "agora/rtm:func:CLinkStateEventToLinkStateEvent",
+        "agora/rtm:func:CLockDetailToLockDetail",
+        "agora/rtm:func:CMetadataToIMetadata",
+        "agora/rtm:func:CRtmEventHandler",
+        "agora/rtm:func:CUserListToUserList",
+        "agora/rtm:func:CUserStateToUserState",
+        "agora/rtm:func:FastSafeCGoString",
+        "agora/rtm:func:IsValidMemory",
+        "agora/rtm:func:NewChannelInfo",
+        "agora/rtm:func:NewGetHistoryMessagesOptions",
+        "agora/rtm:func:NewGetOnlineUsersOptions",
+        "agora/rtm:func:NewHistoryMessage",
+        "agora/rtm:func:NewIntervalInfo",
+        "agora/rtm:func:NewJoinChannelOptions",
+        "agora/rtm:func:NewJoinTopicOptions",
+        "agora/rtm:func:NewLinkStateEvent",
+        "agora/rtm:func:NewLockDetail",
+        "agora/rtm:func:NewLockEvent",
+        "agora/rtm:func:NewMessageEvent",
+        "agora/rtm:func:NewMetadataItem",
+        "agora/rtm:func:NewMetadataOptions",
+        "agora/rtm:func:NewPresenceEvent",
+        "agora/rtm:func:NewPresenceOptions",
+        "agora/rtm:func:NewPublishOptions",
+        "agora/rtm:func:NewPublisherInfo",
+        "agora/rtm:func:NewRtmConfig",
+        "agora/rtm:func:NewRtmEncryptionConfig",
+        "agora/rtm:func:NewRtmLogConfig",
+        "agora/rtm:func:NewRtmPrivateConfig",
+        "agora/rtm:func:NewRtmProxyConfig",
+        "agora/rtm:func:NewSnapshotInfo",
+        "agora/rtm:func:NewStateItem",
+        "agora/rtm:func:NewStorageEvent",
+        "agora/rtm:func:NewSubscribeOptions",
+        "agora/rtm:func:NewTopicEvent",
+        "agora/rtm:func:NewTopicInfo",
+        "agora/rtm:func:NewTopicMessageOptions",
+        "agora/rtm:func:NewTopicOptions",
+        "agora/rtm:func:NewUserList",
+        "agora/rtm:func:NewUserState",
+        "agora/rtm:func:SafeCGoString",
+        "agora/rtm:method:GetHistoryMessagesOptions.GetCount",
+        "agora/rtm:method:GetHistoryMessagesOptions.GetEnd",
+        "agora/rtm:method:GetHistoryMessagesOptions.GetStart",
+        "agora/rtm:method:GetHistoryMessagesOptions.SetCount",
+        "agora/rtm:method:GetHistoryMessagesOptions.SetEnd",
+        "agora/rtm:method:GetHistoryMessagesOptions.SetStart",
+        "agora/rtm:method:IMetadata.GetMajorRevision",
+        "agora/rtm:method:IMetadata.GetMetadataItems",
+        "agora/rtm:method:IMetadata.SetMajorRevision",
+        "agora/rtm:method:IMetadata.SetMetadataItem",
+        "agora/rtm:method:IRtmClient.GetHistory",
+        "agora/rtm:method:IRtmClient.GetLock",
+        "agora/rtm:method:IRtmClient.GetPresence",
+        "agora/rtm:method:IRtmClient.GetStorage",
+        "agora/rtm:method:IRtmStorage.CreateMetadata",
+        "agora/rtm:method:JoinChannelOptions.GetBeQuiet",
+        "agora/rtm:method:JoinChannelOptions.GetToken",
+        "agora/rtm:method:JoinChannelOptions.GetWithLock",
+        "agora/rtm:method:JoinChannelOptions.GetWithMetadata",
+        "agora/rtm:method:JoinChannelOptions.GetWithPresence",
+        "agora/rtm:method:JoinChannelOptions.SetBeQuiet",
+        "agora/rtm:method:JoinChannelOptions.SetToken",
+        "agora/rtm:method:JoinChannelOptions.SetWithLock",
+        "agora/rtm:method:JoinChannelOptions.SetWithMetadata",
+        "agora/rtm:method:JoinChannelOptions.SetWithPresence",
+        "agora/rtm:method:JoinTopicOptions.GetMeta",
+        "agora/rtm:method:JoinTopicOptions.GetPriority",
+        "agora/rtm:method:JoinTopicOptions.GetQos",
+        "agora/rtm:method:JoinTopicOptions.GetSyncWithMedia",
+        "agora/rtm:method:JoinTopicOptions.SetMeta",
+        "agora/rtm:method:JoinTopicOptions.SetPriority",
+        "agora/rtm:method:JoinTopicOptions.SetQos",
+        "agora/rtm:method:JoinTopicOptions.SetSyncWithMedia",
+        "agora/rtm:method:MetadataItem.GetAquthorUserId",
+        "agora/rtm:method:MetadataItem.GetKey",
+        "agora/rtm:method:MetadataItem.GetRevision",
+        "agora/rtm:method:MetadataItem.GetUpdateTs",
+        "agora/rtm:method:MetadataItem.GetValue",
+        "agora/rtm:method:MetadataItem.SetAuthorUserId",
+        "agora/rtm:method:MetadataItem.SetKey",
+        "agora/rtm:method:MetadataItem.SetRevision",
+        "agora/rtm:method:MetadataItem.SetUpdateTs",
+        "agora/rtm:method:MetadataItem.SetValue",
+        "agora/rtm:method:MetadataOptions.GetRecordTs",
+        "agora/rtm:method:MetadataOptions.GetRecordUserId",
+        "agora/rtm:method:MetadataOptions.SetRecordTs",
+        "agora/rtm:method:MetadataOptions.SetRecordUserId",
+        "agora/rtm:method:TopicOptions.GetUserCount",
+        "agora/rtm:method:TopicOptions.GetUsers",
+        "agora/rtm:method:TopicOptions.SetUserCount",
+        "agora/rtm:method:TopicOptions.SetUsers"
+      ],
+      "api": [
+        "agora/rtc:func:CAgoraServiceConfig",
+        "agora/rtc:func:CAudioEncodedFrameObserver",
+        "agora/rtc:func:CAudioFrameObserver",
+        "agora/rtc:func:CCapatilitiesObserver",
+        "agora/rtc:func:CIntFromBool",
+        "agora/rtc:func:CLocalUserObserver",
+        "agora/rtc:func:CRtcConnectionConfig",
+        "agora/rtc:func:CRtcConnectionObserver",
+        "agora/rtc:func:CVideoEncodedFrameObserver",
+        "agora/rtc:func:CVideoFrameObserver",
+        "agora/rtc:func:FreeCAgoraServiceConfig",
+        "agora/rtc:func:FreeCAudioFrameObserver",
+        "agora/rtc:func:FreeCCapatilitiesObserver",
+        "agora/rtc:func:FreeCEncodedVideoFrameObserver",
+        "agora/rtc:func:FreeCLocalUserObserver",
+        "agora/rtc:func:FreeCRtcConnectionConfig",
+        "agora/rtc:func:FreeCRtcConnectionObserver",
+        "agora/rtc:func:FreeCVideoFrameObserver",
+        "agora/rtc:func:GenerateWAVHeader",
+        "agora/rtc:func:GetAgoraParameter",
+        "agora/rtc:func:GoAudioVolumeInfo",
+        "agora/rtc:func:GoLocalAudioStats",
+        "agora/rtc:func:GoLocalVideoStats",
+        "agora/rtc:func:GoPcmAudioFrame",
+        "agora/rtc:func:GoRemoteVideoStats",
+        "agora/rtc:func:GoRtcConnectionInfo",
+        "agora/rtc:func:GoSinkAudioFrame",
+        "agora/rtc:func:GoVideoFrame",
+        "agora/rtc:func:GoVideoTrackInfo",
+        "agora/rtc:func:NewAPMConfig",
+        "agora/rtc:func:NewAgoraServiceConfig",
+        "agora/rtc:func:NewAudioConsumer",
+        "agora/rtc:func:NewAudioTranscodingWorker",
+        "agora/rtc:func:NewCustomAudioTrackEncoded",
+        "agora/rtc:func:NewCustomAudioTrackPcm",
+        "agora/rtc:func:NewCustomVideoTrackEncoded",
+        "agora/rtc:func:NewCustomVideoTrackFrame",
+        "agora/rtc:func:NewDirectCustomAudioTrackPcm",
+        "agora/rtc:func:NewLockFreeRingBuffer",
+        "agora/rtc:func:NewPrecisionTimer",
+        "agora/rtc:func:NewQueue",
+        "agora/rtc:func:NewRemoteAudioTrack",
+        "agora/rtc:func:NewRtcConPublishConfig",
+        "agora/rtc:func:NewTranscodingWorker",
+        "agora/rtc:func:NewVadDump",
+        "agora/rtc:func:NewVideoEncoderConfiguration",
+        "agora/rtc:func:Uint8PtrToUintptr",
+        "agora/rtc:method:AudioConsumer.Clear",
+        "agora/rtc:method:AudioConsumer.Consume",
+        "agora/rtc:method:AudioConsumer.IsDirectMode",
+        "agora/rtc:method:AudioConsumer.IsPushToRtcCompleted",
+        "agora/rtc:method:AudioConsumer.Len",
+        "agora/rtc:method:AudioConsumer.PushPCMData",
+        "agora/rtc:method:AudioConsumer.Release",
+        "agora/rtc:method:AudioEncodedFrameSender.Release",
+        "agora/rtc:method:AudioEncodedFrameSender.SendEncodedAudioFrame",
+        "agora/rtc:method:AudioPcmDataSender.Release",
+        "agora/rtc:method:AudioTranscodingWorker.PushEncodedData",
+        "agora/rtc:method:AudioTranscodingWorker.Start",
+        "agora/rtc:method:AudioTranscodingWorker.Stop",
+        "agora/rtc:method:AudioVadManager.Release",
+        "agora/rtc:method:LocalAudioTrack.Release",
+        "agora/rtc:method:LocalVideoTrack.Release",
+        "agora/rtc:method:LockFreeRingBuffer.Capacity",
+        "agora/rtc:method:LockFreeRingBuffer.IsEmpty",
+        "agora/rtc:method:LockFreeRingBuffer.Size",
+        "agora/rtc:method:LockFreeRingBuffer.TryRead",
+        "agora/rtc:method:LockFreeRingBuffer.TryReadBatch",
+        "agora/rtc:method:LockFreeRingBuffer.TryWrite",
+        "agora/rtc:method:LockFreeRingBuffer.TryWriteBatch",
+        "agora/rtc:method:MediaNodeFactory.NewAudioEncodedFrameSender",
+        "agora/rtc:method:MediaNodeFactory.NewAudioPcmDataSender",
+        "agora/rtc:method:MediaNodeFactory.NewVideoEncodedImageSender",
+        "agora/rtc:method:MediaNodeFactory.NewVideoFrameSender",
+        "agora/rtc:method:PrecisionTimer.Start",
+        "agora/rtc:method:PrecisionTimer.Stop",
+        "agora/rtc:method:Queue.Clear",
+        "agora/rtc:method:Queue.Dequeue",
+        "agora/rtc:method:Queue.Enqueue",
+        "agora/rtc:method:Queue.IsEmpty",
+        "agora/rtc:method:Queue.Peek",
+        "agora/rtc:method:Queue.Size",
+        "agora/rtc:method:RtcConnection.GetAgoraParameter",
+        "agora/rtc:method:RtcConnection.GetLocalUser",
+        "agora/rtc:method:RtcConnection.NewRemoteVideoTrack",
+        "agora/rtc:method:RtcConnection.RegisterAudioEncodedFrameObserver",
+        "agora/rtc:method:RtcConnection.RegisterAudioFrameObserver",
+        "agora/rtc:method:RtcConnection.RegisterLocalUserObserver",
+        "agora/rtc:method:RtcConnection.RegisterObserver",
+        "agora/rtc:method:RtcConnection.RegisterVideoEncodedFrameObserver",
+        "agora/rtc:method:RtcConnection.RegisterVideoFrameObserver",
+        "agora/rtc:method:TransCodeStatus.Reset",
+        "agora/rtc:method:TranscodingWorker.PushEncodedData",
+        "agora/rtc:method:TranscodingWorker.Start",
+        "agora/rtc:method:TranscodingWorker.Stop",
+        "agora/rtc:method:VadDump.Close",
+        "agora/rtc:method:VadDump.Open",
+        "agora/rtc:method:VadDump.Write",
+        "agora/rtc:method:VideoEncodedImageSender.Release",
+        "agora/rtc:method:VideoEncodedImageSender.SendEncodedVideoImage",
+        "agora/rtc:method:VideoFrameSender.Release",
+        "agora/rtc:method:VideoFrameSender.SendVideoFrame",
+        "agora/rtm:func:CChannelInfoToChannelInfo",
+        "agora/rtm:func:CHistoryMessageToHistoryMessage",
+        "agora/rtm:func:CLinkStateEventToLinkStateEvent",
+        "agora/rtm:func:CLockDetailToLockDetail",
+        "agora/rtm:func:CMetadataToIMetadata",
+        "agora/rtm:func:CRtmEventHandler",
+        "agora/rtm:func:CUserListToUserList",
+        "agora/rtm:func:CUserStateToUserState",
+        "agora/rtm:func:FastSafeCGoString",
+        "agora/rtm:func:IsValidMemory",
+        "agora/rtm:func:NewChannelInfo",
+        "agora/rtm:func:NewGetHistoryMessagesOptions",
+        "agora/rtm:func:NewGetOnlineUsersOptions",
+        "agora/rtm:func:NewHistoryMessage",
+        "agora/rtm:func:NewIntervalInfo",
+        "agora/rtm:func:NewJoinChannelOptions",
+        "agora/rtm:func:NewJoinTopicOptions",
+        "agora/rtm:func:NewLinkStateEvent",
+        "agora/rtm:func:NewLockDetail",
+        "agora/rtm:func:NewLockEvent",
+        "agora/rtm:func:NewMessageEvent",
+        "agora/rtm:func:NewMetadataItem",
+        "agora/rtm:func:NewMetadataOptions",
+        "agora/rtm:func:NewPresenceEvent",
+        "agora/rtm:func:NewPresenceOptions",
+        "agora/rtm:func:NewPublishOptions",
+        "agora/rtm:func:NewPublisherInfo",
+        "agora/rtm:func:NewRtmConfig",
+        "agora/rtm:func:NewRtmEncryptionConfig",
+        "agora/rtm:func:NewRtmLogConfig",
+        "agora/rtm:func:NewRtmPrivateConfig",
+        "agora/rtm:func:NewRtmProxyConfig",
+        "agora/rtm:func:NewSnapshotInfo",
+        "agora/rtm:func:NewStateItem",
+        "agora/rtm:func:NewStorageEvent",
+        "agora/rtm:func:NewSubscribeOptions",
+        "agora/rtm:func:NewTopicEvent",
+        "agora/rtm:func:NewTopicInfo",
+        "agora/rtm:func:NewTopicMessageOptions",
+        "agora/rtm:func:NewTopicOptions",
+        "agora/rtm:func:NewUserList",
+        "agora/rtm:func:NewUserState",
+        "agora/rtm:func:SafeCGoString",
+        "agora/rtm:method:GetHistoryMessagesOptions.GetCount",
+        "agora/rtm:method:GetHistoryMessagesOptions.GetEnd",
+        "agora/rtm:method:GetHistoryMessagesOptions.GetStart",
+        "agora/rtm:method:GetHistoryMessagesOptions.SetCount",
+        "agora/rtm:method:GetHistoryMessagesOptions.SetEnd",
+        "agora/rtm:method:GetHistoryMessagesOptions.SetStart",
+        "agora/rtm:method:IMetadata.GetMajorRevision",
+        "agora/rtm:method:IMetadata.GetMetadataItems",
+        "agora/rtm:method:IMetadata.SetMajorRevision",
+        "agora/rtm:method:IMetadata.SetMetadataItem",
+        "agora/rtm:method:IRtmClient.GetHistory",
+        "agora/rtm:method:IRtmClient.GetLock",
+        "agora/rtm:method:IRtmClient.GetPresence",
+        "agora/rtm:method:IRtmClient.GetStorage",
+        "agora/rtm:method:IRtmStorage.CreateMetadata",
+        "agora/rtm:method:JoinChannelOptions.GetBeQuiet",
+        "agora/rtm:method:JoinChannelOptions.GetToken",
+        "agora/rtm:method:JoinChannelOptions.GetWithLock",
+        "agora/rtm:method:JoinChannelOptions.GetWithMetadata",
+        "agora/rtm:method:JoinChannelOptions.GetWithPresence",
+        "agora/rtm:method:JoinChannelOptions.SetBeQuiet",
+        "agora/rtm:method:JoinChannelOptions.SetToken",
+        "agora/rtm:method:JoinChannelOptions.SetWithLock",
+        "agora/rtm:method:JoinChannelOptions.SetWithMetadata",
+        "agora/rtm:method:JoinChannelOptions.SetWithPresence",
+        "agora/rtm:method:JoinTopicOptions.GetMeta",
+        "agora/rtm:method:JoinTopicOptions.GetPriority",
+        "agora/rtm:method:JoinTopicOptions.GetQos",
+        "agora/rtm:method:JoinTopicOptions.GetSyncWithMedia",
+        "agora/rtm:method:JoinTopicOptions.SetMeta",
+        "agora/rtm:method:JoinTopicOptions.SetPriority",
+        "agora/rtm:method:JoinTopicOptions.SetQos",
+        "agora/rtm:method:JoinTopicOptions.SetSyncWithMedia",
+        "agora/rtm:method:MetadataItem.GetAquthorUserId",
+        "agora/rtm:method:MetadataItem.GetKey",
+        "agora/rtm:method:MetadataItem.GetRevision",
+        "agora/rtm:method:MetadataItem.GetUpdateTs",
+        "agora/rtm:method:MetadataItem.GetValue",
+        "agora/rtm:method:MetadataItem.SetAuthorUserId",
+        "agora/rtm:method:MetadataItem.SetKey",
+        "agora/rtm:method:MetadataItem.SetRevision",
+        "agora/rtm:method:MetadataItem.SetUpdateTs",
+        "agora/rtm:method:MetadataItem.SetValue",
+        "agora/rtm:method:MetadataOptions.GetRecordTs",
+        "agora/rtm:method:MetadataOptions.GetRecordUserId",
+        "agora/rtm:method:MetadataOptions.SetRecordTs",
+        "agora/rtm:method:MetadataOptions.SetRecordUserId",
+        "agora/rtm:method:TopicOptions.GetUserCount",
+        "agora/rtm:method:TopicOptions.GetUsers",
+        "agora/rtm:method:TopicOptions.SetUserCount",
+        "agora/rtm:method:TopicOptions.SetUsers"
+      ],
+      "tests": [
+        "agora/rtc:func:TestInvalidInputsDoNotEnterNativeSDK",
+        "agora/rtm:func:TestNilHandlesAndLocalValidation"
+      ],
+      "notes": "Low-level constructors, conversions, utility/resource methods and advanced calls remain directly accessible with manual ownership. Selected invalid-handle paths are tested, not every callable or live behavior. Higher-level equivalents do not promise identical callback/lifecycle semantics."
+    }
+  ]
+}

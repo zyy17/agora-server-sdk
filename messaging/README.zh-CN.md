@@ -76,11 +76,18 @@ func run(ctx context.Context) (err error) {
 | `AppID`、`UserID` | 必填，有效 UTF-8，不含 NUL；其他格式和长度限制由原生层检查 |
 | `EventBuffer` | 128 项；零值使用默认值；显式范围为 1–65536 |
 | `RequestTimeout` | 15 秒；零值使用默认值，负值无效 |
-| `Native` | `nil` 使用固定绑定的 `agorartm.NewRtmConfig()` 默认配置 |
+| `Identity` | 默认未设置 `Native` 时使用字符串 ID；设置后保留 `Native.UseStringUserId`；可显式指定 `IdentityString` / `IdentityNumeric` |
+| `Connection` | 可选的类型化区域、传输协议、Presence/心跳/重连计时、Multipath 和 ISP 配置 |
+| `Log`、`Proxy`、`Encryption`、`Private` | 非 nil 时覆盖 `Native` 中对应配置 |
+| `Parameters` | 创建时应用的 JSON 对象；空值保留 `Native.Parameters` |
+| `ResultEvents` | 默认为 `false`；开启后接收所有异步结果，包括超时后的迟到回调 |
+| `Native` | nil 使用固定 Go 绑定默认值；保留兼容配置及平台 `Context` |
 
 同一 App ID 下使用稳定且不重复的用户 ID。官方接入说明将 RTM ID 限制为 64 个 ASCII 字符；其他端使用同一 ID 登录可能挤掉原连接。为提高兼容性，名称优先使用 ASCII 字母、数字、下划线和连字符，并以字母或数字开头；使用其他字符前先核对服务限制。封装的 UTF-8 校验不能替代原生命名规则。
 
-设置 `Config.Native` 时，先调用 `agorartm.NewRtmConfig()`，再修改必要字段。封装会覆盖 `AppId`、`UserId`、`UseStringUserId` 和 `EventHandler`。区域、日志、代理、加密及私有配置遵循固定绑定，不能套用其他语言或版本的默认值。`New` 执行期间，不要修改 `Native` 及其引用值。
+优先使用 `ConnectionConfig`、`LogConfig`、`ProxyConfig`、`EncryptionConfig` 和 `PrivateConfig`，无需导入底层绑定即可配置原生选项。连接计时必须为非负整秒且能放入 `uint32`；显式传入 `ConnectionConfig` 时零时长原样传递，零区域代表全球。零重连时长表示原生无限重试，与 Go 请求超时独立。nil 连接配置保留固定 Go 绑定的 Presence/心跳/重连默认值 30/0/0 秒。`EncryptionConfig.Salt` 为固定 32 字节数组；创建时会复制引用数据。`New` 读取期间不要并发修改输入。
+
+`IdentityNumeric` 按 RTC 兼容的数值身份解释 `UserID`，须传十进制字符串并使用一致的 Token 身份。`IdentityString` 可将看似数字的 ID 保留为字符串身份。若使用 `Config.Native`，先以 `agorartm.NewRtmConfig()` 初始化。封装仅固定覆盖 `AppId`、`UserId` 和 `EventHandler`，显式类型化配置优先。与旧版本不同，`IdentityDefault` 现在保留 `Native.UseStringUserId`；如需以前强制字符串的行为，请明确设置 `IdentityString`。区域、代理、加密及私有服务仍受原生功能支持限制。平台 `Context` 通过 `Native` 设置，须遵守 cgo 指针生命周期规则。
 
 ## 生命周期、并发与取消
 
@@ -101,7 +108,7 @@ flowchart TD
 - `New` 只创建客户端，不登录。服务操作前调用 `Login`。创建成功不代表网络或功能权限可用。
 - `Client` 和 `Stream` 方法支持并发调用。原生请求发起过程串行执行，各请求独立等待，按请求 ID 关联结果；提前到达的回调也能关联。操作读取输入 map 或 slice 期间，不要修改它们。
 - 每个异步等待受调用方截止时间和 `RequestTimeout` 中较早者约束。nil context 无效。取消只停止等待，**不会撤销已提交的操作**，也无法中断正在执行的同步原生调用。
-- 已取消等待的消息、元数据写入或获取锁操作仍可能生效。重试前检查远端状态，或在业务层实现幂等。封装禁用了原生获取锁自动重试。
+- 已取消等待的消息、元数据写入或获取锁操作仍可能生效。重试前检查远端状态，或在业务层实现幂等。`AcquireLock` 禁用原生重试；`AcquireLockWithOptions` 可启用重试，且重试可能持续到调用方 context 结束之后。
 - `Close` 可重复调用，未完成请求以 `ErrClosed` 结束。`Client.Close` 先释放剩余 Stream，再释放客户端；关闭后不能再发起操作。`Stream.Close` 也会终止该 Stream 的未完成请求。
 - `Close` 不等待 `Logout` 或 Stream 正常 `Leave`。需要时先用独立、有超时的 context 调用它们；即使失败也应继续关闭。阻塞的原生调用可能延迟关闭。
 
@@ -110,7 +117,7 @@ flowchart TD
 | API | 目标与前提 |
 | --- | --- |
 | `Publish` | Message Channel；发送者须登录，无需先订阅 |
-| `Subscribe` / `Unsubscribe` | Message Channel 接收；`Subscribe` 始终开启消息事件 |
+| `Subscribe` / `Unsubscribe` | Message Channel 接收；消息默认开启，`DisableMessages` 可关闭 |
 | `PublishToUser` | 向已登录的用户 ID 发送私信；无需频道订阅 |
 | `NewStream` / `Stream.Join` | 受管理的 Stream Channel；先登录、创建、加入，再操作 Topic |
 | `Channel{Name, Type}` | Presence、元数据、锁使用 `MessageChannel` 或 `StreamChannel`；历史使用 `MessageChannel` 或 `UserChannel` |
@@ -121,6 +128,7 @@ flowchart TD
 | `PublishOptions.CustomType` | 默认空值；非空时须为不含 NUL 的 UTF-8 |
 | `PublishOptions.StoreInHistory` | `false`；发布时显式开启，并开通项目历史功能 |
 | `SubscribeOptions.Presence` / `Metadata` / `Locks` | 均为 `false`；按需开启事件并开通相应项目功能 |
+| `SubscribeOptions.DisableMessages` | 默认 `false`；设为 `true` 可只订阅 Presence/元数据/锁 |
 | `SubscribeOptions.Quiet` | `false`；`true` 请求原生静默订阅行为 |
 
 封装的 `SubscribeOptions{}` 与原生默认值不同：开启消息，关闭 Presence、Metadata 和 Locks。发布载荷不能为空。封装不预检服务端消息大小和频率配额，应处理原生错误。发布返回 nil 表示 SDK 操作成功，不代表接收应用已处理或持久化消息；需要时增加业务回执。
@@ -129,7 +137,8 @@ flowchart TD
 
 | API 或选项 | 约定 |
 | --- | --- |
-| `OnlineUsers(ctx, channel, PresenceOptions)` | 每次一页，始终包含用户 ID；`IncludeState` 默认为 `false` |
+| `OnlineUsers(ctx, channel, PresenceOptions)` | 每次一页，默认包含用户 ID，`ExcludeUserID` 可关闭；`IncludeState` 默认为 `false` |
+| `PresenceOptions.ExcludeUserID` | 默认为 `false`；`true` 原样传递 `includeUserId=false`。固定 C 回调没有总人数，因此这不是人数统计 API |
 | `PresenceOptions.Page` | 首次为空；原样传入返回的 `NextPage`；`NextPage` 为空表示结束 |
 | `UserChannels(ctx, userID)` | 查询用户所在频道 |
 | `SetState(ctx, channel, map)` | map 非空，键非空；键和值均须为不含 NUL 的 UTF-8 |
@@ -161,7 +170,11 @@ metadata := messaging.Metadata{
 
 调用顺序为 `SetLock` → `AcquireLock` → `ReleaseLock` → `RemoveLock`；`Locks` 查询锁和持有者，`RevokeLock` 针对指定持有者撤销锁。`SetLock` 只创建锁，不获取锁。TTL 表示持有者断开或离开后保留锁归属的时间，不是锁定义的存活时长。官方范围为 10–300 秒；封装仅检查能以 `uint32` 表示的正整数秒，因此通过本地校验仍可能被服务拒绝。
 
-需开通锁功能，并按需开启 `Locks` 事件。请求超时不代表获取失败，重试前应查询。锁事件可能被本地队列丢弃，不能只凭事件队列确认重要写入时仍持有锁。
+需开通锁功能，并按需开启 `Locks` 事件。`AcquireLock(ctx, channel, name)` 保留不重试的便捷行为；`AcquireLockWithOptions(ctx, channel, name, AcquireLockOptions{Retry: true})` 可开启原生重试。
+
+**取消或超时只结束 Go 等待，不会取消原生重试。** 固定 SDK 没有按请求取消的 API，Go 方法返回后（包括先收到获取失败回调后）仍可能取得锁，单次失败不能证明重试已停止。创建前开启 `Config.ResultEvents`，处理 `RequestAcquireLock` 结果及锁事件；如取得的锁已不再需要，用全新的 context 调用 `ReleaseLock`。参见[参与编译的清理示例](example_test.go)，示例接管专用客户端并在每条退出路径关闭它以停止后续重试，假设同一目标只有一次获取请求且仅一个事件消费者；并发同目标操作时应自行分发和关联。
+
+单次 `Locks` 查询只是快照，不能证明进行中的重试之后不会成功。发生事件丢弃时要重新核对，并在重试客户端整个生命周期内持续处理所有权及清理。关闭只释放原生资源，不等同于成功 `ReleaseLock`；断开后所有权仍受原生 TTL 约束。不能只凭事件队列确认重要写入时仍持有锁。
 
 ## 历史消息
 
@@ -209,9 +222,17 @@ Token 由可信业务服务端签发。封装接受空 Token，但项目鉴权�
 
 ## 事件与队列行为
 
-`Events()` 返回有缓冲的只读通道；`Next(ctx)` 消费同一队列。事件类型为 `EventMessage`、`EventPresence`、`EventTopic`、`EventLock`、`EventStorage`、`EventLink`、`EventToken` 和 `EventTokenExpiring`。按 `Kind` 读取对应字段。数据、嵌套 slice/map 和二进制载荷均为独立 Go 副本，可在回调或客户端结束后继续使用。
+`Events()` 返回有缓冲的只读通道；`Next(ctx)` 消费同一队列。事件类型为 `EventMessage`、`EventPresence`、`EventTopic`、`EventLock`、`EventStorage`、`EventLink`、`EventToken` 和 `EventTokenExpiring`；开启 `ResultEvents` 后还包含 `EventRequestResult`。按 `Kind` 读取对应字段。数据、嵌套 slice/map 和二进制载荷均为独立 Go 副本，可在回调或客户端结束后继续使用。
 
 RTM 队列满时丢弃**最新**事件，并增加 `DroppedEvents()`，Token 和状态事件也不例外。请求结果走独立关联路径，不受事件队列溢出影响。context 有效时，关闭后仍可排空缓冲；排空后 `Next` 返回 `ErrClosed`，遍历 `Events()` 则结束。取消的 context 返回对应错误。多个消费者竞争事件，需要广播时自行分发。这与 [RTC 丢弃最旧项、返回 `io.EOF` 的规则](../docs/rtc.zh-CN.md#队列与数据生命周期)不同。
+
+### 类型化请求结果与迟到完成
+
+`Config.ResultEvents: true` 将 38 个原生异步结果回调分别复制到 `Event.RequestResult`。`Operation` 使用具名 `RequestOperation` 常量，`RequestID` 保留 SDK 关联 ID。`Channel`、`UserID`、`Topic`、`TopicMetadata`、`LockName` 和 `Service` 保留相应回调提供的上下文。查询使用类型化字段 `Presence`、`State`、`Channels`、`Metadata`、`Locks`、`Subscription`、`Subscribers` 和 `History`；错误回调也保留错误码、详情及部分数据。
+
+事件数据与同步方法返回的 slice/map 相互独立。超时、取消或原生重复回调之后仍可观察结果。等待中的方法采用第一个匹配回调，重复回调不会覆盖首个结果。结果事件共享有界队列，可能被丢弃；方法本身的完成关联不经过该队列。本地校验、提交失败及 context 错误不会伪造原生回调，客户端关闭后不再接收新回调。
+
+`PresenceEventType`、`TopicEventType`、`LockEventType`、`StorageEventType`、`TokenEventType`、`LinkState`、`LinkOperation`、`LinkReason`、`ServiceType`、`StorageType` 均提供具名常量，无需使用魔法数字；保留原生数值及未来未知值。`ErrorCode` 提供固定版本带符号的 `Code…` 常量，`Reason()` 返回已加载 SDK 对该错误的说明。
 
 ## 原生访问与错误
 
@@ -226,6 +247,29 @@ RTM 队列满时丢弃**最新**事件，并增加 `DroppedEvents()`，Token 和
 | `*messaging.Error` | 同步或异步 SDK 拒绝；读取 `Op`、`Code` 和 `Details` |
 
 用 `errors.Is` 判断哨兵和 context 错误，用 `errors.As` 读取 `*messaging.Error`。`ErrorCode` 保留原生数值。提交签名无返回值的原生方法仍等待结果回调，不会仅凭提交就报告成功。Topic 部分订阅失败时，同时检查发布者列表和错误。
+
+## 固定版本覆盖与原生边界
+
+依据是[官方 Go SDK v2.6.5 的 `d51ff1b5…` 提交](https://github.com/AgoraIO-Extensions/Agora-Golang-Server-SDK/tree/d51ff1b5baf85dd53155b31543bceba8ec304dc7/go_sdk/rtm)、仓库中的 C 头文件及匹配动态库，而非其他语言的新版本 SDK。
+
+| 固定接口 | 高层 API |
+| --- | --- |
+| 客户端创建/释放、登录/登出、续期、发布、订阅、参数、版本/错误说明 | `New` / `Close`、`Login` / `Logout`、`RenewToken`、`Publish` / `PublishToUser`、`Subscribe` / `Unsubscribe`、`SetParameters`、`Version`、`ErrorCode.Reason` |
+| Presence 用户/频道查询，状态设置/删除/查询 | `OnlineUsers`、`UserChannels`、`SetState`、`RemoveState`、`State`；底层保留语义对应的旧版 `WhoNow` / `WhereNow` |
+| 元数据构造，频道/用户增改删查，用户元数据订阅 | `Metadata` 值及对应 `*ChannelMetadata` / `*UserMetadata` 方法 |
+| 锁定义、查询、删除、获取、释放、撤销 | `SetLock`、`Locks`、`RemoveLock`、`AcquireLock` / `AcquireLockWithOptions`、`ReleaseLock`、`RevokeLock` |
+| 历史查询 | `History` 及类型化消息和游标 |
+| Stream 创建/名称/加入/离开/释放，续期及 Topic 全部操作 | `NewStream`、`Name`、`Join`、`Leave`、`Close`、`RenewToken`、`JoinTopic`、`LeaveTopic`、`Publish`、`SubscribeTopic`、`UnsubscribeTopic`、`Subscribers` |
+| 8 个主动事件回调及 38 个结果回调 | 8 类普通事件及可选 `EventRequestResult`；完整复制载荷 |
+
+固定 C ABI 的真实限制：
+
+- 官方 Go 源码中的旧 `OnConnectionStateChanged` 在固定 `C_IRtmEventHandler` 中没有字段。连接通知使用 `OnLinkStateEvent` / `EventLink`，不恢复不兼容回调布局。
+- C++ `IStreamChannel::setParameters` 没有固定 C 包装/导出，也不是官方 Go 方法；客户端 `SetParameters` 仍可用。
+- C++ 消息/Presence/Topic/锁/存储事件的时间戳及 interval 的 `totalOccupancy` 未包含在固定 C 回调结构中，无法可靠重建，不提供伪造的零值字段。ABI 实际携带的 Link/Token/History 时间戳完整保留。
+- 无法按请求取消或取消原生重试；Go 取消只结束等待。
+
+底层包保留官方全部 143 个公开函数/方法名。请求 ID/错误返回值与完整 slice 回调的安全修正继续保留，不以恢复不安全签名冒充兼容。`GetAuthorUserId` 提供正确拼写，同时保留上游 `GetAquthorUserId` 别名。
 
 ## 资料与验证范围
 

@@ -1,6 +1,6 @@
 # RTC reference
 
-[简体中文](rtc.zh-CN.md) · [Home](../README.md) · [Examples](../examples/README.md)
+[简体中文](rtc.zh-CN.md) · [Home](../README.md) · [Examples](../examples/README.md) · [Media contracts](media-api.md) · [Coverage](api-coverage.md)
 
 This guide describes the root `agorasdk` package. Defaults and validation below are wrapper contracts; acceptance by the native SDK, project permissions, and interoperability are separate requirements. See [sources and version scope](#sources-and-version-scope).
 
@@ -8,23 +8,48 @@ This guide describes the root `agorasdk` package. Defaults and validation below 
 
 Only one high-level `Service` may be open in a process; a second returns `ErrServiceActive`. Create independent sessions with `Service.Join` for each channel/identity. Each session owns its connection, tracks, observers, and six receive queues. An `AudioProcessor` belongs to its service and does not need a channel.
 
+**Join and session close**
+
+After `NewService` succeeds, create sessions with `Service.Join`. Join failures include configuration or connection errors, timeouts, context cancellation, and service closure during join; allocated resources are cleaned up before returning an error.
+
 ```mermaid
-flowchart TD
-    A[NewService] --> B[Service]
-    B --> C[Join]
-    C --> D{Connection succeeds?}
-    D -->|Yes| E[Session: send and receive]
-    D -->|Error, timeout, cancellation| F[Release failed session]
-    E --> G[Session.Close]
-    G --> H[Disconnect and release; close queues]
-    B --> I[Service.Close]
-    I --> J[Close processors and sessions]
-    J --> K[Release native runtime]
+---
+config:
+  htmlLabels: false
+  flowchart:
+    diagramPadding: 96
+    nodeSpacing: 24
+    rankSpacing: 32
+---
+flowchart LR
+    join["Service.Join"] -->|Success| session["Session"]
+    join -->|Failure| failed["Cleanup + error"]
+    session --> close["Session.Close"]
+    close --> released["Release session"]
+```
+
+**Service shutdown**
+
+Cleanup follows this order and continues if a step fails; the returned error combines cleanup failures.
+
+```mermaid
+---
+config:
+  htmlLabels: false
+  flowchart:
+    diagramPadding: 96
+    nodeSpacing: 24
+    rankSpacing: 32
+---
+flowchart LR
+    close["Service.Close"] --> processors["Close processors"]
+    processors --> sessions["Close sessions"]
+    sessions --> runtime["Release runtime"]
 ```
 
 - `Join(ctx, cfg)` waits for connection success, failure, cancellation, or `JoinTimeout`. Failure releases the incomplete session. Canceling the context **after a successful join does not close the session**.
-- `Session.Close` disconnects, releases native resources, closes `Done()`, and closes receive queues. `Done()` signals explicit session closure, not each network disconnection. Read `Info()` for a copied connection snapshot and `Events()` for network changes.
-- `Service.Close` closes its processors and sessions before releasing the runtime. Service, session, and processor `Close` methods are idempotent; inspect returned errors.
+- `Session.Close` disconnects, releases native resources, closes `Done()`, and closes receive queues. `Done()` closes when session closure begins, before native cleanup finishes; it does not signal each network disconnection. Read `Info()` for a copied connection snapshot and `Events()` for network changes.
+- `Service.Close` closes its processors and sessions before releasing the runtime. Service, session, and processor `Close` methods are idempotent; inspect returned errors. A runtime release failure may retain process ownership, so a new service is not guaranteed to succeed.
 - Session methods support concurrent callers by serializing native access. Application-level ordering is your responsibility: use one producer per media track; concurrent `PlayPCM` calls interleave audio. Do not mutate an input buffer while a method is using it.
 - Cancel read/playback contexts and let producer goroutines finish before closing the service. Contexts cannot interrupt a blocking reader or synchronous native call. Do not mix raw `rtc.Initialize` / `rtc.Release` with a live `Service`.
 
@@ -39,7 +64,9 @@ flowchart TD
 | `Video` | `false`; set `true` before any raw/encoded video sending or reception |
 | `AudioProcessing` | `false`; set `true` before creating external audio processors |
 | `LogPath`, `ConfigDir`, `DataDir` | Empty; delegated to native defaults; set controlled paths in production |
-| `ConfigureNative` | Optional initialization callback; `UseStringUid` must match `IdentityMode`, `IdleMode` must remain `false` |
+| `IdleMode` | `false`; optional deferred native-handle destruction; `Service.Close` drains handles |
+| `LocalAccessPoint` | `nil`; copied local proxy settings applied before the first `Connect` |
+| `ConfigureNative` | Optional initialization callback; `UseStringUid` must match `IdentityMode` |
 
 ### Channel configuration
 
@@ -63,7 +90,7 @@ flowchart TD
 | `Encryption` | `nil`; otherwise configured before connect; peers need compatible native encryption settings |
 | `ConfigureNative` | Optional pre-allocation connection/publishing callback |
 
-For string accounts, the older Chinese Go `Connect` reference documents **64-byte** IDs; the pinned headers define a 256-byte account-length constant, and this wrapper accepts up to 255 bytes. These are different version-scoped contracts. Prefer IDs within 64 bytes of the documented ASCII set for cross-version compatibility; do not interpret the older limit as a verified native 4.6 hard ceiling. Use the same identity mode for all RTC participants, with distinct IDs in one channel. Numeric IDs remain decimal strings in `ChannelConfig.UserID`, subscriptions, connection snapshots, and events; valid values are canonical `0`–`4294967295` without signs, spaces, or leading zeros. Joining as `"0"` requests native allocation: read the assigned ID from `Info()` after joining and use a compatible token policy. Remote subscription IDs must be nonzero. An all-digit string account is still a string identity; the wrapper never switches modes automatically. `NoAudio` disables audio publication, not reception; `Audience` disables media publication.
+For string accounts, the older Chinese Go `Connect` reference documents **64-byte** IDs; the pinned headers define a 256-byte account-length constant, and this wrapper accepts up to 255 bytes. These are different version-scoped contracts. Prefer IDs within 64 bytes of the documented ASCII set for cross-version compatibility; do not interpret the older limit as a verified native 4.6 hard ceiling. Use the same identity mode for all RTC participants, with distinct IDs in one channel. Numeric IDs remain decimal strings in `ChannelConfig.UserID`, subscriptions, connection snapshots, and events; valid values are canonical `0`–`4294967295` without signs, spaces, or leading zeros. Joining as `"0"` requests native allocation: read the assigned ID from `Info()` after joining and use a compatible token policy. Remote subscription IDs must be nonzero. An all-digit string account is still a string identity; the wrapper never switches modes automatically. `NoAudio` disables audio publication, not reception; `Audience` disables media publication. Use `SetRole` to change role after joining; promotion lazily creates configured tracks, and demotion unpublishes them. `Role()` reports the current role; native hook operations also reconcile role/publication state.
 
 ## PCM audio
 
@@ -73,6 +100,7 @@ Use signed, interleaved PCM16 little-endian without a WAV/container header. Conf
 | --- | --- |
 | `SendPCM(data)` | Nonempty, complete PCM16 samples with integral-millisecond duration; no pacing, padding, wrapper buffering, or resampling |
 | `SendPCMAt(data, timestamp)` | Same validation; forwards the supplied `int64` presentation value unchanged, including opaque application values |
+| `SendPCMFrame(frame)` | Explicit sample count/capture/presentation fields; complete PCM16 samples matching `Audio.Send`; sub-millisecond samples are structurally allowed |
 | `PlayPCM(ctx, reader)` | Uses one 10 ms buffer and schedules sends at 10 ms intervals; reader must return promptly |
 | `PlayPCMAt(ctx, reader, timestamp)` | Same pacing; nonzero initial presentation timestamp increases by 10 ms per frame; zero remains zero |
 | `WaitPCM(ctx)` | Polls the Go binding’s sent-byte/wall-clock estimate every 10 ms, including its 180 ms margin; PCM mode only; not native queue or remote playback feedback |
@@ -93,7 +121,7 @@ Read `session.Audio().Next(ctx)`. `AudioFrame.Data` and `Speech` are independent
 | `AudioBeforeMixing` | 8 | Per-user remote audio; supplies `UserID` and VAD fields |
 | `AudioEarMonitoring` | 16 | Ear-monitoring audio |
 
-Combine positions with `|`. Availability depends on the active native media path; non-before-mixing callbacks do not supply an individual `UserID` in this wrapper. Received-audio VAD requires `Audio.VAD: true`, 16 kHz mono `Audio.Receive`, enabled PCM reception, and `AudioBeforeMixing` among the positions. It does not require an external APM processor.
+Combine positions with `|`. Availability depends on the active native media path; non-before-mixing callbacks do not supply an individual `UserID` in this wrapper. Received-audio VAD requires `Audio.VAD: true`, 16 kHz mono `Audio.Receive`, enabled PCM reception, and `AudioBeforeMixing` among the positions. It does not require an external APM processor. `Audio.ReceiveParameters` independently configures playback, record, mixed and ear-monitoring format/frame size; before-mixing uses `Audio.Receive`. `SamplesPerCall` counts interleaved samples across all channels.
 
 VAD v2 is implemented in the Go binding, using SDK-provided `VoiceProb` and `Rms`. With `VADConfig: nil`, its active defaults are:
 
@@ -109,17 +137,23 @@ A non-nil zero-valued configuration is not equivalent to `nil`: only selected fi
 
 ### Standalone VAD and external processing
 
-Leave `Audio.VAD` false to receive ungated PCM and run a separate detector in application code. The raw `agora/rtc` package supports `NewAudioVad` / `ProcessPcmFrame` for mono and `NewSteroVad` / `ProcessAudioFrame` for independently detected left/right stereo (the raw name retains its upstream spelling). These are standalone native detectors, separate from the automatic received-audio VAD v2 and external APM processors; no channel or `Config.AudioProcessing` is required.
+Leave `Audio.VAD` false to receive ungated PCM and run a separate detector in application code. Prefer owned `NewAudioVAD` / `NewStereoVAD`, their `ProcessPCM` or `Process` methods, and idempotent `Close`. `NewTelemetryVAD` instead segments SDK voice/RMS telemetry in Go; it is not a standalone PCM classifier. The raw `agora/rtc` package still supports `NewAudioVad` / `ProcessPcmFrame` for mono and `NewSteroVad` / `ProcessAudioFrame` for independently detected left/right stereo (the raw name retains its upstream spelling). These are standalone native detectors, separate from the automatic received-audio VAD v2 and external APM processors; no channel or `Config.AudioProcessing` is required.
 
 Each input must be exactly one 10 ms 16 kHz PCM16 frame (160 samples per channel, 320 mono / 640 stereo bytes), with matching `Type`, `BytesPerSample`, `Channels`, `SamplesPerSec`, and `SamplesPerChannel`. Larger chunks are rejected because the native detector can drop their trailing samples; split them before processing. Copy high-level `AudioFrame` metadata when constructing a raw `rtc.AudioFrame`; derive duration from `SamplesPerChannel / SamplesPerSec`. Use one detector per independent source; stereo maintains separate state per channel. Returned speech owns its bytes, and `RenderTimeMs` is cumulative detector output time, not the input’s opaque presentation value.
 
-Check constructors for `nil` and processing states for negative errors. During processing, a native C++ exception returns `-2002` and retires that detector; create a new one before processing more data. `Release` is nil-safe, idempotent, and serialized with processing. Stop consumers before releasing their detectors; detectors are caller-owned and are not closed by `Session.Close`. The wrapper supplies no external gating engine or application interruption policy. See the [standalone VAD example](../examples/external_vad/README.md).
+High-level constructors and processing return Go errors; raw constructors return `nil` and raw processing uses negative error codes. During processing, a native C++ exception returns `-2002` and retires that detector; create a new one before processing more data. `Release` is nil-safe, idempotent, and serialized with processing. Stop consumers before releasing their detectors; detectors are caller-owned and are not closed by `Session.Close`. The wrapper supplies no external gating engine or application interruption policy. See the [standalone VAD example](../examples/external_vad/README.md).
+
+### Synchronous media decisions
+
+`Audio.Callbacks.OnFrame` and `Video.OnEncodedFrame` optionally return the native accept/reject decision. They run on native callback threads, may be concurrent, and must return promptly: no blocking I/O, waiting for events, or calling lifecycle-locking methods such as `Close`, `Send`, `SetRole` or `WithNative`. Audio hooks can safely read `Info`, `Role`, `Done` or change the atomic `SetAudioFallback` policy. Do not retain or concurrently mutate callback buffers.
+
+Queued observations remain independent copies even when a hook rejects a frame. Only in-place audio byte edits at a `ReadWrite` mixed/local point, followed by acceptance, are copied back to native PCM; before-mixing is always read-only. Encoded-video edits never rewrite native bytes or the queued packet. A hook panic rejects that frame and emits `CallbackPanic`. Use ordinary queued reads when a synchronous decision is unnecessary.
 
 ## Encoded audio
 
-Set `Audio.Mode: agorasdk.EncodedAudio`, then call `SendEncodedAudio` with one nonempty codec packet and accurate format/timing fields. `Opus` and AAC-LC (`AAC`) have high-level constants. The validator also accepts native PCMA, PCMU, G722, HE-AAC, JC1, HE-AAC2, LPCNET, and OpusMC values cast to `AudioCodec`; acceptance is not a promise that the installed SDK can send/decode them.
+Set `Audio.Mode: agorasdk.EncodedAudio`, then call `SendEncodedAudio` with accurate format/timing fields. Empty payloads require `SendEvenIfEmpty: true`. Named constants cover Opus, PCMA, PCMU, G722, AAC, HEAAC, JC1, HEAAC2, LPCNET and OpusMultiChannel; acceptance is not a promise that the installed SDK can send/decode them.
 
-Encoded frame sample rates accepted by the wrapper are 7350, 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000, 88200, and 96000 Hz, with 1 or 2 channels. `SamplesPerChannel` must be nonnegative; supply the codec-correct value. These fields describe the packet, not a conversion request. This API neither demuxes a container nor paces packets. Enable `Receive.EncodedAudio` and consume `EncodedAudio().Next(ctx)` for reception; subscription is still required.
+Encoded frame sample rates accepted by the wrapper are 7350, 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000, 88200, and 96000 Hz, with 1 or 2 channels, or 3–8 for `OpusMultiChannel`. `SamplesPerChannel` must be nonnegative; supply the codec-correct value. These fields describe the packet, not a conversion request. This API neither demuxes a container nor paces packets. Enable `Receive.EncodedAudio` and consume `EncodedAudio().Next(ctx)` for reception; subscription is still required.
 
 ## Video
 
@@ -128,16 +162,20 @@ Enable `Config.Video` before creating the service. Sending and reception are ind
 | Input / operation | Wrapper contract |
 | --- | --- |
 | All sent frames | Width/height 1–16384; rotation 0, 90, 180, or 270 degrees |
-| `VideoFrame` I420 / NV12 | Tightly packed CPU bytes; even dimensions; exactly `width * height * 3 / 2` bytes |
+| `VideoFrame` I420 / NV12 / NV21 | Tightly packed CPU bytes; even dimensions; exactly `width * height * 3 / 2` bytes |
+| `VideoFrame` I422 / I010 | Compact CPU bytes; 2 / 3 bytes per pixel; format-specific even-dimension rules |
+| `CPUVideoFrame` | Explicit pixel stride, crop, color space, alpha placement/extraction and raw/array buffer kind; no GPU handles |
 | `VideoFrame` RGBA / BGRA | Tightly packed CPU bytes; exactly `width * height * 4` bytes |
 | Optional `VideoFrame.Alpha` | Empty or exactly `width * height` bytes |
-| `EncodedVideoFrame` | Nonempty H.264/H.265 frame; FPS 0–240; SEI at most 1024 bytes; supply codec, key-frame flag, dimensions, and timestamps |
+| `EncodedVideoFrame` | Nonempty VP8/H264/H265/GenericVideo/GenericH264/AV1/VP9/JPEG payload; FPS 0–240; explicit frame type/track ID/UID; SEI ≤1024 bytes, H264/H265 only |
 | `SetVideoEncoder` | Width/height 1–16384; framerate 1–240; remaining constraints are native |
 | `RequestKeyFrame(userID)` | Requests a remote key frame; does not synchronously return one |
 | `SetSimulcast` | Passes native simulcast configuration; verify native distribution and peer support |
 | `PublishVideo()` / `UnpublishVideo()` | Explicit control; the next send automatically republishes |
 
-The numeric ranges above are validation bounds, not supported encoding resolutions or rates. Pace video at the source. A complete MP4 file or arbitrary file chunk is not an encoded frame; preserve access-unit boundaries. Received raw video owns separate Y/U/V planes with independent strides; do not assume tightly packed output. Received encoded data, SEI, metadata, and alpha are copied. Codec/platform support must be verified on the pinned distribution. Accepting pre-encoded H.265 does not imply native H.265 encoding: the pinned upstream version lists H.265 as decode-only.
+The numeric ranges above are validation bounds, not supported encoding resolutions or rates. Pace video at the source. A complete MP4 file or arbitrary file chunk is not an encoded frame; preserve access-unit boundaries. Received raw video owns separate Y/U/V planes with independent strides; do not assume tightly packed output. Received encoded data, SEI, metadata, and alpha are copied. Native type/AV-sync/alpha mode and texture/matrix descriptors are preserved, but GPU resources are not owned. See the [full media layouts and tests](media-api.md). Codec/platform support must be verified on the pinned distribution. Accepting pre-encoded H.265 does not imply native H.265 encoding: the pinned upstream version lists H.265 as decode-only.
+
+Track controls `SetAudioEnabled` / `SetVideoEnabled` are separate from publication. `SetAudioPublishVolume`, `SetAudioSendDelay`, `SetAudioBufferCapacity`, and `ClearAudioBuffer` operate on owned existing tracks; missing tracks return errors. Stop producers before clearing, and remember native void setters confirm invocation only. See [track controls](media-api.md#track-controls).
 
 ## Subscriptions
 
@@ -149,9 +187,9 @@ Audio subscribes automatically unless `Receive.Disabled` or `Receive.ManualSubsc
 
 ### Events and tokens
 
-Consume `Events().Next(ctx)` independently of media reads. Event families include connection/user changes, publication/subscription, media state, errors, statistics, volume, metadata, key-frame requests, and capability fallback. `SetVolumeIndication` accepts an interval from 0 to one hour and smoothing 0–10; it forwards whole milliseconds, and native timing semantics still apply.
+Consume `Events().Next(ctx)` independently of media reads. Event families include connection/user changes, publication/subscription, media state, errors, statistics, volume, metadata, key-frame requests, and capability fallback. `ElapsedMillis` retains native media-state timing; `VideoSubscribed` includes copied `rtc.VideoTrackInfo`. `SetVolumeIndication` accepts an interval from 0 to one hour and smoothing 0–10; it forwards whole milliseconds, and native timing semantics still apply.
 
-On `TokenExpiring` or `TokenExpired`, request a fresh RTC token from your trusted server and call `RenewToken`. Match App ID, channel, **identity mode and corresponding numeric UID/string account**, and required role/privileges. The wrapper does not fetch or automatically refresh tokens. `CapabilityFallback` reports the native suggestion in `Reason`; the wrapper does not accept it automatically. The application can select a supported `AudioScenario` with `SetAudioScenario` outside the callback path. The pinned upstream AI-server path expects compatible AI-client peers; validate both ends or explicitly select a compatible fallback scenario.
+On `TokenExpiring` or `TokenExpired`, request a fresh RTC token from your trusted server and call `RenewToken`. Match App ID, channel, **identity mode and corresponding numeric UID/string account**, and required role/privileges. The wrapper does not fetch or automatically refresh tokens. `CapabilityFallback` reports the native suggestion in `Reason` and the copied `AudioFallbackDecision` in `Data`. The default nil policy rejects fallback; `Audio.Fallback` or `SetAudioFallback` can select a fixed or recommended synchronous decision without running application code in that native callback. The application can select a supported `AudioScenario` with `SetAudioScenario` outside the callback path. The pinned upstream AI-server path expects compatible AI-client peers; validate both ends or explicitly select a compatible fallback scenario.
 
 `token.RTC` is an optional pure-Go AccessToken2 helper for trusted servers. Its `token.Config` defaults to `Publisher` and a one-hour lifetime; accepted lifetime is 1 second–24 hours, truncated to whole seconds. App ID and Certificate must each be 32 hexadecimal characters. It uses string accounts and does not generate RTM or combined RTC+RTM tokens. For numeric RTC identities, use the official `rtctokenbuilder2.BuildTokenWithUid` on the trusted server; for combined privileges, retain the official `BuildTokenWithRtm` flow with its documented identity and privileges. An RTC-only helper is not a substitute for a combined token. RTM client identities and tokens are configured separately from RTC. Never embed an App Certificate in clients, examples, or logs.
 
@@ -169,9 +207,11 @@ With a live context, `Next(ctx)` drains buffered items after closure, then retur
 
 ## External processing and optional decoding
 
-Create a processor with `Service.NewAudioProcessor` after enabling `Config.AudioProcessing`. `ProcessorConfig` defaults to 16000 Hz, 1 channel, and a 64-item output queue; PCM formats and queue bounds match RTC. `APM: nil` uses `rtc.NewAPMConfig()`; custom APM must provide all four component configurations. Send complete 10 ms PCM frames with `processor.SendPCM` and consume copied output with `processor.Output().Next(ctx)`. Close the processor explicitly or let its service close it.
+Create a processor with `Service.NewAudioProcessor` after enabling `Config.AudioProcessing`. Output defaults to 16000 Hz, 1 channel and a 64-item queue. `ProcessorConfig.Input` independently sets the default input format; `SendPCMFormat` / `SendPCMFrame` can supply per-call metadata. Input must contain complete 10 ms PCM16 multiples. `APM: nil` uses `rtc.NewAPMConfig()`; `DisableAPM` instead requires VAD and forbids explicit APM. Consume copied output with `Output().Next(ctx)`. `Stats()` reports submitted/processed durations, not draining. Service shutdown closes its processors; see the [full processing contract](media-api.md#processing-and-voice-activity).
 
 Requested APM extensions must exist in the native package. The pinned Linux archive lacks the AINS extension; the default processor may fail native initialization. Do not advertise it as portable AI noise suppression. Validate each requested processor configuration on the target platform.
+
+`NewVideoDecoder` and `NewOpusDecoder` provide synchronous owned decoders that return copied I420/PCM output without a channel. They require `avcodec`, return `ErrUnsupported` otherwise, and discard pending output on `Close`; video can return `ErrDecoderNeedsInput`. See [decoder limits](media-api.md#optional-decoding-and-transcoding).
 
 `Session.TranscodeVideo` and `Session.TranscodeOpus` asynchronously **decode and publish** through optional FFmpeg workers. Default builds return `ErrUnsupported`; enable `-tags avcodec` and install [development dependencies](development.md#optional-ffmpeg).
 
@@ -186,7 +226,7 @@ Success means input was accepted into the worker path, not that decoding or send
 
 `Service.SetParameters` applies a process-level native JSON object under the service lifecycle lock; use it after `NewService` and before `Join` when settings affect newly created connections. Native errors are returned, and calls after `Close` return `ErrClosed`. Parameter keys and timing remain native-version-specific; no application-specific defaults are added.
 
-`Config.ConfigureNative` runs before process initialization; `ChannelConfig.ConfigureNative` runs before connection allocation. Keep callbacks short and do not retain their pointers. Hooks can change native behavior beyond the defaults above; preserve the high-level ownership and mode assumptions.
+`Config.ConfigureNative` runs before process initialization; `ChannelConfig.ConfigureNative` runs before connection allocation. Keep callbacks short and do not retain their pointers. Hooks can change native behavior beyond the defaults above; conflicting role/publication-mode overrides are rejected. `Service.LoadExtensionProvider`, `EnableExtension`, and `DisableExtension` expose lifecycle-checked extension controls; availability depends on the installed library.
 
 `session.WithNative(func(*rtc.RtcConnection) error)` holds the session’s operation lock. Do not reenter Session methods, release or retain borrowed objects, or replace owned observers. Raw `agora/rtc` operations return native codes and do not gain wrapper validation or request-completion guarantees. `SetParameters` accepts a JSON object; use only documented native keys for the pinned version.
 

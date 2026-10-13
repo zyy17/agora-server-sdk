@@ -111,7 +111,8 @@ func TestCallbackRegistryAndUnsubscribeBridge(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("callback count=%d", calls)
 	}
-	if client.Release() != 0 || client.Release() != 0 {
+	firstRelease, secondRelease := client.Release(), client.Release()
+	if firstRelease != 0 || secondRelease != 0 {
 		t.Fatal("release was not idempotent")
 	}
 	// A stale address is used only as a registry key; it is never dereferenced.

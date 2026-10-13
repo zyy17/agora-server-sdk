@@ -106,6 +106,11 @@ func (this_ *MetadataItem) SetValue(value string) {
 /**
  * The User ID of the user who makes the latest update to the metadata item.
  */
+// GetAuthorUserId returns the recorded author user ID.
+func (this_ *MetadataItem) GetAuthorUserId() string { return this_.AuthorUserId }
+
+// GetAquthorUserId retains the misspelled official accessor for compatibility.
+// Deprecated: use GetAuthorUserId.
 func (this_ *MetadataItem) GetAquthorUserId() string {
 	return this_.AuthorUserId
 }

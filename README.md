@@ -2,15 +2,15 @@
 
 Build server-side realtime audio, video, and messaging applications with an owned, context-aware Go API.
 
-[简体中文](README.zh-CN.md) · [GoDoc](#api-documentation-godoc) · [RTC guide](docs/rtc.md) · [RTM guide](messaging/README.md) · [Examples](examples/README.md) · [Development](docs/development.md)
+[简体中文](README.zh-CN.md) · [GoDoc](#api-documentation-godoc) · [RTC guide](docs/rtc.md) · [RTM guide](messaging/README.md) · [Examples](examples/README.md) · [API coverage](docs/api-coverage.md) · [Development](docs/development.md)
 
 ## Features
 
 - One RTC service per process, explicit numeric/string identities, independent channel sessions, bounded joins, and cleanup
 - Independent send/receive PCM formats, variable-duration PCM, paced playback, per-user audio, VAD, and interruption
-- Raw video, subscription control, RTC data streams, metadata, and connection events
+- CPU/encoded video, role and track controls, RTC data streams, metadata, and connection events
 - Independent RTM clients: messaging, Presence, metadata, locks, history, and Stream Topics
-- Copied receive data, bounded queues, visible drop counts, and controlled native access
+- Copied receive queues, optional synchronous media decisions, owned VAD/decoders, and controlled native access
 
 ## Differences from the official SDK
 
@@ -23,7 +23,7 @@ This separate Go module adds high-level contracts and targeted binding fixes on 
 | PCM, encoded media, VAD, interruption, RTM facilities | Validated combinations, PCM pacing helper, explicit ownership |
 | Native bindings and installer | Targeted ABI/lifetime fixes, checksum-pinned installation and offline checks |
 
-Read the [detailed comparison](docs/upstream-comparison.md) for the pinned baseline, changed defaults, upstream capabilities, migration limits, and sources.
+Read the [detailed comparison](docs/upstream-comparison.md) for the pinned baseline, changed defaults, upstream capabilities, migration limits, and sources. The [API coverage inventory](docs/api-coverage.md) checks all 326 official Go callables plus exported fields/types/constants, records deliberate compatibility fixes, and separates high-level, managed advanced, raw-only, and unavailable capabilities. Symbol retention alone does not establish feature parity.
 
 ## Requirements and scope
 
@@ -144,7 +144,8 @@ Package overviews: [RTC](doc.go), [RTM](messaging/doc.go), [media packets](media
 | --- | --- |
 | Audio/video, RTC events and data | Root package; [RTC guide](docs/rtc.md) |
 | Application messages, Presence, metadata, locks, history, Topics | `messaging`; [RTM guide](messaging/README.md) |
-| Native-only options | `agora/rtc`, `agora/rtm`; follow the high-level guides’ ownership restrictions |
+| Media layouts, callbacks, VAD and optional decoders | [Media contracts](docs/media-api.md) and [API coverage](docs/api-coverage.md) |
+| Advanced/raw options | `ConfigureNative`, `WithNative`, `agora/rtc`, `agora/rtm`; follow ownership restrictions |
 | Trusted-server RTC token generation | `token.RTC`; [token contract](docs/rtc.md#events-and-tokens) |
 | Runnable scenarios and media file formats | [Examples](examples/README.md) |
 | Installation, checks, optional FFmpeg, deployment | [Development](docs/development.md) |

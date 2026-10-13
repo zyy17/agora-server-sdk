@@ -20,17 +20,19 @@ var runtimeOwner struct {
 // their own buffers and configuration values. Do not mix this ownership model
 // with direct rtc.Initialize or rtc.Release calls.
 type Service struct {
-	mu              sync.Mutex
-	closed          bool
-	video           bool
-	sessions        map[*Session]struct{}
-	closeOnce       sync.Once
-	closeErr        error
-	release         func() error
-	processors      map[*AudioProcessor]struct{}
-	audioProcessing bool
-	identityMode    IdentityMode
-	setParameters   func(string) int
+	mu                      sync.Mutex
+	closed                  bool
+	video                   bool
+	sessions                map[*Session]struct{}
+	closeOnce               sync.Once
+	closeErr                error
+	release                 func() error
+	processors              map[*AudioProcessor]struct{}
+	audioProcessing         bool
+	identityMode            IdentityMode
+	setParameters           func(string) int
+	localAccessPoint        *rtc.LocalAccessPointConfiguration
+	localAccessPointApplied bool
 }
 
 func serviceConfig(cfg Config) (*rtc.AgoraServiceConfig, error) {
@@ -38,7 +40,7 @@ func serviceConfig(cfg Config) (*rtc.AgoraServiceConfig, error) {
 		return nil, invalid("app ID", "must be 32 characters")
 	}
 	native := rtc.NewAgoraServiceConfig()
-	native.IdleMode = false
+	native.IdleMode = cfg.IdleMode
 	if cfg.AudioProcessing {
 		native.APMModel = 1
 		native.APMConfig = rtc.NewAPMConfig()
@@ -60,9 +62,10 @@ func serviceConfig(cfg Config) (*rtc.AgoraServiceConfig, error) {
 	if native.UseStringUid != (cfg.IdentityMode == StringIdentity) {
 		return nil, invalid("UseStringUid", "must match Config.IdentityMode")
 	}
-	// Idle mode delays destruction beyond Session.Close and violates ownership.
-	if native.IdleMode {
-		return nil, invalid("IdleMode", "must remain false for deterministic Close")
+	if cfg.LocalAccessPoint != nil {
+		if err := validateLocalAccessPoint(*cfg.LocalAccessPoint); err != nil {
+			return nil, err
+		}
 	}
 	return native, nil
 }
@@ -86,7 +89,7 @@ func NewService(cfg Config) (*Service, error) {
 		return nil, err
 	}
 	runtimeOwner.active = true
-	return &Service{setParameters: rtc.GetAgoraParameter().SetParameters, identityMode: cfg.IdentityMode, video: native.EnableVideo, sessions: make(map[*Session]struct{}), processors: make(map[*AudioProcessor]struct{}), audioProcessing: native.APMModel > 0, release: func() error {
+	return &Service{localAccessPoint: copyLocalAccessPoint(cfg.LocalAccessPoint), setParameters: rtc.GetAgoraParameter().SetParameters, identityMode: cfg.IdentityMode, video: native.EnableVideo, sessions: make(map[*Session]struct{}), processors: make(map[*AudioProcessor]struct{}), audioProcessing: native.APMModel > 0, release: func() error {
 		runtimeOwner.Lock()
 		defer runtimeOwner.Unlock()
 		err := check("release service", rtc.Release())
@@ -131,6 +134,17 @@ func (s *Service) Join(ctx context.Context, cfg ChannelConfig) (*Session, error)
 		return nil, invalid("video", "requires Config.Video=true")
 	}
 	session, err := newSession(s, cfg)
+	if err == nil && s.localAccessPoint != nil && !s.localAccessPointApplied {
+		err = check("set local access point", rtc.SetLocalAccessPoint(s.localAccessPoint))
+		if err == nil {
+			s.localAccessPointApplied = true
+		}
+		if err != nil {
+			// Not yet registered with the Service; avoid reentering its lock.
+			session.service = nil
+			err = errors.Join(err, session.Close())
+		}
+	}
 	if err == nil {
 		s.sessions[session] = struct{}{}
 	}

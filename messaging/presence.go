@@ -8,7 +8,7 @@ import (
 )
 
 // OnlineUsers returns one page of users in a message or stream channel.
-// User IDs are always requested; o.IncludeState optionally requests their state.
+// User IDs are requested unless o.ExcludeUserID is true; o.IncludeState requests state.
 // Use an empty o.Page initially, then pass each nonempty NextPage unchanged.
 // Membership can change between pages, so the result is not an atomic snapshot.
 // The method does not subscribe to presence events.
@@ -22,7 +22,7 @@ func (c *Client) OnlineUsers(ctx context.Context, ch Channel, o PresenceOptions)
 	if err := validText("presence page", o.Page, false); err != nil {
 		return PresencePage{}, err
 	}
-	options := &native.GetOnlineUsersOptions{IncludeUserId: true, IncludeState: o.IncludeState, Page: o.Page}
+	options := o.nativeOptions()
 	v, err := c.request(ctx, "online users", nil, func() (int, uint64) {
 		n := c.native.GetPresence()
 		if n == nil {

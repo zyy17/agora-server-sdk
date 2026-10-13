@@ -13,12 +13,15 @@ package agoraservice
 */
 import "C"
 import (
+	"sync/atomic"
 	"unsafe"
 )
 
 type LocalUser struct {
-	cLocalUser  unsafe.Pointer
-	publishFlag bool
+	cLocalUser       unsafe.Pointer
+	publishFlag      bool
+	videoPublishFlag bool
+	role             atomic.Int32
 }
 
 type VideoSubscriptionOptions struct {
@@ -37,12 +40,42 @@ type VideoSubscriptionOptions struct {
 	EncodedFrameOnly bool
 }
 
+// SetUserRole requests a native role, lazily creating configured publication
+// tracks on promotion and unpublishing active tracks on demotion. Calls must be
+// serialized with other connection operations. Native success is local acceptance.
 func (localUser *LocalUser) SetUserRole(role int) int {
-	if localUser.cLocalUser == nil {
+	if localUser == nil || localUser.cLocalUser == nil {
 		return -1000
 	}
+	if role != int(ClientRoleBroadcaster) && role != int(ClientRoleAudience) {
+		return -2
+	}
+	if role == int(ClientRoleBroadcaster) {
+		if conn := agoraService.getConFromHandle(localUser.cLocalUser, ConTypeCLocalUser); conn != nil {
+			if code := conn.preparePublishTracks(); code != 0 {
+				return code
+			}
+		}
+	}
+	if role == int(ClientRoleAudience) {
+		if conn := agoraService.getConFromHandle(localUser.cLocalUser, ConTypeCLocalUser); conn != nil {
+			if code := conn.prepareAudience(); code != 0 {
+				return code
+			}
+		}
+	}
 	C.agora_local_user_set_user_role(localUser.cLocalUser, C.int(role))
+	localUser.role.Store(int32(role))
 	return 0
+}
+
+// GetUserRole returns the most recently requested native role. The native setter
+// has no completion result; this is local requested state, not server confirmation.
+func (localUser *LocalUser) GetUserRole() int {
+	if localUser == nil {
+		return 0
+	}
+	return int(localUser.role.Load())
 }
 
 func (localUser *LocalUser) SubscribeAudio(uid string) int {
@@ -207,14 +240,28 @@ func (localUser *LocalUser) publishVideo(track *LocalVideoTrack) int {
 	if localUser.cLocalUser == nil {
 		return -1000
 	}
-	return int(C.agora_local_user_publish_video(localUser.cLocalUser, track.cTrack))
+	if localUser.videoPublishFlag == true {
+		return 0
+	}
+	code := int(C.agora_local_user_publish_video(localUser.cLocalUser, track.cTrack))
+	if code == 0 {
+		localUser.videoPublishFlag = true
+	}
+	return code
 }
 
 func (localUser *LocalUser) unpublishVideo(track *LocalVideoTrack) int {
 	if localUser.cLocalUser == nil {
 		return -1000
 	}
-	return int(C.agora_local_user_unpublish_video(localUser.cLocalUser, track.cTrack))
+	if localUser.videoPublishFlag == false {
+		return 0
+	}
+	code := int(C.agora_local_user_unpublish_video(localUser.cLocalUser, track.cTrack))
+	if code == 0 {
+		localUser.videoPublishFlag = false
+	}
+	return code
 }
 
 func (localUser *LocalUser) SetPlaybackAudioFrameParameters(channels int, sampleRate int, mode int, samplesPerCall int) int {

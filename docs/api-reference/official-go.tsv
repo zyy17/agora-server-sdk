@@ -1,0 +1,1206 @@
+# official-go-api-v1
+# repository	https://github.com/AgoraIO-Extensions/Agora-Golang-Server-SDK
+# version	v2.6.5
+# commit	d51ff1b5baf85dd53155b31543bceba8ec304dc7
+# Scope: exported Go declarations, struct fields and interface methods; all build variants.
+# Excludes unexported C bridges, test files, implementation bodies and native-only APIs.
+# Columns: package, kind, name, canonical signature, official source file.
+# source	go_sdk/rtc/agora_parameter.go	04e7086cad62c114488dff119829b3ee9e75682a
+# source	go_sdk/rtc/agora_service.go	f918aa8409ed16c92895ee0b439bff1d82a2b755
+# source	go_sdk/rtc/agora_utils.go	c03090644cf459fb660abecde3f29268c30fa548
+# source	go_sdk/rtc/audio_consts.go	1f150670aa080ec910c8aea632ff1038a8744413
+# source	go_sdk/rtc/audio_encoded_frame_sender.go	5ba8cc0d5e8e71d56d75a369e22745b26a56b423
+# source	go_sdk/rtc/audio_observer.go	5b549950eb81235e76fa5cb4d0cc2a71d5392c7c
+# source	go_sdk/rtc/audio_pcm_data_sender.go	fb67b0b578ad55bd18601f4ae5dac3b507fba5b0
+# source	go_sdk/rtc/audio_vad.go	784f1dfb0528df14aded2dce7979bd73b7311fe9
+# source	go_sdk/rtc/audio_vad2.go	c574ad63249a0ab5e296afaf9cb356b3244d3f62
+# source	go_sdk/rtc/audio_vad_manager.go	ce2e112ce72fd5122141f1cbb4541188e860f046
+# source	go_sdk/rtc/common_consts.go	6cc09f943435f7e39b8f2d17276ecaeadd0a7970
+# source	go_sdk/rtc/external_audio_processor.go	8b15ce66d021160beb411de6c4b04de1d5599e91
+# source	go_sdk/rtc/h26x_decode.go	d3ee90f65aa41f703055596c0434264b3ada9ea9
+# source	go_sdk/rtc/h26x_decode_pure.go	0b50f0105913b6467cf4ba58f668ff5fa0b53166
+# source	go_sdk/rtc/local_audio_track.go	a920f5bba8679e5f15d7cf8bd37a6299eebf9855
+# source	go_sdk/rtc/local_user.go	91e4a37c928fd06c5d5507581bec533e3e1dbe7a
+# source	go_sdk/rtc/local_video_track.go	d4f532a4def90257bb0d56900f67056cab025678
+# source	go_sdk/rtc/media_node_factory.go	540751a07fd87ad62cd6728b7e4077b573bb285a
+# source	go_sdk/rtc/opus_decoder.go	b142d3530eb11c5a68861d638e5620f1c1ad65ea
+# source	go_sdk/rtc/opus_decoder_pure.go	0c4508a66a79285d172e9992125345bbac6155d9
+# source	go_sdk/rtc/opus_transcode_worker.go	4f4cea0dfab314a0dcf3ccd39869e243d74a8f0c
+# source	go_sdk/rtc/remote_audio_track.go	974b1dc911b3929f1100f766d5198b72c86bc36e
+# source	go_sdk/rtc/remote_video_track.go	54dd3474337ee71b35bb5fcf1036ba402829f719
+# source	go_sdk/rtc/rtc_callbacks.go	f384a85ec73e61a8b970812a29dd315bf0626ca7
+# source	go_sdk/rtc/rtc_connection.go	699e7a43f65ac43330f6fc491697be244dd10732
+# source	go_sdk/rtc/sei_inserter.go	f25b22e6423a89093d69ee4c5a3b8f89ff9ac6c5
+# source	go_sdk/rtc/type_convert.go	63300ac2f11e8d2add2e278b3fdd20fb107453c4
+# source	go_sdk/rtc/video_consts.go	192afd60fcf0ad07c4384c1198aca8c4d79748c2
+# source	go_sdk/rtc/video_encoded_image_sender.go	4dba9d405e5e6bcd62a5cf4f77533500914a01a0
+# source	go_sdk/rtc/video_frame_sender.go	c81a130f1158626330b12a30ac17442583b38dbf
+# source	go_sdk/rtc/video_observer.go	5f0421aeb9735bf25c38b8a04e9281e2cfca210f
+# source	go_sdk/rtm/AgoraRtmBase.go	4667b444fb0be7138ca8e0ede5c440e047e26eb2
+# source	go_sdk/rtm/IAgoraRtmClient.go	5099b9efaecba6039ccf99321ce5a2bcc9a5036d
+# source	go_sdk/rtm/IAgoraRtmHistory.go	f42d78177bef5b043348ea305e74b3c97d40ad5e
+# source	go_sdk/rtm/IAgoraRtmLock.go	dc418c458c267bd9b703e8b271c5bfee03bbad20
+# source	go_sdk/rtm/IAgoraRtmPresence.go	c85031bca5f5ebb825cb44d5aec645bcc1610600
+# source	go_sdk/rtm/IAgoraRtmStorage.go	37047cc5418da690128934c551a4b8db6c8be246
+# source	go_sdk/rtm/IAgoraStreamChannel.go	9d26b260dd9d85b56f89b38600fbcc879a741374
+# source	go_sdk/rtm/RtmEventHandlerBridge.go	57899aea1a8484e64eba0369ab58b41e017112e6
+# source	go_sdk/rtm/type_convert.go	fb53ebfe4ca6717c825e1212b4e2ee5cbf01de48
+agora/rtc	const	AreaCodeAS	AreaCode = 0x00000008	go_sdk/rtc/common_consts.go
+agora/rtc	const	AreaCodeCN	AreaCode = 0x00000001	go_sdk/rtc/common_consts.go
+agora/rtc	const	AreaCodeEU	AreaCode = 0x00000004	go_sdk/rtc/common_consts.go
+agora/rtc	const	AreaCodeGlob	AreaCode = (0xFFFFFFFF)	go_sdk/rtc/common_consts.go
+agora/rtc	const	AreaCodeIN	AreaCode = 0x00000020	go_sdk/rtc/common_consts.go
+agora/rtc	const	AreaCodeJP	AreaCode = 0x00000010	go_sdk/rtc/common_consts.go
+agora/rtc	const	AreaCodeNA	AreaCode = 0x00000002	go_sdk/rtc/common_consts.go
+agora/rtc	const	AudioCodecAacLc	AudioCodecType = 8	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioCodecG722	AudioCodecType = 5	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioCodecHeAac	AudioCodecType = 9	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioCodecHeAac2	AudioCodecType = 11	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioCodecJc1	AudioCodecType = 10	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioCodecLpcnet	AudioCodecType = 12	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioCodecOpus	AudioCodecType = 1	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioCodecOpusMC	AudioCodecType = 13	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioCodecPcma	AudioCodecType = 3	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioCodecPcmu	AudioCodecType = 4	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeAac16000Low	AudioEncodingType = 0x010101	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeAac16000Medium	AudioEncodingType = 0x010102	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeAac32000High	AudioEncodingType = 0x010203	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeAac32000Low	AudioEncodingType = 0x010201	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeAac32000Medium	AudioEncodingType = 0x010202	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeAac48000High	AudioEncodingType = 0x010303	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeAac48000Medium	AudioEncodingType = 0x010302	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeOpus16000Low	AudioEncodingType = 0x020101	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeOpus16000Medium	AudioEncodingType = 0x020102	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeOpus48000High	AudioEncodingType = 0x020303	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioEncodingTypeOpus48000Medium	AudioEncodingType = 0x020302	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioFrameTypePCM16	AudioFrameType = 0	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioProfileDefault	AudioProfile = 0	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioProfileIot	AudioProfile = 6	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioProfileMusicHighQuality	AudioProfile = 4	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioProfileMusicHighQualityStereo	AudioProfile = 5	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioProfileMusicStandard	AudioProfile = 2	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioProfileMusicStandardStereo	AudioProfile = 3	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioProfileSpeechStandard	AudioProfile = 1	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioPublishTypeEncodedPcm	AudioPublishType = 2	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioPublishTypeNoPublish	AudioPublishType = 0	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioPublishTypePcm	AudioPublishType = 1	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioScenarioAiClient	AudioScenario = 10	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioScenarioAiServer	AudioScenario = 9	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioScenarioChatRoom	AudioScenario = 5	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioScenarioChorus	AudioScenario = 7	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioScenarioDefault	AudioScenario = 0	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioScenarioGameStreaming	AudioScenario = 3	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioScenarioMeeting	AudioScenario = 8	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioScenarioNum	AudioScenario = 11	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioTrackMixDisabled	AudioTrackMixingState = 1	go_sdk/rtc/audio_consts.go
+agora/rtc	const	AudioTrackMixEnabled	AudioTrackMixingState = 0	go_sdk/rtc/audio_consts.go
+agora/rtc	const	ChannelProfileCommunication	ChannelProfile = 0	go_sdk/rtc/common_consts.go
+agora/rtc	const	ChannelProfileLiveBroadcasting	ChannelProfile = 1	go_sdk/rtc/common_consts.go
+agora/rtc	const	ChannelTypeLargeScale	ChannelType = 1	go_sdk/rtc/common_consts.go
+agora/rtc	const	ChannelTypeStandard	ChannelType = 0	go_sdk/rtc/common_consts.go
+agora/rtc	const	ClientRoleAudience	ClientRole = 2	go_sdk/rtc/common_consts.go
+agora/rtc	const	ClientRoleBroadcaster	ClientRole = 1	go_sdk/rtc/common_consts.go
+agora/rtc	const	ConTypeCCon	= 0	go_sdk/rtc/agora_service.go
+agora/rtc	const	ConTypeCEncodedVideoObserver	= 3	go_sdk/rtc/agora_service.go
+agora/rtc	const	ConTypeCLocalUser	= 1	go_sdk/rtc/agora_service.go
+agora/rtc	const	ConTypeCVideoObserver	= 2	go_sdk/rtc/agora_service.go
+agora/rtc	const	DegradeDisabled	DegradationPreference = 100	go_sdk/rtc/video_consts.go
+agora/rtc	const	DegradeMaintainBalanced	DegradationPreference = 2	go_sdk/rtc/video_consts.go
+agora/rtc	const	DegradeMaintainFramerate	DegradationPreference = 1	go_sdk/rtc/video_consts.go
+agora/rtc	const	DegradeMaintainQuality	DegradationPreference = 0	go_sdk/rtc/video_consts.go
+agora/rtc	const	DegradeMaintainResolution	DegradationPreference = 3	go_sdk/rtc/video_consts.go
+agora/rtc	const	E2E_DELAY_MS	= 180	go_sdk/rtc/rtc_connection.go
+agora/rtc	const	LocalProxyModeConnectivityFirst	LocalProxyMode = 0	go_sdk/rtc/agora_service.go
+agora/rtc	const	LocalProxyModeLocalOnly	LocalProxyMode = 1	go_sdk/rtc/agora_service.go
+agora/rtc	const	MinPacketsToSend	= 10	go_sdk/rtc/agora_utils.go
+agora/rtc	const	OrientationModeAdaptive	OrientationMode = 0	go_sdk/rtc/video_consts.go
+agora/rtc	const	OrientationModeFixedLandscape	OrientationMode = 1	go_sdk/rtc/video_consts.go
+agora/rtc	const	OrientationModeFixedPortrait	OrientationMode = 2	go_sdk/rtc/video_consts.go
+agora/rtc	const	RawAudioFrameOpModeReadOnly	RawAudioFrameOpModeType = 0	go_sdk/rtc/audio_consts.go
+agora/rtc	const	RawAudioFrameOpModeReadWrite	RawAudioFrameOpModeType = 2	go_sdk/rtc/audio_consts.go
+agora/rtc	const	RtcE2EDelay	= 200	go_sdk/rtc/agora_utils.go
+agora/rtc	const	UserMediaInfoEnableLocalVideo	UserMediaInfo = 8	go_sdk/rtc/common_consts.go
+agora/rtc	const	UserMediaInfoEnableVideo	UserMediaInfo = 4	go_sdk/rtc/common_consts.go
+agora/rtc	const	UserMediaInfoMuteAudio	UserMediaInfo = 0	go_sdk/rtc/common_consts.go
+agora/rtc	const	UserMediaInfoMuteVideo	UserMediaInfo = 1	go_sdk/rtc/common_consts.go
+agora/rtc	const	VadStateInvalid	VadState = -1	go_sdk/rtc/audio_consts.go
+agora/rtc	const	VadStateNoSpeeking	VadState = 0	go_sdk/rtc/audio_consts.go
+agora/rtc	const	VadStateSpeeking	VadState = 2	go_sdk/rtc/audio_consts.go
+agora/rtc	const	VadStateStartSpeeking	VadState = 1	go_sdk/rtc/audio_consts.go
+agora/rtc	const	VadStateStopSpeeking	VadState = 3	go_sdk/rtc/audio_consts.go
+agora/rtc	const	VideoBufferArray	VideoBufferType = 2	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoBufferRawData	VideoBufferType = 1	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoBufferTexture	VideoBufferType = 3	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCVPixelBGRA	VideoPixelFormat = 14	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCVPixelI420	VideoPixelFormat = 13	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCVPixelNV12	VideoPixelFormat = 12	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCVPixelP010	VideoPixelFormat = 15	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCodecTypeAv1	VideoCodecType = 12	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCodecTypeGeneric	VideoCodecType = 6	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCodecTypeGenericH264	VideoCodecType = 7	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCodecTypeGenericJpeg	VideoCodecType = 20	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCodecTypeH264	VideoCodecType = 2	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCodecTypeH265	VideoCodecType = 3	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCodecTypeNone	VideoCodecType = 0	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCodecTypeVp8	VideoCodecType = 1	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoCodecTypeVp9	VideoCodecType = 13	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoFrameTypeBFrame	VideoFrameType = 5	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoFrameTypeBlankFrame	VideoFrameType = 0	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoFrameTypeDeltaFrame	VideoFrameType = 4	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoFrameTypeDroppableFrame	VideoFrameType = 6	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoFrameTypeKeyFrame	VideoFrameType = 3	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoFrameTypeUnknown	VideoFrameType = -1	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoMirrorModeAuto	VideoMirrorModeType = 0	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoMirrorModeDisabled	VideoMirrorModeType = 2	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoMirrorModeEnabled	VideoMirrorModeType = 1	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoOrientation0	VideoOrientation = 0	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoOrientation180	VideoOrientation = 180	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoOrientation270	VideoOrientation = 270	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoOrientation90	VideoOrientation = 90	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoPixelBGRA	VideoPixelFormat = 2	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoPixelDefault	VideoPixelFormat = 0	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoPixelI010	VideoPixelFormat = 18	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoPixelI420	VideoPixelFormat = 1	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoPixelI422	VideoPixelFormat = 16	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoPixelNV12	VideoPixelFormat = 8	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoPixelNV21	VideoPixelFormat = 3	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoPixelRGBA	VideoPixelFormat = 4	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoPublishTypeEncodedImage	VideoPublishType = 2	go_sdk/rtc/audio_consts.go
+agora/rtc	const	VideoPublishTypeNoPublish	VideoPublishType = 0	go_sdk/rtc/audio_consts.go
+agora/rtc	const	VideoPublishTypeYuv	VideoPublishType = 1	go_sdk/rtc/audio_consts.go
+agora/rtc	const	VideoSendCcDisabled	VideoSendCcState = 1	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoSendCcEnabled	VideoSendCcState = 0	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoStreamHigh	VideoStreamType = 0	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoStreamLow	VideoStreamType = 1	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoTexture2D	VideoPixelFormat = 10	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoTextureID3D11Texture2D	VideoPixelFormat = 17	go_sdk/rtc/video_consts.go
+agora/rtc	const	VideoTextureOES	VideoPixelFormat = 11	go_sdk/rtc/video_consts.go
+agora/rtc	field	APMConfig.AgcConfig	*AgcConfig	go_sdk/rtc/agora_service.go
+agora/rtc	field	APMConfig.AiAecConfig	*AiAecConfig	go_sdk/rtc/agora_service.go
+agora/rtc	field	APMConfig.AiNsConfig	*AiNsConfig	go_sdk/rtc/agora_service.go
+agora/rtc	field	APMConfig.BghvsCConfig	*BghvsCConfig	go_sdk/rtc/agora_service.go
+agora/rtc	field	APMConfig.EnableDump	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AdvancedConfigInfo.LogUploadServerInfo	LogUploadServerInfo	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgcConfig.Enabled	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.APMConfig	*APMConfig	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.APMModel	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.AppId	string	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.AreaCode	AreaCode	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.AudioScenario	AudioScenario	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.ChannelProfile	ChannelProfile	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.ConfigDir	string	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.DataDir	string	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.DomainLimit	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.EnableAudioDevice	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.EnableAudioProcessor	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.EnableLocalAudioTrackWithAPM	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.EnableSteroEncodeMode	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.EnableVideo	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.IdleMode	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.LocalAudioTrackAPMConfig	*APMConfig	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.LogLevel	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.LogPath	string	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.LogSize	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.ShouldCallbackWhenMuted	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AgoraServiceConfig.UseStringUid	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AiAecConfig.Enabled	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AiAecConfig.SplitSrateFor48k	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AiNsConfig.AiNSEnabled	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AiNsConfig.AiNSModelPref	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AiNsConfig.NsEnabled	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	AiNsConfig.NsngAlgRoute	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AiNsConfig.NsngPredefAgg	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	AudioEncodedFrameObserver.OnEncodedAudioFrameReceived	func(string, []byte, int64, int)	go_sdk/rtc/type_convert.go
+agora/rtc	field	AudioEncoderConfiguration.AudioProfile	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrame.AvsyncType	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.Buffer	[]byte	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.BytesPerSample	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.Channels	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.FarFieldFlag	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.MusicProb	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.Pitch	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.PresentTimeMs	int64	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.RenderTimeMs	int64	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.Rms	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.SamplesPerChannel	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.SamplesPerSec	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.Type	AudioFrameType	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrame.VoiceProb	int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioFrameObserver.OnEarMonitoringAudioFrame	func(*LocalUser, *AudioFrame) bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserver.OnGetAudioFramePosition	func(*LocalUser) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserver.OnGetEarMonitoringAudioFrameParam	func(*LocalUser) AudioFrameObserverAudioParams	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserver.OnGetMixedAudioFrameParam	func(*LocalUser) AudioFrameObserverAudioParams	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserver.OnGetPlaybackAudioFrameParam	func(*LocalUser) AudioFrameObserverAudioParams	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserver.OnGetRecordAudioFrameParam	func(*LocalUser) AudioFrameObserverAudioParams	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserver.OnMixedAudioFrame	func(*LocalUser, string, *AudioFrame) bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserver.OnPlaybackAudioFrame	func(*LocalUser, string, *AudioFrame) bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserver.OnPlaybackAudioFrameBeforeMixing	func(*LocalUser, string, string, *AudioFrame, VadState, *AudioFrame) bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserver.OnRecordAudioFrame	func(*LocalUser, string, *AudioFrame) bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserverAudioParams.Channels	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserverAudioParams.Mode	RawAudioFrameOpModeType	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserverAudioParams.SampleRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioFrameObserverAudioParams.SamplesPerCall	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	AudioVadConfig.ActivePercent	float32	go_sdk/rtc/audio_vad.go
+agora/rtc	field	AudioVadConfig.Aggressive	float32	go_sdk/rtc/audio_vad.go
+agora/rtc	field	AudioVadConfig.InactivePercent	float32	go_sdk/rtc/audio_vad.go
+agora/rtc	field	AudioVadConfig.JointThr	float32	go_sdk/rtc/audio_vad.go
+agora/rtc	field	AudioVadConfig.PreStartRecognizeCount	int	go_sdk/rtc/audio_vad.go
+agora/rtc	field	AudioVadConfig.RmsThr	float32	go_sdk/rtc/audio_vad.go
+agora/rtc	field	AudioVadConfig.StartRecognizeCount	int	go_sdk/rtc/audio_vad.go
+agora/rtc	field	AudioVadConfig.StopRecognizeCount	int	go_sdk/rtc/audio_vad.go
+agora/rtc	field	AudioVadConfig.VoiceProb	float32	go_sdk/rtc/audio_vad.go
+agora/rtc	field	AudioVadConfigV2.ActivePercent	float32	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.AdaptiveRmsThresholdFactor	float32	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.EnableAdaptiveRmsThreshold	bool	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.InactivePercent	float32	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.PreStartRecognizeCount	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.StartRecognizeCount	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.StartRms	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.StartVoiceProb	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.StopRecognizeCount	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.StopRms	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVadConfigV2.StopVoiceProb	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	AudioVolumeInfo.UserId	string	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioVolumeInfo.VAD	uint32	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioVolumeInfo.VoicePitch	float64	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	AudioVolumeInfo.Volume	uint32	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	field	BghvsCConfig.Enabled	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	BghvsCConfig.VadThr	float32	go_sdk/rtc/agora_service.go
+agora/rtc	field	ColorSpaceType.MatrixId	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ColorSpaceType.PrimariesId	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ColorSpaceType.RangeId	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ColorSpaceType.TransferId	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	EncAudioFrameObserverItem.CObserver	*C.struct__audio_encoded_frame_rev_observer	go_sdk/rtc/type_convert.go
+agora/rtc	field	EncAudioFrameObserverItem.CObserverHandle	unsafe.Pointer	go_sdk/rtc/type_convert.go
+agora/rtc	field	EncAudioFrameObserverItem.CTrack	unsafe.Pointer	go_sdk/rtc/type_convert.go
+agora/rtc	field	EncAudioFrameObserverItem.Con	*RtcConnection	go_sdk/rtc/type_convert.go
+agora/rtc	field	EncAudioFrameObserverItem.Uid	string	go_sdk/rtc/type_convert.go
+agora/rtc	field	EncodedAudioFrameInfo.CaptureTimeMs	int64	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	field	EncodedAudioFrameInfo.Codec	AudioCodecType	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	field	EncodedAudioFrameInfo.NumberOfChannels	int	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	field	EncodedAudioFrameInfo.SampleRateHz	int	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	field	EncodedAudioFrameInfo.SamplesPerChannel	int	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	field	EncodedAudioFrameInfo.SendEvenIfEmpty	bool	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	field	EncodedAudioFrameInfo.Speech	bool	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.CaptureTimeMs	int64	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.CodecType	VideoCodecType	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.DecodeTimeMs	int64	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.FrameType	VideoFrameType	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.FramesPerSecond	int	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.Height	int	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.PresentTimeMs	int64	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.Rotation	VideoOrientation	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.SeiData	[]byte	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.StreamType	int	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.TrackId	int	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.Uid	uint32	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncodedVideoFrameInfo.Width	int	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	field	EncryptionConfig.DatastreamEncryptionEnabled	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	EncryptionConfig.EncryptionKdfSalt	[]byte	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	EncryptionConfig.EncryptionKey	string	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	EncryptionConfig.EncryptionMode	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	ExternalAudioProcessor.InStreamInMs	atomic.Int64	go_sdk/rtc/external_audio_processor.go
+agora/rtc	field	ExternalAudioProcessor.ProcessedStreamInMs	atomic.Int64	go_sdk/rtc/external_audio_processor.go
+agora/rtc	field	ExternalAudioProcessorObserver.OnProcessedAudioFrame	func(*ExternalAudioProcessor, *AudioFrame, VadState, *AudioFrame)	go_sdk/rtc/external_audio_processor.go
+agora/rtc	field	ExternalVideoFrame.AlphaBuffer	[]byte	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.AlphaMode	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.Buffer	[]byte	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.ColorSpace	ColorSpaceType	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.CropBottom	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.CropLeft	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.CropRight	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.CropTop	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.EGLContext	unsafe.Pointer	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.EGLType	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.FillAlphaBuffer	bool	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.Format	VideoPixelFormat	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.Height	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.Matrix	[16]float32	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.MetadataBuffer	[]byte	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.Rotation	VideoOrientation	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.Stride	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.TextureID	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.Timestamp	int64	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	ExternalVideoFrame.Type	VideoBufferType	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	IdleItem.Handle	unsafe.Pointer	go_sdk/rtc/agora_utils.go
+agora/rtc	field	IdleItem.LifeCycle	int	go_sdk/rtc/agora_utils.go
+agora/rtc	field	LocalAccessPointConfiguration.AdvancedConfig	AdvancedConfigInfo	go_sdk/rtc/agora_service.go
+agora/rtc	field	LocalAccessPointConfiguration.DisableAut	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	LocalAccessPointConfiguration.DomainList	[]string	go_sdk/rtc/agora_service.go
+agora/rtc	field	LocalAccessPointConfiguration.IPList	[]string	go_sdk/rtc/agora_service.go
+agora/rtc	field	LocalAccessPointConfiguration.Mode	LocalProxyMode	go_sdk/rtc/agora_service.go
+agora/rtc	field	LocalAccessPointConfiguration.VerifyDomainName	string	go_sdk/rtc/agora_service.go
+agora/rtc	field	LocalAudioTrackStats.InternalCodec	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalAudioTrackStats.NumChannels	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalAudioTrackStats.SentBitrate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalAudioTrackStats.SentSampleRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalAudioTrackStats.VoicePitch	float64	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnAudioMetaDataReceived	func(*LocalUser, string, []byte)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnAudioPublishStateChanged	func(*LocalUser, string, int, int, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnAudioTrackPublishSuccess	func(*LocalUser, *LocalAudioTrack)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnAudioTrackUnpublished	func(*LocalUser, *LocalAudioTrack)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnAudioVolumeIndication	func(*LocalUser, []*AudioVolumeInfo, int, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnIntraRequestReceived	func(*LocalUser)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnLocalAudioTrackStatistics	func(*LocalUser, *LocalAudioTrackStats)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnLocalVideoTrackStatistics	func(*LocalUser, *LocalVideoTrackStats)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnRemoteAudioTrackStatistics	func(*LocalUser, string, *RemoteAudioTrackStats)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnRemoteVideoTrackStatistics	func(*LocalUser, string, *RemoteVideoTrackStats)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnStreamMessage	func(*LocalUser, string, int, []byte, int64)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnUserAudioTrackStateChanged	func(*LocalUser, string, *RemoteAudioTrack, int, int, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnUserAudioTrackSubscribed	func(*LocalUser, string, *RemoteAudioTrack)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnUserInfoUpdated	func(*LocalUser, string, int, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnUserVideoTrackStateChanged	func(*LocalUser, string, *RemoteVideoTrack, int, int, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnUserVideoTrackSubscribed	func(*LocalUser, string, *VideoTrackInfo, *RemoteVideoTrack)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnVideoTrackPublishSuccess	func(*LocalUser, *LocalVideoTrack)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalUserObserver.OnVideoTrackUnpublished	func(*LocalUser, *LocalVideoTrack)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.BytesMajorStream	uint64	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.BytesMinorStream	uint64	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.CaptureFrameRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.CaptureHeight	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.CaptureWidth	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.EncodeFrameRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.EncoderType	uint32	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.FramesEncoded	uint32	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.Height	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.InputFrameRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.MediaBitrateBps	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.NumberOfStreams	uint64	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.QualityAdaptIndication	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.RegulatedCaptureFrameRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.RegulatedCaptureHeight	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.RegulatedCaptureWidth	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.RenderFrameRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.SSRCMajorStream	uint32	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.SSRCMinorStream	uint32	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.TargetMediaBitrateBps	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.TotalBitrateBps	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.UplinkCostTimeMs	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LocalVideoTrackStats.Width	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	LogUploadServerInfo.ServerDomain	string	go_sdk/rtc/agora_service.go
+agora/rtc	field	LogUploadServerInfo.ServerHTTPS	bool	go_sdk/rtc/agora_service.go
+agora/rtc	field	LogUploadServerInfo.ServerPath	string	go_sdk/rtc/agora_service.go
+agora/rtc	field	LogUploadServerInfo.ServerPort	int	go_sdk/rtc/agora_service.go
+agora/rtc	field	RemoteAudioTrackStats.AudioLossRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.FrozenRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.JitterBufferDelay	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.MosValue	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.NetworkTransportDelay	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.NumChannels	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.PublishDuration	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.Quality	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.ReceivedBitrate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.ReceivedBytes	int64	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.ReceivedSampleRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.TotalActiveTime	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.TotalFrozenTime	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteAudioTrackStats.Uid	uint	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.AvSyncTimeMs	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.DecoderOutputFrameRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.Delay	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.DownlinkProcessTimeMs	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.FrameLossRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.FrameRenderDelayMs	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.FrozenRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.Height	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.PacketLossRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.PublishDuration	uint64	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.ReceivedBitrate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.RendererOutputFrameRate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.RxStreamType	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.TotalActiveTime	uint64	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.TotalDecodedFrames	uint32	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.TotalFrozenTime	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.Uid	uint	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RemoteVideoTrackStats.Width	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.AudioRecvEncodedFrame	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.AudioRecvMediaPacket	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.AutoSubscribeAudio	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.AutoSubscribeVideo	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.ChannelProfile	ChannelProfile	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.ChannelType	ChannelType	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.ClientRole	ClientRole	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.EnableAudioRecordingOrPlayout	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.MaxPort	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.MaxSendBitrate	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.MinPort	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionConfig.VideoRecvMediaPacket	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionInfo.ChannelId	string	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionInfo.ConnectionId	uint	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionInfo.InternalUid	uint	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionInfo.LocalUserId	string	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionInfo.State	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnAIQoSCapabilityMissing	func(*RtcConnection, int) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnConnected	func(*RtcConnection, *RtcConnectionInfo, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnConnecting	func(*RtcConnection, *RtcConnectionInfo, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnConnectionFailure	func(*RtcConnection, *RtcConnectionInfo, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnConnectionLost	func(*RtcConnection, *RtcConnectionInfo)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnDisconnected	func(*RtcConnection, *RtcConnectionInfo, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnEncryptionError	func(*RtcConnection, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnError	func(*RtcConnection, int, string)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnReconnected	func(*RtcConnection, *RtcConnectionInfo, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnReconnecting	func(*RtcConnection, *RtcConnectionInfo, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnStreamMessageError	func(*RtcConnection, string, int, int, int, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnTokenPrivilegeDidExpire	func(*RtcConnection)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnTokenPrivilegeWillExpire	func(*RtcConnection, string)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnUserJoined	func(*RtcConnection, string)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionObserver.OnUserLeft	func(*RtcConnection, string, int)	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionPublishConfig.AudioProfile	AudioProfile	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionPublishConfig.AudioPublishType	AudioPublishType	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionPublishConfig.AudioScenario	AudioScenario	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionPublishConfig.IsPublishAudio	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionPublishConfig.IsPublishVideo	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionPublishConfig.SendExternalAudioParameters	*SendExternalAudioParameters	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionPublishConfig.VideoEncodedImageSenderOptions	*VideoEncodedImageSenderOptions	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	RtcConnectionPublishConfig.VideoPublishType	VideoPublishType	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	SendExternalAudioParameters.DeliverMuteDataForFakeAdm	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	SendExternalAudioParameters.Enabled	bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	SendExternalAudioParameters.SendMs	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	SendExternalAudioParameters.SendSpeed	int	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	SimulcastStreamConfig.Bitrate	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	SimulcastStreamConfig.Framerate	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	SimulcastStreamConfig.Height	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	SimulcastStreamConfig.Width	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	SteroAudioVad.LeftVadConfigure	*AudioVadConfig	go_sdk/rtc/audio_vad.go
+agora/rtc	field	SteroAudioVad.LeftVadInstance	*AudioVad	go_sdk/rtc/audio_vad.go
+agora/rtc	field	SteroAudioVad.RightVadConfigure	*AudioVadConfig	go_sdk/rtc/audio_vad.go
+agora/rtc	field	SteroAudioVad.RightVadInstance	*AudioVad	go_sdk/rtc/audio_vad.go
+agora/rtc	field	VadFrameFormat.BytesPerSample	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	VadFrameFormat.Channels	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	VadFrameFormat.SamplesPerSec	int	go_sdk/rtc/audio_vad2.go
+agora/rtc	field	VideoEncodedFrameObserver.OnEncodedVideoFrame	func(string, string, []byte, *EncodedVideoFrameInfo) bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	VideoEncodedImageSenderOptions.CcMode	VideoSendCcState	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncodedImageSenderOptions.CodecType	VideoCodecType	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncodedImageSenderOptions.TargetBitrate	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.Bitrate	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.CodecType	VideoCodecType	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.DegradePreference	DegradationPreference	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.EncodeAlpha	bool	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.Framerate	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.Height	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.MinBitrate	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.MirrorMode	VideoMirrorModeType	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.OrientationMode	OrientationMode	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoEncoderConfiguration.Width	int	go_sdk/rtc/local_video_track.go
+agora/rtc	field	VideoFrame.AVSyncType	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.AlphaBuffer	[]byte	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.AlphaMode	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.Height	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.Matrix	[16]float32	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.MetadataBuffer	[]byte	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.RenderTimeMs	int64	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.Rotation	VideoOrientation	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.SharedContext	unsafe.Pointer	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.TextureID	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.Type	VideoBufferType	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.UBuffer	[]byte	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.UStride	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.VBuffer	[]byte	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.VStride	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.Width	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.YBuffer	[]byte	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrame.YStride	int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	field	VideoFrameObserver.OnFrame	func(string, string, *VideoFrame) bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	field	VideoSubscriptionOptions.EncodedFrameOnly	bool	go_sdk/rtc/local_user.go
+agora/rtc	field	VideoSubscriptionOptions.StreamType	VideoStreamType	go_sdk/rtc/local_user.go
+agora/rtc	field	VideoTrackInfo.ChannelId	string	go_sdk/rtc/remote_video_track.go
+agora/rtc	field	VideoTrackInfo.CodecType	int	go_sdk/rtc/remote_video_track.go
+agora/rtc	field	VideoTrackInfo.EncodedFrameOnly	bool	go_sdk/rtc/remote_video_track.go
+agora/rtc	field	VideoTrackInfo.IsLocal	bool	go_sdk/rtc/remote_video_track.go
+agora/rtc	field	VideoTrackInfo.ObservationPosition	uint	go_sdk/rtc/remote_video_track.go
+agora/rtc	field	VideoTrackInfo.OwnerUid	uint	go_sdk/rtc/remote_video_track.go
+agora/rtc	field	VideoTrackInfo.SourceType	int	go_sdk/rtc/remote_video_track.go
+agora/rtc	field	VideoTrackInfo.StreamType	int	go_sdk/rtc/remote_video_track.go
+agora/rtc	field	VideoTrackInfo.TrackId	uint	go_sdk/rtc/remote_video_track.go
+agora/rtc	func	AddSEI	func([]byte, bool) []byte	go_sdk/rtc/sei_inserter.go
+agora/rtc	func	CAgoraServiceConfig	func(*AgoraServiceConfig) *C.struct__agora_service_config	go_sdk/rtc/type_convert.go
+agora/rtc	func	CAudioEncodedFrameObserver	func() *C.struct__audio_encoded_frame_rev_observer	go_sdk/rtc/type_convert.go
+agora/rtc	func	CAudioFrameObserver	func() *C.struct__audio_frame_observer	go_sdk/rtc/type_convert.go
+agora/rtc	func	CCapatilitiesObserver	func() *C.struct__capabilites_observer	go_sdk/rtc/type_convert.go
+agora/rtc	func	CIntFromBool	func(bool) C.int	go_sdk/rtc/type_convert.go
+agora/rtc	func	CLocalUserObserver	func() *C.struct__local_user_observer	go_sdk/rtc/type_convert.go
+agora/rtc	func	CRtcConnectionConfig	func(*RtcConnectionConfig) *C.struct__rtc_conn_config	go_sdk/rtc/type_convert.go
+agora/rtc	func	CRtcConnectionObserver	func() *C.struct__rtc_conn_observer	go_sdk/rtc/type_convert.go
+agora/rtc	func	CVideoEncodedFrameObserver	func() unsafe.Pointer	go_sdk/rtc/type_convert.go
+agora/rtc	func	CVideoFrameObserver	func() unsafe.Pointer	go_sdk/rtc/type_convert.go
+agora/rtc	func	DisableExtension	func(string, string, string) int	go_sdk/rtc/agora_service.go
+agora/rtc	func	EnableExtension	func(string, string, string, bool) int	go_sdk/rtc/agora_service.go
+agora/rtc	func	FindSEI	func([]byte, VideoCodecType) ([]byte, int)	go_sdk/rtc/sei_inserter.go
+agora/rtc	func	FreeCAgoraServiceConfig	func(*C.struct__agora_service_config)	go_sdk/rtc/type_convert.go
+agora/rtc	func	FreeCAudioFrameObserver	func(*C.struct__audio_frame_observer)	go_sdk/rtc/type_convert.go
+agora/rtc	func	FreeCCapatilitiesObserver	func(*C.struct__capabilites_observer)	go_sdk/rtc/type_convert.go
+agora/rtc	func	FreeCEncodedVideoFrameObserver	func(unsafe.Pointer)	go_sdk/rtc/type_convert.go
+agora/rtc	func	FreeCLocalUserObserver	func(*C.struct__local_user_observer)	go_sdk/rtc/type_convert.go
+agora/rtc	func	FreeCRtcConnectionConfig	func(*C.struct__rtc_conn_config)	go_sdk/rtc/type_convert.go
+agora/rtc	func	FreeCRtcConnectionObserver	func(*C.struct__rtc_conn_observer)	go_sdk/rtc/type_convert.go
+agora/rtc	func	FreeCVideoFrameObserver	func(unsafe.Pointer)	go_sdk/rtc/type_convert.go
+agora/rtc	func	GenerateWAVHeader	func(int, int, int) []byte	go_sdk/rtc/agora_utils.go
+agora/rtc	func	GetAgoraParameter	func() *AgoraParameter	go_sdk/rtc/agora_service.go
+agora/rtc	func	GoAudioVolumeInfo	func(*C.struct__audio_volume_info) *AudioVolumeInfo	go_sdk/rtc/type_convert.go
+agora/rtc	func	GoLocalAudioStats	func(*C.struct__local_audio_stats) *LocalAudioTrackStats	go_sdk/rtc/type_convert.go
+agora/rtc	func	GoLocalVideoStats	func(*C.struct__local_video_track_stats) *LocalVideoTrackStats	go_sdk/rtc/type_convert.go
+agora/rtc	func	GoPcmAudioFrame	func(*C.struct__audio_frame) *AudioFrame	go_sdk/rtc/type_convert.go
+agora/rtc	func	GoRemoteAudioStats	func(*C.struct__remote_audio_stats) *RemoteAudioTrackStats	go_sdk/rtc/type_convert.go
+agora/rtc	func	GoRemoteVideoStats	func(*C.struct__remote_video_track_stats) *RemoteVideoTrackStats	go_sdk/rtc/type_convert.go
+agora/rtc	func	GoRtcConnectionInfo	func(*C.struct__rtc_conn_info, *RtcConnectionInfo)	go_sdk/rtc/type_convert.go
+agora/rtc	func	GoSinkAudioFrame	func(*C.struct__audio_pcm_frame) *AudioFrame	go_sdk/rtc/type_convert.go
+agora/rtc	func	GoVideoFrame	func(*C.struct__video_frame) *VideoFrame	go_sdk/rtc/type_convert.go
+agora/rtc	func	GoVideoTrackInfo	func(*C.struct__video_track_info) *VideoTrackInfo	go_sdk/rtc/type_convert.go
+agora/rtc	func	Initialize	func(*AgoraServiceConfig) int	go_sdk/rtc/agora_service.go
+agora/rtc	func	InsertSEIToEncodedData	func([]byte, []byte, VideoCodecType) []byte	go_sdk/rtc/sei_inserter.go
+agora/rtc	func	LoadExtensionProvider	func(string, bool) int	go_sdk/rtc/agora_service.go
+agora/rtc	func	NewAPMConfig	func() *APMConfig	go_sdk/rtc/agora_service.go
+agora/rtc	func	NewAgoraServiceConfig	func() *AgoraServiceConfig	go_sdk/rtc/agora_service.go
+agora/rtc	func	NewAudioConsumer	func(*AudioPcmDataSender, int, int) *AudioConsumer	go_sdk/rtc/agora_utils.go
+agora/rtc	func	NewAudioTranscodingWorker	func(*RtcConnection, int) *AudioTranscodingWorker	go_sdk/rtc/opus_transcode_worker.go
+agora/rtc	func	NewAudioVad	func(*AudioVadConfig) *AudioVad	go_sdk/rtc/audio_vad.go
+agora/rtc	func	NewAudioVadManager	func(*AudioVadConfigV2) *AudioVadManager	go_sdk/rtc/audio_vad_manager.go
+agora/rtc	func	NewAudioVadV2	func(*AudioVadConfigV2) *AudioVadV2	go_sdk/rtc/audio_vad2.go
+agora/rtc	func	NewCustomAudioTrackEncoded	func(*AudioEncodedFrameSender, AudioTrackMixingState) *LocalAudioTrack	go_sdk/rtc/local_audio_track.go
+agora/rtc	func	NewCustomAudioTrackPcm	func(*AudioPcmDataSender, AudioScenario, bool) *LocalAudioTrack	go_sdk/rtc/local_audio_track.go
+agora/rtc	func	NewCustomVideoTrackEncoded	func(*VideoEncodedImageSender, *VideoEncodedImageSenderOptions) *LocalVideoTrack	go_sdk/rtc/local_video_track.go
+agora/rtc	func	NewCustomVideoTrackFrame	func(*VideoFrameSender) *LocalVideoTrack	go_sdk/rtc/local_video_track.go
+agora/rtc	func	NewDirectCustomAudioTrackPcm	func(*AudioPcmDataSender) *LocalAudioTrack	go_sdk/rtc/local_audio_track.go
+agora/rtc	func	NewExternalAudioProcessor	func() *ExternalAudioProcessor	go_sdk/rtc/external_audio_processor.go
+agora/rtc	func	NewLockFreeRingBuffer	func(int) *LockFreeRingBuffer	go_sdk/rtc/agora_utils.go
+agora/rtc	func	NewOpusDecoder	func(int, int, int) *OpusDecoder	go_sdk/rtc/opus_decoder_pure.go
+agora/rtc	func	NewPrecisionTimer	func(int) *PrecisionTimer	go_sdk/rtc/agora_utils.go
+agora/rtc	func	NewQueue	func(int) *Queue	go_sdk/rtc/agora_utils.go
+agora/rtc	func	NewRemoteAudioTrack	func(unsafe.Pointer) *RemoteAudioTrack	go_sdk/rtc/remote_audio_track.go
+agora/rtc	func	NewRtcConPublishConfig	func() *RtcConnectionPublishConfig	go_sdk/rtc/rtc_connection.go
+agora/rtc	func	NewRtcConnection	func(*RtcConnectionConfig, *RtcConnectionPublishConfig) *RtcConnection	go_sdk/rtc/rtc_connection.go
+agora/rtc	func	NewSteroVad	func(*AudioVadConfig, *AudioVadConfig) *SteroAudioVad	go_sdk/rtc/audio_vad.go
+agora/rtc	func	NewTranscodingWorker	func(*RtcConnection, int) *TranscodingWorker	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	func	NewVadDump	func(string) *VadDump	go_sdk/rtc/agora_utils.go
+agora/rtc	func	NewVideoDecoder	func() (*VideoDecoder, error)	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	func	NewVideoEncoderConfiguration	func() *VideoEncoderConfiguration	go_sdk/rtc/local_video_track.go
+agora/rtc	func	Release	func() int	go_sdk/rtc/agora_service.go
+agora/rtc	func	SetLocalAccessPoint	func(*LocalAccessPointConfiguration) int	go_sdk/rtc/agora_service.go
+agora/rtc	func	Uint8PtrToUintptr	func(*C.uint8_t) uintptr	go_sdk/rtc/type_convert.go
+agora/rtc	method	AgoraParameter.SetParameters	(*AgoraParameter) func(string) int	go_sdk/rtc/agora_parameter.go
+agora/rtc	method	AudioConsumer.Clear	(*AudioConsumer) func()	go_sdk/rtc/agora_utils.go
+agora/rtc	method	AudioConsumer.Consume	(*AudioConsumer) func() int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	AudioConsumer.IsDirectMode	(*AudioConsumer) func() bool	go_sdk/rtc/agora_utils.go
+agora/rtc	method	AudioConsumer.IsPushToRtcCompleted	(*AudioConsumer) func() int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	AudioConsumer.Len	(*AudioConsumer) func() int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	AudioConsumer.PushPCMData	(*AudioConsumer) func([]byte)	go_sdk/rtc/agora_utils.go
+agora/rtc	method	AudioConsumer.Release	(*AudioConsumer) func()	go_sdk/rtc/agora_utils.go
+agora/rtc	method	AudioEncodedFrameSender.Release	(*AudioEncodedFrameSender) func()	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	method	AudioEncodedFrameSender.SendEncodedAudioFrame	(*AudioEncodedFrameSender) func([]byte, *EncodedAudioFrameInfo) int	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	method	AudioPcmDataSender.Release	(*AudioPcmDataSender) func()	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	method	AudioPcmDataSender.SendAudioPcmData	(*AudioPcmDataSender) func(*AudioFrame) int	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	method	AudioTranscodingWorker.PushEncodedData	(*AudioTranscodingWorker) func([]byte, int, int)	go_sdk/rtc/opus_transcode_worker.go
+agora/rtc	method	AudioTranscodingWorker.Start	(*AudioTranscodingWorker) func() int	go_sdk/rtc/opus_transcode_worker.go
+agora/rtc	method	AudioTranscodingWorker.Stop	(*AudioTranscodingWorker) func()	go_sdk/rtc/opus_transcode_worker.go
+agora/rtc	method	AudioVad.ProcessPcmFrame	(*AudioVad) func(*AudioFrame) (*AudioFrame, int)	go_sdk/rtc/audio_vad.go
+agora/rtc	method	AudioVad.Release	(*AudioVad) func()	go_sdk/rtc/audio_vad.go
+agora/rtc	method	AudioVadManager.Process	(*AudioVadManager) func(string, string, *AudioFrame) (*AudioFrame, VadState)	go_sdk/rtc/audio_vad_manager.go
+agora/rtc	method	AudioVadManager.Release	(*AudioVadManager) func()	go_sdk/rtc/audio_vad_manager.go
+agora/rtc	method	AudioVadV2.Process	(*AudioVadV2) func(*AudioFrame) (*AudioFrame, VadState)	go_sdk/rtc/audio_vad2.go
+agora/rtc	method	AudioVadV2.Release	(*AudioVadV2) func()	go_sdk/rtc/audio_vad2.go
+agora/rtc	method	ExternalAudioProcessor.Initialize	(*ExternalAudioProcessor) func(*APMConfig, int, int, *AudioVadConfigV2, *ExternalAudioProcessorObserver) int	go_sdk/rtc/external_audio_processor.go
+agora/rtc	method	ExternalAudioProcessor.PushAudioPcmData	(*ExternalAudioProcessor) func([]byte, int, int, int64) int	go_sdk/rtc/external_audio_processor.go
+agora/rtc	method	ExternalAudioProcessor.Release	(*ExternalAudioProcessor) func()	go_sdk/rtc/external_audio_processor.go
+agora/rtc	method	LocalAudioTrack.AdjustPublishVolume	(*LocalAudioTrack) func(int) int	go_sdk/rtc/local_audio_track.go
+agora/rtc	method	LocalAudioTrack.ClearSenderBuffer	(*LocalAudioTrack) func() int	go_sdk/rtc/local_audio_track.go
+agora/rtc	method	LocalAudioTrack.Release	(*LocalAudioTrack) func()	go_sdk/rtc/local_audio_track.go
+agora/rtc	method	LocalAudioTrack.SetEnabled	(*LocalAudioTrack) func(bool)	go_sdk/rtc/local_audio_track.go
+agora/rtc	method	LocalAudioTrack.SetMaxBufferedAudioFrameNumber	(*LocalAudioTrack) func(int)	go_sdk/rtc/local_audio_track.go
+agora/rtc	method	LocalAudioTrack.SetSendDelayMs	(*LocalAudioTrack) func(int) int	go_sdk/rtc/local_audio_track.go
+agora/rtc	method	LocalUser.SetAudioEncoderConfiguration	(*LocalUser) func(*AudioEncoderConfiguration) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SetAudioScenario	(*LocalUser) func(AudioScenario) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SetAudioVolumeIndicationParameters	(*LocalUser) func(int, int, bool) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SetMixedAudioFrameParameters	(*LocalUser) func(int, int, int) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SetPlaybackAudioFrameBeforeMixingParameters	(*LocalUser) func(int, int) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SetPlaybackAudioFrameParameters	(*LocalUser) func(int, int, int, int) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SetRecordingAudioFrameParameters	(*LocalUser) func(int, int, int, int) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SetUserRole	(*LocalUser) func(int) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SubscribeAllAudio	(*LocalUser) func() int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SubscribeAllVideo	(*LocalUser) func(*VideoSubscriptionOptions) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SubscribeAudio	(*LocalUser) func(string) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.SubscribeVideo	(*LocalUser) func(string, *VideoSubscriptionOptions) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.UnsubscribeAllAudio	(*LocalUser) func() int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.UnsubscribeAllVideo	(*LocalUser) func() int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.UnsubscribeAudio	(*LocalUser) func(string) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalUser.UnsubscribeVideo	(*LocalUser) func(string) int	go_sdk/rtc/local_user.go
+agora/rtc	method	LocalVideoTrack.Release	(*LocalVideoTrack) func()	go_sdk/rtc/local_video_track.go
+agora/rtc	method	LocalVideoTrack.SetEnabled	(*LocalVideoTrack) func(bool)	go_sdk/rtc/local_video_track.go
+agora/rtc	method	LockFreeRingBuffer.Capacity	(*LockFreeRingBuffer) func() int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	LockFreeRingBuffer.IsEmpty	(*LockFreeRingBuffer) func() bool	go_sdk/rtc/agora_utils.go
+agora/rtc	method	LockFreeRingBuffer.Size	(*LockFreeRingBuffer) func() int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	LockFreeRingBuffer.TryRead	(*LockFreeRingBuffer) func() (*AudioFrame, bool)	go_sdk/rtc/agora_utils.go
+agora/rtc	method	LockFreeRingBuffer.TryReadBatch	(*LockFreeRingBuffer) func(int) []*AudioFrame	go_sdk/rtc/agora_utils.go
+agora/rtc	method	LockFreeRingBuffer.TryWrite	(*LockFreeRingBuffer) func(*AudioFrame) bool	go_sdk/rtc/agora_utils.go
+agora/rtc	method	LockFreeRingBuffer.TryWriteBatch	(*LockFreeRingBuffer) func([]*AudioFrame) int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	MediaNodeFactory.NewAudioEncodedFrameSender	(*MediaNodeFactory) func() *AudioEncodedFrameSender	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	method	MediaNodeFactory.NewAudioPcmDataSender	(*MediaNodeFactory) func() *AudioPcmDataSender	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	method	MediaNodeFactory.NewVideoEncodedImageSender	(*MediaNodeFactory) func() *VideoEncodedImageSender	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	method	MediaNodeFactory.NewVideoFrameSender	(*MediaNodeFactory) func() *VideoFrameSender	go_sdk/rtc/video_frame_sender.go
+agora/rtc	method	OpusDecoder.Decode	(*OpusDecoder) func([]byte) ([]byte, error)	go_sdk/rtc/opus_decoder_pure.go
+agora/rtc	method	OpusDecoder.Release	(*OpusDecoder) func()	go_sdk/rtc/opus_decoder_pure.go
+agora/rtc	method	PrecisionTimer.Start	(*PrecisionTimer) func(func())	go_sdk/rtc/agora_utils.go
+agora/rtc	method	PrecisionTimer.Stop	(*PrecisionTimer) func()	go_sdk/rtc/agora_utils.go
+agora/rtc	method	Queue.Clear	(*Queue) func()	go_sdk/rtc/agora_utils.go
+agora/rtc	method	Queue.Dequeue	(*Queue) func() interface{}	go_sdk/rtc/agora_utils.go
+agora/rtc	method	Queue.Enqueue	(*Queue) func(interface{})	go_sdk/rtc/agora_utils.go
+agora/rtc	method	Queue.IsEmpty	(*Queue) func() bool	go_sdk/rtc/agora_utils.go
+agora/rtc	method	Queue.Peek	(*Queue) func() interface{}	go_sdk/rtc/agora_utils.go
+agora/rtc	method	Queue.Size	(*Queue) func() int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	RtcConnection.Connect	(*RtcConnection) func(string, string, string, string) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.Disconnect	(*RtcConnection) func() int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.EnableEncryption	(*RtcConnection) func(int, *EncryptionConfig) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.GetAgoraParameter	(*RtcConnection) func() *AgoraParameter	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.GetConnectionInfo	(*RtcConnection) func() *RtcConnectionInfo	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.GetLocalUser	(*RtcConnection) func() *LocalUser	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.GetSid	(*RtcConnection) func() string	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.InterruptAudio	(*RtcConnection) func() int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.IsPushToRtcCompleted	(*RtcConnection) func() bool	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.NewRemoteVideoTrack	(*RtcConnection) func(unsafe.Pointer) *RemoteVideoTrack	go_sdk/rtc/remote_video_track.go
+agora/rtc	method	RtcConnection.PublishAudio	(*RtcConnection) func() int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.PublishVideo	(*RtcConnection) func() int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.PushAudioEncodedData	(*RtcConnection) func([]byte, *EncodedAudioFrameInfo) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.PushAudioEncodedDataForTranscode	(*RtcConnection) func([]byte, int, int) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.PushAudioPcmData	(*RtcConnection) func([]byte, int, int, int64) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.PushVideoEncodedData	(*RtcConnection) func([]byte, *EncodedVideoFrameInfo) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.PushVideoEncodedDataForTranscode	(*RtcConnection) func([]byte, *EncodedVideoFrameInfo) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.PushVideoFrame	(*RtcConnection) func(*ExternalVideoFrame) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.RegisterAudioEncodedFrameObserver	(*RtcConnection) func(*AudioEncodedFrameObserver) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.RegisterAudioFrameObserver	(*RtcConnection) func(*AudioFrameObserver, int, *AudioVadConfigV2) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.RegisterLocalUserObserver	(*RtcConnection) func(*LocalUserObserver) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.RegisterObserver	(*RtcConnection) func(*RtcConnectionObserver) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.RegisterVideoEncodedFrameObserver	(*RtcConnection) func(*VideoEncodedFrameObserver) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.RegisterVideoFrameObserver	(*RtcConnection) func(*VideoFrameObserver) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.Release	(*RtcConnection) func()	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.RenewToken	(*RtcConnection) func(string) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.SendAudioMetaData	(*RtcConnection) func([]byte) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.SendIntraRequest	(*RtcConnection) func(string) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.SendStreamMessage	(*RtcConnection) func([]byte) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.SetSimulcastStream	(*RtcConnection) func(bool, *SimulcastStreamConfig) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.SetVideoEncoderConfiguration	(*RtcConnection) func(*VideoEncoderConfiguration) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.UnpublishAudio	(*RtcConnection) func() int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.UnpublishVideo	(*RtcConnection) func() int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	RtcConnection.UpdateAudioSenario	(*RtcConnection) func(AudioScenario) int	go_sdk/rtc/rtc_connection.go
+agora/rtc	method	SteroAudioVad.ProcessAudioFrame	(*SteroAudioVad) func(*AudioFrame) (*AudioFrame, int, *AudioFrame, int)	go_sdk/rtc/audio_vad.go
+agora/rtc	method	SteroAudioVad.Release	(*SteroAudioVad) func()	go_sdk/rtc/audio_vad.go
+agora/rtc	method	TransCodeStatus.Reset	(*TransCodeStatus) func()	go_sdk/rtc/h26x_decode.go
+agora/rtc	method	TranscodingWorker.PushEncodedData	(*TranscodingWorker) func([]byte, *EncodedVideoFrameInfo)	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	method	TranscodingWorker.Start	(*TranscodingWorker) func() int	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	method	TranscodingWorker.Stop	(*TranscodingWorker) func()	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	method	VadDump.Close	(*VadDump) func() int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	VadDump.Open	(*VadDump) func() int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	VadDump.Write	(*VadDump) func(*AudioFrame, *AudioFrame, VadState) int	go_sdk/rtc/agora_utils.go
+agora/rtc	method	VideoDecoder.Close	(*VideoDecoder) func()	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	method	VideoDecoder.DecodeAndSave	(*VideoDecoder) func([]byte, int, int, int) (*ExternalVideoFrame, int)	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	method	VideoEncodedImageSender.Release	(*VideoEncodedImageSender) func()	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	method	VideoEncodedImageSender.SendEncodedVideoImage	(*VideoEncodedImageSender) func([]byte, *EncodedVideoFrameInfo) int	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	method	VideoFrameSender.Release	(*VideoFrameSender) func()	go_sdk/rtc/video_frame_sender.go
+agora/rtc	method	VideoFrameSender.SendVideoFrame	(*VideoFrameSender) func(*ExternalVideoFrame) int	go_sdk/rtc/video_frame_sender.go
+agora/rtc	type	APMConfig	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	AdvancedConfigInfo	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	AgcConfig	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	AgoraParameter	struct	go_sdk/rtc/agora_parameter.go
+agora/rtc	type	AgoraService	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	AgoraServiceConfig	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	AiAecConfig	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	AiNsConfig	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	AreaCode	int	go_sdk/rtc/common_consts.go
+agora/rtc	type	AudioCodecType	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	AudioConsumer	struct	go_sdk/rtc/agora_utils.go
+agora/rtc	type	AudioEncodedFrameObserver	struct	go_sdk/rtc/type_convert.go
+agora/rtc	type	AudioEncodedFrameSender	struct	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	type	AudioEncoderConfiguration	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	AudioEncodingType	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	AudioFrame	struct	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	type	AudioFrameObserver	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	AudioFrameObserverAudioParams	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	AudioFrameType	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	AudioPcmDataSender	struct	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	type	AudioProfile	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	AudioPublishType	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	AudioScenario	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	AudioSink	struct	go_sdk/rtc/external_audio_processor.go
+agora/rtc	type	AudioTrackMixingState	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	AudioTransCodeInData	struct	go_sdk/rtc/opus_transcode_worker.go
+agora/rtc	type	AudioTranscodingWorker	struct	go_sdk/rtc/opus_transcode_worker.go
+agora/rtc	type	AudioVad	struct	go_sdk/rtc/audio_vad.go
+agora/rtc	type	AudioVadConfig	struct	go_sdk/rtc/audio_vad.go
+agora/rtc	type	AudioVadConfigV2	struct	go_sdk/rtc/audio_vad2.go
+agora/rtc	type	AudioVadManager	struct	go_sdk/rtc/audio_vad_manager.go
+agora/rtc	type	AudioVadV2	struct	go_sdk/rtc/audio_vad2.go
+agora/rtc	type	AudioVolumeInfo	struct	go_sdk/rtc/audio_pcm_data_sender.go
+agora/rtc	type	BghvsCConfig	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	ChannelProfile	int	go_sdk/rtc/common_consts.go
+agora/rtc	type	ChannelType	int	go_sdk/rtc/common_consts.go
+agora/rtc	type	ClientRole	int	go_sdk/rtc/common_consts.go
+agora/rtc	type	ColorSpaceType	struct	go_sdk/rtc/video_frame_sender.go
+agora/rtc	type	DegradationPreference	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	EncAudioFrameObserverItem	struct	go_sdk/rtc/type_convert.go
+agora/rtc	type	EncodedAudioFrameInfo	struct	go_sdk/rtc/audio_encoded_frame_sender.go
+agora/rtc	type	EncodedVideoFrameInfo	struct	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	type	EncryptionConfig	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	ExternalAudioProcessor	struct	go_sdk/rtc/external_audio_processor.go
+agora/rtc	type	ExternalAudioProcessorObserver	struct	go_sdk/rtc/external_audio_processor.go
+agora/rtc	type	ExternalVideoFrame	struct	go_sdk/rtc/video_frame_sender.go
+agora/rtc	type	IdleItem	struct	go_sdk/rtc/agora_utils.go
+agora/rtc	type	LocalAccessPointConfiguration	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	LocalAudioTrack	struct	go_sdk/rtc/local_audio_track.go
+agora/rtc	type	LocalAudioTrackStats	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	LocalProxyMode	int	go_sdk/rtc/agora_service.go
+agora/rtc	type	LocalUser	struct	go_sdk/rtc/local_user.go
+agora/rtc	type	LocalUserObserver	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	LocalVideoTrack	struct	go_sdk/rtc/local_video_track.go
+agora/rtc	type	LocalVideoTrackStats	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	LockFreeRingBuffer	struct	go_sdk/rtc/agora_utils.go
+agora/rtc	type	LogUploadServerInfo	struct	go_sdk/rtc/agora_service.go
+agora/rtc	type	MediaNodeFactory	struct	go_sdk/rtc/media_node_factory.go
+agora/rtc	type	OpusDecoder	struct	go_sdk/rtc/opus_decoder_pure.go
+agora/rtc	type	OrientationMode	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	PcmConsumeStats	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	PrecisionTimer	struct	go_sdk/rtc/agora_utils.go
+agora/rtc	type	Queue	struct	go_sdk/rtc/agora_utils.go
+agora/rtc	type	RawAudioFrameOpModeType	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	RemoteAudioTrack	struct	go_sdk/rtc/remote_audio_track.go
+agora/rtc	type	RemoteAudioTrackStats	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	RemoteVideoTrack	struct	go_sdk/rtc/remote_video_track.go
+agora/rtc	type	RemoteVideoTrackStats	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	RtcConnection	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	RtcConnectionConfig	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	RtcConnectionInfo	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	RtcConnectionObserver	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	RtcConnectionPublishConfig	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	SendExternalAudioParameters	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	SimulcastStreamConfig	struct	go_sdk/rtc/local_video_track.go
+agora/rtc	type	SteroAudioVad	struct	go_sdk/rtc/audio_vad.go
+agora/rtc	type	TransCodeInData	struct	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	type	TransCodeStatus	struct	go_sdk/rtc/h26x_decode.go
+agora/rtc	type	TranscodingWorker	struct	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	type	UserMediaInfo	int	go_sdk/rtc/common_consts.go
+agora/rtc	type	VadBuffer	struct	go_sdk/rtc/audio_vad2.go
+agora/rtc	type	VadDump	struct	go_sdk/rtc/agora_utils.go
+agora/rtc	type	VadFrame	struct	go_sdk/rtc/audio_vad2.go
+agora/rtc	type	VadFrameFormat	struct	go_sdk/rtc/audio_vad2.go
+agora/rtc	type	VadState	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	VideoBufferType	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	VideoCodecType	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	VideoDecoder	struct	go_sdk/rtc/h26x_decode_pure.go
+agora/rtc	type	VideoEncodedFrameObserver	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	VideoEncodedImageSender	struct	go_sdk/rtc/video_encoded_image_sender.go
+agora/rtc	type	VideoEncodedImageSenderOptions	struct	go_sdk/rtc/local_video_track.go
+agora/rtc	type	VideoEncoderConfiguration	struct	go_sdk/rtc/local_video_track.go
+agora/rtc	type	VideoFrame	struct	go_sdk/rtc/video_frame_sender.go
+agora/rtc	type	VideoFrameObserver	struct	go_sdk/rtc/rtc_connection.go
+agora/rtc	type	VideoFrameSender	struct	go_sdk/rtc/video_frame_sender.go
+agora/rtc	type	VideoFrameType	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	VideoMirrorModeType	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	VideoOrientation	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	VideoPixelFormat	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	VideoPublishType	int	go_sdk/rtc/audio_consts.go
+agora/rtc	type	VideoSendCcState	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	VideoStreamType	int	go_sdk/rtc/video_consts.go
+agora/rtc	type	VideoSubscriptionOptions	struct	go_sdk/rtc/local_user.go
+agora/rtc	type	VideoTrackInfo	struct	go_sdk/rtc/remote_video_track.go
+agora/rtc	var	DebugMonoPcm	int = 0	go_sdk/rtc/audio_vad.go
+agora/rtc	var	LeftFile	*os.File = nil	go_sdk/rtc/audio_vad.go
+agora/rtc	var	RightFile	*os.File = nil	go_sdk/rtc/audio_vad.go
+agora/rtm	const	DEFAULT_LOG_SIZE_IN_KB	= 1024	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmAreaCodeAS	RtmAreaCode = C.RTM_AREA_CODE_AS	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmAreaCodeCN	RtmAreaCode = C.RTM_AREA_CODE_CN	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmAreaCodeEU	RtmAreaCode = C.RTM_AREA_CODE_EU	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmAreaCodeGLOB	RtmAreaCode = C.RTM_AREA_CODE_GLOB	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmAreaCodeIN	RtmAreaCode = C.RTM_AREA_CODE_IN	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmAreaCodeJP	RtmAreaCode = C.RTM_AREA_CODE_JP	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmAreaCodeNA	RtmAreaCode = C.RTM_AREA_CODE_NA	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmChannelTypeMESSAGE	RtmChannelType = C.RTM_CHANNEL_TYPE_MESSAGE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmChannelTypeNONE	RtmChannelType = C.RTM_CHANNEL_TYPE_NONE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmChannelTypeSTREAM	RtmChannelType = C.RTM_CHANNEL_TYPE_STREAM	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmChannelTypeUSER	RtmChannelType = C.RTM_CHANNEL_TYPE_USER	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmEncryptionModeAES128GCM	RtmEncryptionMode = C.RTM_ENCRYPTION_MODE_AES_128_GCM	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmEncryptionModeAES256GCM	RtmEncryptionMode = C.RTM_ENCRYPTION_MODE_AES_256_GCM	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmEncryptionModeNONE	RtmEncryptionMode = C.RTM_ENCRYPTION_MODE_NONE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmLogLevelERROR	RtmLogLevel = C.RTM_LOG_LEVEL_ERROR	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmLogLevelFATAL	RtmLogLevel = C.RTM_LOG_LEVEL_FATAL	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmLogLevelINFO	RtmLogLevel = C.RTM_LOG_LEVEL_INFO	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmLogLevelNONE	RtmLogLevel = C.RTM_LOG_LEVEL_NONE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmLogLevelWARN	RtmLogLevel = C.RTM_LOG_LEVEL_WARN	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmMessagePriorityHIGH	RtmMessagePriority = C.RTM_MESSAGE_PRIORITY_HIGH	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	const	RtmMessagePriorityHIGHEST	RtmMessagePriority = C.RTM_MESSAGE_PRIORITY_HIGHEST	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	const	RtmMessagePriorityLOW	RtmMessagePriority = C.RTM_MESSAGE_PRIORITY_LOW	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	const	RtmMessagePriorityNORMAL	RtmMessagePriority = C.RTM_MESSAGE_PRIORITY_NORMAL	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	const	RtmMessageQosORDERED	RtmMessageQos = C.RTM_MESSAGE_QOS_ORDERED	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	const	RtmMessageQosUNORDERED	RtmMessageQos = C.RTM_MESSAGE_QOS_UNORDERED	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	const	RtmMessageTypeBINARY	RtmMessageType = C.RTM_MESSAGE_TYPE_BINARY	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmMessageTypeSTRING	RtmMessageType = C.RTM_MESSAGE_TYPE_STRING	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmProxyTypeCLOUD_TCP	RtmProxyType = C.RTM_PROXY_TYPE_CLOUD_TCP	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmProxyTypeHTTP	RtmProxyType = C.RTM_PROXY_TYPE_HTTP	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmProxyTypeNONE	RtmProxyType = C.RTM_PROXY_TYPE_NONE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmServiceTypeMESSAGE	RtmServiceType = C.RTM_SERVICE_TYPE_MESSAGE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmServiceTypeNONE	RtmServiceType = C.RTM_SERVICE_TYPE_NONE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmServiceTypeSTREAM	RtmServiceType = C.RTM_SERVICE_TYPE_STREAM	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmStorageTypeCHANNEL	RtmStorageType = C.RTM_STORAGE_TYPE_CHANNEL	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmStorageTypeNONE	RtmStorageType = C.RTM_STORAGE_TYPE_NONE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	const	RtmStorageTypeUSER	RtmStorageType = C.RTM_STORAGE_TYPE_USER	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	ChannelInfo.ChannelName	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	ChannelInfo.ChannelType	RtmChannelType	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	GetHistoryMessagesOptions.Count	int	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	field	GetHistoryMessagesOptions.End	int64	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	field	GetHistoryMessagesOptions.Start	int64	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	field	GetOnlineUsersOptions.IncludeState	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	GetOnlineUsersOptions.IncludeUserId	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	GetOnlineUsersOptions.Page	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	HistoryMessage.CustomType	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	HistoryMessage.Message	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	HistoryMessage.MessageLength	uint	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	HistoryMessage.MessageType	RtmMessageType	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	HistoryMessage.Publisher	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	HistoryMessage.Timestamp	uint64	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	IntervalInfo.JoinUserList	*UserList	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	IntervalInfo.LeaveUserList	*UserList	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	IntervalInfo.TimeoutUserList	*UserList	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	IntervalInfo.UserStateCount	uint	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	IntervalInfo.UserStateList	[]*UserState	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	JoinChannelOptions.BeQuiet	bool	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	field	JoinChannelOptions.Token	string	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	field	JoinChannelOptions.WithLock	bool	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	field	JoinChannelOptions.WithMetadata	bool	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	field	JoinChannelOptions.WithPresence	bool	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	field	LinkStateEvent.AffectedChannels	[]string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LinkStateEvent.CurrentState	int	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LinkStateEvent.IsResumed	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LinkStateEvent.Operation	int	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LinkStateEvent.PreviousState	int	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LinkStateEvent.Reason	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LinkStateEvent.ReasonCode	int	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LinkStateEvent.ServiceType	RtmServiceType	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LinkStateEvent.Timestamp	uint64	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LinkStateEvent.UnrestoredChannels	[]string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LockDetail.LockName	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LockDetail.Owner	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LockDetail.Ttl	uint32	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	LockEvent.ChannelName	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	LockEvent.ChannelType	RtmChannelType	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	LockEvent.Count	uint	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	LockEvent.EventType	int	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	LockEvent.LockDetailList	[]*LockDetail	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	MessageEvent.ChannelName	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	MessageEvent.ChannelTopic	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	MessageEvent.ChannelType	RtmChannelType	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	MessageEvent.CustomType	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	MessageEvent.Message	[]byte	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	MessageEvent.MessageType	RtmMessageType	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	MessageEvent.Publisher	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	MetadataItem.AuthorUserId	string	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	field	MetadataItem.Key	string	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	field	MetadataItem.Revision	uint64	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	field	MetadataItem.UpdateTs	uint64	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	field	MetadataItem.Value	string	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	field	MetadataOptions.RecordTs	bool	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	field	MetadataOptions.RecordUserId	bool	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	field	PresenceEvent.ChannelName	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	PresenceEvent.ChannelType	RtmChannelType	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	PresenceEvent.Interval	*IntervalInfo	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	PresenceEvent.Publisher	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	PresenceEvent.Snapshot	*SnapshotInfo	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	PresenceEvent.StateItemCount	uint	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	PresenceEvent.StateItems	[]*StateItem	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	PresenceEvent.Type	int	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	PresenceOptions.IncludeState	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	PresenceOptions.IncludeUserId	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	PresenceOptions.Page	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	PublishOptions.ChannelType	RtmChannelType	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	PublishOptions.CustomType	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	PublishOptions.MessageType	RtmMessageType	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	PublishOptions.StoreInHistory	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	PublisherInfo.Meta	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	PublisherInfo.UserId	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmConfig.AppId	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.AreaCode	RtmAreaCode	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.Context	unsafe.Pointer	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.EncryptionConfig	*RtmEncryptionConfig	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.EventHandler	*RtmEventHandler	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.HeartbeatInterval	uint32	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.LogConfig	*RtmLogConfig	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.Multipath	bool	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.PresenceTimeout	uint32	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.PrivateConfig	*RtmPrivateConfig	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.ProtocolType	uint32	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.ProxyConfig	*RtmProxyConfig	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.UseStringUserId	bool	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmConfig.UserId	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	RtmEncryptionConfig.EncryptionKey	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmEncryptionConfig.EncryptionMode	RtmEncryptionMode	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmEncryptionConfig.EncryptionSalt	[]byte	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmEventHandler.OnAcquireLockResult	func(uint64, string, RtmChannelType, string, int, string)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnConnectionStateChanged	func(string, int, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnGetChannelMetadataResult	func(uint64, string, RtmChannelType, *IMetadata, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnGetHistoryMessagesResult	func(uint64, []HistoryMessage, uint64, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnGetLocksResult	func(uint64, string, RtmChannelType, *LockDetail, uint, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnGetOnlineUsersResult	func(uint64, *UserState, uint, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnGetSubscribedUserListResult	func(uint64, string, string, *UserList, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnGetUserChannelsResult	func(uint64, *ChannelInfo, uint, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnGetUserMetadataResult	func(uint64, string, *IMetadata, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnJoinResult	func(uint64, string, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnJoinTopicResult	func(uint64, string, string, string, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnLeaveResult	func(uint64, string, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnLeaveTopicResult	func(uint64, string, string, string, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnLinkStateEvent	func(*LinkStateEvent)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnLockEvent	func(*LockEvent)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnLoginResult	func(uint64, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnLogoutResult	func(uint64, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnMessageEvent	func(*MessageEvent)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnPresenceEvent	func(*PresenceEvent)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnPresenceGetStateResult	func(uint64, *UserState, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnPresenceRemoveStateResult	func(uint64, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnPresenceSetStateResult	func(uint64, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnPublishResult	func(uint64, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnPublishTopicMessageResult	func(uint64, string, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnReleaseLockResult	func(uint64, string, RtmChannelType, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnRemoveChannelMetadataResult	func(uint64, string, RtmChannelType, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnRemoveLockResult	func(uint64, string, RtmChannelType, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnRemoveUserMetadataResult	func(uint64, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnRenewTokenResult	func(uint64, RtmServiceType, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnRevokeLockResult	func(uint64, string, RtmChannelType, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnSetChannelMetadataResult	func(uint64, string, RtmChannelType, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnSetLockResult	func(uint64, string, RtmChannelType, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnSetUserMetadataResult	func(uint64, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnStorageEvent	func(*StorageEvent)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnSubscribeResult	func(uint64, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnSubscribeTopicResult	func(uint64, string, string, string, UserList, UserList, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnSubscribeUserMetadataResult	func(uint64, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnTokenPrivilegeWillExpire	func(string)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnTopicEvent	func(*TopicEvent)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnUnsubscribeTopicResult	func(uint64, string, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnUnsubscribeUserMetadataResult	func(uint64, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnUpdateChannelMetadataResult	func(uint64, string, RtmChannelType, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnUpdateUserMetadataResult	func(uint64, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnWhereNowResult	func(uint64, *ChannelInfo, uint, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmEventHandler.OnWhoNowResult	func(uint64, *UserState, uint, string, int)	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	field	RtmLogConfig.FilePath	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmLogConfig.FileSizeInKB	uint32	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmLogConfig.Level	RtmLogLevel	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmPrivateConfig.AccessPointHosts	[]string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmPrivateConfig.ServiceType	uint32	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmProxyConfig.Account	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmProxyConfig.Password	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmProxyConfig.Port	uint16	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmProxyConfig.ProxyType	RtmProxyType	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	RtmProxyConfig.Server	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	SnapshotInfo.UserCount	uint	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	SnapshotInfo.UserStateList	[]*UserState	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	StateItem.Key	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	StateItem.Value	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	StorageEvent.ChannelType	RtmChannelType	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	StorageEvent.Data	*IMetadata	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	StorageEvent.EventType	int	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	StorageEvent.StorageType	RtmStorageType	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	StorageEvent.Target	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	SubscribeOptions.BeQuiet	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	SubscribeOptions.WithLock	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	SubscribeOptions.WithMessage	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	SubscribeOptions.WithMetadata	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	SubscribeOptions.WithPresence	bool	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	TopicEvent.ChannelName	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	TopicEvent.Publisher	string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	TopicEvent.TopicInfoCount	uint	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	TopicEvent.TopicInfos	[]*TopicInfo	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	TopicEvent.Type	int	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	field	TopicInfo.Publishers	[]PublisherInfo	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	TopicInfo.Topic	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	TopicMessageOptions.CustomType	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	TopicMessageOptions.MessageType	RtmMessageType	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	TopicMessageOptions.SendTs	uint64	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	UserList.Users	[]string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	UserState.States	[]StateItem	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	field	UserState.UserId	string	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	CChannelInfoToChannelInfo	func(*C.struct_C_ChannelInfo) *ChannelInfo	go_sdk/rtm/type_convert.go
+agora/rtm	func	CHistoryMessageToHistoryMessage	func(*C.struct_C_HistoryMessage) *HistoryMessage	go_sdk/rtm/type_convert.go
+agora/rtm	func	CLinkStateEventToLinkStateEvent	func(*C.struct_C_LinkStateEvent) *LinkStateEvent	go_sdk/rtm/type_convert.go
+agora/rtm	func	CLockDetailToLockDetail	func(*C.struct_C_LockDetail) *LockDetail	go_sdk/rtm/type_convert.go
+agora/rtm	func	CMetadataToIMetadata	func(*C.struct_C_Metadata) *IMetadata	go_sdk/rtm/type_convert.go
+agora/rtm	func	CRtmEventHandler	func() *C.struct_C_IRtmEventHandler	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	func	CUserListToUserList	func(*C.struct_C_UserList) *UserList	go_sdk/rtm/type_convert.go
+agora/rtm	func	CUserStateToUserState	func(*C.struct_C_UserState) *UserState	go_sdk/rtm/type_convert.go
+agora/rtm	func	FastSafeCGoString	func(*C.char) string	go_sdk/rtm/type_convert.go
+agora/rtm	func	GetErrorReason	func(int) string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	GetVersion	func() string	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	IsValidMemory	func(unsafe.Pointer) bool	go_sdk/rtm/type_convert.go
+agora/rtm	func	NewChannelInfo	func() *ChannelInfo	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewGetHistoryMessagesOptions	func() *GetHistoryMessagesOptions	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	func	NewGetOnlineUsersOptions	func() *GetOnlineUsersOptions	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewHistoryMessage	func() *HistoryMessage	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewIntervalInfo	func() *IntervalInfo	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	NewJoinChannelOptions	func() *JoinChannelOptions	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	func	NewJoinTopicOptions	func() *JoinTopicOptions	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	func	NewLinkStateEvent	func() *LinkStateEvent	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewLockDetail	func() *LockDetail	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewLockEvent	func() *LockEvent	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	NewMessageEvent	func() *MessageEvent	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	NewMetadataItem	func() *MetadataItem	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	func	NewMetadataOptions	func() *MetadataOptions	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	func	NewPresenceEvent	func() *PresenceEvent	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	NewPresenceOptions	func() *PresenceOptions	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewPublishOptions	func() *PublishOptions	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewPublisherInfo	func() *PublisherInfo	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewRtmClient	func(*RtmConfig) *IRtmClient	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	NewRtmConfig	func() *RtmConfig	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	NewRtmEncryptionConfig	func() *RtmEncryptionConfig	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewRtmLogConfig	func() *RtmLogConfig	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewRtmPrivateConfig	func() *RtmPrivateConfig	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewRtmProxyConfig	func() *RtmProxyConfig	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewSnapshotInfo	func() *SnapshotInfo	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	NewStateItem	func() *StateItem	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewStorageEvent	func() *StorageEvent	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	NewSubscribeOptions	func() *SubscribeOptions	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewTopicEvent	func() *TopicEvent	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	func	NewTopicInfo	func() *TopicInfo	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewTopicMessageOptions	func() *TopicMessageOptions	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewTopicOptions	func() *TopicOptions	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	func	NewUserList	func() *UserList	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	NewUserState	func() *UserState	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	func	SafeCGoString	func(*C.char) string	go_sdk/rtm/type_convert.go
+agora/rtm	method	GetHistoryMessagesOptions.GetCount	(*GetHistoryMessagesOptions) func() int	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	method	GetHistoryMessagesOptions.GetEnd	(*GetHistoryMessagesOptions) func() int64	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	method	GetHistoryMessagesOptions.GetStart	(*GetHistoryMessagesOptions) func() int64	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	method	GetHistoryMessagesOptions.SetCount	(*GetHistoryMessagesOptions) func(int)	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	method	GetHistoryMessagesOptions.SetEnd	(*GetHistoryMessagesOptions) func(int64)	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	method	GetHistoryMessagesOptions.SetStart	(*GetHistoryMessagesOptions) func(int64)	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	method	IMetadata.GetMajorRevision	(*IMetadata) func() int64	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IMetadata.GetMetadataItems	(*IMetadata) func(**MetadataItem, *uint)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IMetadata.SetMajorRevision	(*IMetadata) func(int64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IMetadata.SetMetadataItem	(*IMetadata) func(*MetadataItem)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmClient.CreateStreamChannel	(*IRtmClient) func(string) *IStreamChannel	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.GetHistory	(*IRtmClient) func() *IRtmHistory	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.GetLock	(*IRtmClient) func() *IRtmLock	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.GetPresence	(*IRtmClient) func() *IRtmPresence	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.GetStorage	(*IRtmClient) func() *IRtmStorage	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.Login	(*IRtmClient) func(string) (int, uint64)	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.Logout	(*IRtmClient) func() (int, uint64)	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.Publish	(*IRtmClient) func(string, []byte, *PublishOptions) (int, uint64)	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.Release	(*IRtmClient) func() int	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.RenewToken	(*IRtmClient) func(string) (int, uint64)	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.SendChannelMessage	(*IRtmClient) func(string, []byte) (int, uint64)	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.SendUserMessage	(*IRtmClient) func(string, []byte) (int, uint64)	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.SetParameters	(*IRtmClient) func(string) int	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.Subscribe	(*IRtmClient) func(string, *SubscribeOptions) (int, uint64)	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmClient.Unsubscribe	(*IRtmClient) func(string) (int, uint64)	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	method	IRtmHistory.GetMessages	(*IRtmHistory) func(string, RtmChannelType, *GetHistoryMessagesOptions, *uint64) int	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	method	IRtmLock.AcquireLock	(*IRtmLock) func(string, RtmChannelType, string, bool, *uint64)	go_sdk/rtm/IAgoraRtmLock.go
+agora/rtm	method	IRtmLock.GetLocks	(*IRtmLock) func(string, RtmChannelType, *uint64)	go_sdk/rtm/IAgoraRtmLock.go
+agora/rtm	method	IRtmLock.ReleaseLock	(*IRtmLock) func(string, RtmChannelType, string, *uint64)	go_sdk/rtm/IAgoraRtmLock.go
+agora/rtm	method	IRtmLock.RemoveLock	(*IRtmLock) func(string, RtmChannelType, string, *uint64)	go_sdk/rtm/IAgoraRtmLock.go
+agora/rtm	method	IRtmLock.RevokeLock	(*IRtmLock) func(string, RtmChannelType, string, string, *uint64)	go_sdk/rtm/IAgoraRtmLock.go
+agora/rtm	method	IRtmLock.SetLock	(*IRtmLock) func(string, RtmChannelType, string, uint32, *uint64)	go_sdk/rtm/IAgoraRtmLock.go
+agora/rtm	method	IRtmPresence.GetOnlineUsers	(*IRtmPresence) func(string, RtmChannelType, *GetOnlineUsersOptions, *uint64) int	go_sdk/rtm/IAgoraRtmPresence.go
+agora/rtm	method	IRtmPresence.GetState	(*IRtmPresence) func(string, RtmChannelType, string, *uint64) int	go_sdk/rtm/IAgoraRtmPresence.go
+agora/rtm	method	IRtmPresence.GetUserChannels	(*IRtmPresence) func(string, *uint64) int	go_sdk/rtm/IAgoraRtmPresence.go
+agora/rtm	method	IRtmPresence.RemoveState	(*IRtmPresence) func(string, RtmChannelType, []string, uint, *uint64) int	go_sdk/rtm/IAgoraRtmPresence.go
+agora/rtm	method	IRtmPresence.SetState	(*IRtmPresence) func(string, RtmChannelType, []*StateItem, uint, *uint64) int	go_sdk/rtm/IAgoraRtmPresence.go
+agora/rtm	method	IRtmPresence.WhereNow	(*IRtmPresence) func(string, *uint64) int	go_sdk/rtm/IAgoraRtmPresence.go
+agora/rtm	method	IRtmPresence.WhoNow	(*IRtmPresence) func(string, RtmChannelType, *PresenceOptions, *uint64) int	go_sdk/rtm/IAgoraRtmPresence.go
+agora/rtm	method	IRtmStorage.CreateMetadata	(*IRtmStorage) func() *IMetadata	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.GetChannelMetadata	(*IRtmStorage) func(string, RtmChannelType, *uint64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.GetUserMetadata	(*IRtmStorage) func(string, *uint64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.RemoveChannelMetadata	(*IRtmStorage) func(string, RtmChannelType, *IMetadata, *MetadataOptions, string, *uint64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.RemoveUserMetadata	(*IRtmStorage) func(string, *IMetadata, *MetadataOptions, *uint64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.SetChannelMetadata	(*IRtmStorage) func(string, RtmChannelType, *IMetadata, *MetadataOptions, string, *uint64) int	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.SetUserMetadata	(*IRtmStorage) func(string, *IMetadata, *MetadataOptions, *uint64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.SubscribeUserMetadata	(*IRtmStorage) func(string, *uint64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.UnsubscribeUserMetadata	(*IRtmStorage) func(string)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.UpdateChannelMetadata	(*IRtmStorage) func(string, RtmChannelType, *IMetadata, *MetadataOptions, string, *uint64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IRtmStorage.UpdateUserMetadata	(*IRtmStorage) func(string, *IMetadata, *MetadataOptions, *uint64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	IStreamChannel.GetChannelName	(*IStreamChannel) func() string	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.GetSubscribedUserList	(*IStreamChannel) func(string) int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.Join	(*IStreamChannel) func(*JoinChannelOptions, *uint64) int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.JoinTopic	(*IStreamChannel) func(string, *JoinTopicOptions, *uint64) int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.Leave	(*IStreamChannel) func(*uint64) int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.LeaveTopic	(*IStreamChannel) func(string, *uint64) int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.PublishTopicMessage	(*IStreamChannel) func(string, string, uint, *TopicMessageOptions) int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.Release	(*IStreamChannel) func() int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.RenewToken	(*IStreamChannel) func(string) int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.SubscribeTopic	(*IStreamChannel) func(string, *TopicOptions, *uint64) int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	IStreamChannel.UnsubscribeTopic	(*IStreamChannel) func(string, *TopicOptions) int	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.GetBeQuiet	(*JoinChannelOptions) func() bool	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.GetToken	(*JoinChannelOptions) func() string	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.GetWithLock	(*JoinChannelOptions) func() bool	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.GetWithMetadata	(*JoinChannelOptions) func() bool	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.GetWithPresence	(*JoinChannelOptions) func() bool	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.SetBeQuiet	(*JoinChannelOptions) func(bool)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.SetToken	(*JoinChannelOptions) func(string)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.SetWithLock	(*JoinChannelOptions) func(bool)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.SetWithMetadata	(*JoinChannelOptions) func(bool)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinChannelOptions.SetWithPresence	(*JoinChannelOptions) func(bool)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinTopicOptions.GetMeta	(*JoinTopicOptions) func() string	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinTopicOptions.GetPriority	(*JoinTopicOptions) func() RtmMessagePriority	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinTopicOptions.GetQos	(*JoinTopicOptions) func() RtmMessageQos	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinTopicOptions.GetSyncWithMedia	(*JoinTopicOptions) func() bool	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinTopicOptions.SetMeta	(*JoinTopicOptions) func(string)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinTopicOptions.SetPriority	(*JoinTopicOptions) func(RtmMessagePriority)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinTopicOptions.SetQos	(*JoinTopicOptions) func(RtmMessageQos)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	JoinTopicOptions.SetSyncWithMedia	(*JoinTopicOptions) func(bool)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	MetadataItem.GetAquthorUserId	(*MetadataItem) func() string	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataItem.GetKey	(*MetadataItem) func() string	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataItem.GetRevision	(*MetadataItem) func() int64	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataItem.GetUpdateTs	(*MetadataItem) func() int64	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataItem.GetValue	(*MetadataItem) func() string	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataItem.SetAuthorUserId	(*MetadataItem) func(string)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataItem.SetKey	(*MetadataItem) func(string)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataItem.SetRevision	(*MetadataItem) func(int64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataItem.SetUpdateTs	(*MetadataItem) func(int64)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataItem.SetValue	(*MetadataItem) func(string)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataOptions.GetRecordTs	(*MetadataOptions) func() bool	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataOptions.GetRecordUserId	(*MetadataOptions) func() bool	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataOptions.SetRecordTs	(*MetadataOptions) func(bool)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	MetadataOptions.SetRecordUserId	(*MetadataOptions) func(bool)	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	method	TopicOptions.GetUserCount	(*TopicOptions) func() uint	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	TopicOptions.GetUsers	(*TopicOptions) func() []string	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	TopicOptions.SetUserCount	(*TopicOptions) func(uint)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	method	TopicOptions.SetUsers	(*TopicOptions) func([]string)	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	type	ChannelInfo	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	GetHistoryMessagesOptions	struct	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	type	GetOnlineUsersOptions	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	HistoryMessage	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	IMetadata	struct	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	type	IRtmClient	struct	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	type	IRtmHistory	struct	go_sdk/rtm/IAgoraRtmHistory.go
+agora/rtm	type	IRtmLock	struct	go_sdk/rtm/IAgoraRtmLock.go
+agora/rtm	type	IRtmPresence	struct	go_sdk/rtm/IAgoraRtmPresence.go
+agora/rtm	type	IRtmStorage	struct	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	type	IStreamChannel	struct	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	type	IntervalInfo	struct	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	type	JoinChannelOptions	struct	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	type	JoinTopicOptions	struct	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	type	LinkStateEvent	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	LockDetail	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	LockEvent	struct	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	type	MessageEvent	struct	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	type	MetadataItem	struct	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	type	MetadataOptions	struct	go_sdk/rtm/IAgoraRtmStorage.go
+agora/rtm	type	PresenceEvent	struct	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	type	PresenceOptions	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	PublishOptions	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	PublisherInfo	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmAreaCode	C.enum_C_RTM_AREA_CODE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmChannelType	C.enum_C_RTM_CHANNEL_TYPE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmConfig	struct	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	type	RtmEncryptionConfig	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmEncryptionMode	C.enum_C_RTM_ENCRYPTION_MODE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmEventHandler	struct	go_sdk/rtm/RtmEventHandlerBridge.go
+agora/rtm	type	RtmLogConfig	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmLogLevel	C.enum_C_RTM_LOG_LEVEL	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmMessagePriority	C.enum_C_RTM_MESSAGE_PRIORITY	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	type	RtmMessageQos	C.enum_C_RTM_MESSAGE_QOS	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	type	RtmMessageType	C.enum_C_RTM_MESSAGE_TYPE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmPrivateConfig	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmProxyConfig	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmProxyType	C.enum_C_RTM_PROXY_TYPE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmServiceType	C.enum_C_RTM_SERVICE_TYPE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	RtmStorageType	C.enum_C_RTM_STORAGE_TYPE	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	SnapshotInfo	struct	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	type	StateItem	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	StorageEvent	struct	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	type	SubscribeOptions	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	TopicEvent	struct	go_sdk/rtm/IAgoraRtmClient.go
+agora/rtm	type	TopicInfo	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	TopicMessageOptions	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	TopicOptions	struct	go_sdk/rtm/IAgoraStreamChannel.go
+agora/rtm	type	UserList	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	UserState	struct	go_sdk/rtm/AgoraRtmBase.go
+agora/rtm	type	VoidPtr	unsafe.Pointer	go_sdk/rtm/IAgoraRtmStorage.go

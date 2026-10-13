@@ -2,6 +2,8 @@
 
 package agorasdk
 
+const avcodecAvailable = true
+
 // TranscodeVideo asynchronously decodes H.264/H.265 input and publishes through
 // the configured RawVideo track using optional FFmpeg workers.
 // It requires Broadcaster, RawVideo, the avcodec build tag, and FFmpeg libraries.
@@ -13,7 +15,7 @@ package agorasdk
 // or repeated and arbitrary source timestamps are not preserved. Close can
 // discard pending input. Avoid another producer on the same track.
 func (s *Session) TranscodeVideo(frame EncodedVideoFrame) error {
-	if err := frame.validate(); err != nil {
+	if err := validateTranscodeVideo(frame); err != nil {
 		return err
 	}
 	s.mu.Lock()

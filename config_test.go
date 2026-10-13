@@ -62,7 +62,7 @@ func TestConfigCopiesPointers(t *testing.T) {
 	c := validChannel()
 	c.Encryption = &rtc.EncryptionConfig{EncryptionKdfSalt: []byte{1, 2}}
 	c.Audio.VADConfig = &rtc.AudioVadConfigV2{StartRecognizeCount: 7}
-	c.Video.Encoder = &rtc.VideoEncoderConfiguration{Width: 640}
+	c.Video.Encoder = &rtc.VideoEncoderConfiguration{Width: 640, Height: 360}
 	c.Video.EncodedSender = &rtc.VideoEncodedImageSenderOptions{}
 	got, err := normalized(c)
 	if err != nil {

@@ -82,6 +82,29 @@ func (c *Client) RemoveLock(ctx context.Context, ch Channel, name string) error 
 // submitted request can still succeed. Query ownership before blindly retrying
 // or performing a consequential write.
 func (c *Client) AcquireLock(ctx context.Context, ch Channel, name string) error {
+	return c.AcquireLockWithOptions(ctx, ch, name, AcquireLockOptions{})
+}
+
+// AcquireLockOptions controls native lock acquisition. The zero value does not retry.
+type AcquireLockOptions struct {
+	// Retry asks the native SDK to retry acquisition. Cancellation and the Go
+	// request timeout stop waiting ONLY; they do not cancel native retry. A lock
+	// can be acquired later, even after a failed acquisition callback. Enable
+	// Config.ResultEvents before creating the
+	// client, handle RequestAcquireLock results and EventLock notifications,
+	// query ownership, and release unwanted acquisitions with a fresh context.
+	// Events can overflow; do not use the event queue alone as proof of ownership.
+	Retry bool
+}
+
+// AcquireLockWithOptions requests lock ownership with explicit native retry
+// control. With Retry true, the SDK can acquire ownership after this method has
+// returned a context error or an SDK acquisition failure. A failure callback
+// is not proof that retry has stopped. The SDK exposes no per-request
+// cancellation API.
+// Query ownership before retrying, and release unwanted late acquisitions. See
+// AcquireLockOptions.Retry and Config.ResultEvents for observing late results.
+func (c *Client) AcquireLockWithOptions(ctx context.Context, ch Channel, name string, options AcquireLockOptions) error {
 	if err := validateLock(ch, name); err != nil {
 		return err
 	}
@@ -90,9 +113,7 @@ func (c *Client) AcquireLock(ctx context.Context, ch Channel, name string) error
 		if n == nil {
 			return unavailableCode, 0
 		}
-		var id uint64
-		code := n.AcquireLock(ch.Name, ch.Type, name, false, &id)
-		return code, id
+		return submitLockAcquisition(n, ch, name, options)
 	})
 }
 
@@ -134,4 +155,15 @@ func (c *Client) RevokeLock(ctx context.Context, ch Channel, name, owner string)
 		code := n.RevokeLock(ch.Name, ch.Type, name, owner, &id)
 		return code, id
 	})
+}
+
+// lockAcquirer is the native lock submission boundary; completion is asynchronous.
+type lockAcquirer interface {
+	AcquireLock(string, ChannelType, string, bool, *uint64) int
+}
+
+func submitLockAcquisition(n lockAcquirer, ch Channel, name string, options AcquireLockOptions) (int, uint64) {
+	var id uint64
+	code := n.AcquireLock(ch.Name, ch.Type, name, options.Retry, &id)
+	return code, id
 }

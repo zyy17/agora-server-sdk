@@ -130,10 +130,20 @@ func (sender *VideoFrameSender) Release() {
 	sender.cSender = nil
 }
 
+// SendVideoFrame submits a validated CPU frame synchronously. Invalid layouts
+// and unsupported texture handles return -1 before entering native code.
 func (sender *VideoFrameSender) SendVideoFrame(frame *ExternalVideoFrame) int {
-	if sender == nil || sender.cSender == nil || frame == nil || len(frame.Buffer) == 0 {
+	if sender == nil || sender.cSender == nil || frame.Validate() != nil {
 		return -1
 	}
+	return withCExternalVideoFrame(frame, func(cFrame *C.struct__external_video_frame) int {
+		return int(C.agora_video_frame_sender_send(sender.cSender, cFrame))
+	})
+}
+
+// withCExternalVideoFrame is shared by sending and the native ABI test fixture.
+// The callback may only use the pinned buffers synchronously.
+func withCExternalVideoFrame(frame *ExternalVideoFrame, send func(*C.struct__external_video_frame) int) int {
 	cData, pinner := unsafeCBytes(frame.Buffer)
 	defer pinner.Unpin()
 	cFrame := C.struct__external_video_frame{}
@@ -169,5 +179,5 @@ func (sender *VideoFrameSender) SendVideoFrame(frame *ExternalVideoFrame) int {
 	cFrame.color_space.primaries_id = C.int(frame.ColorSpace.PrimariesId)
 	cFrame.color_space.transfer_id = C.int(frame.ColorSpace.TransferId)
 	cFrame.color_space.range_id = C.int(frame.ColorSpace.RangeId)
-	return int(C.agora_video_frame_sender_send(sender.cSender, &cFrame))
+	return send(&cFrame)
 }

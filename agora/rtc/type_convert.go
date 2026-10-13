@@ -260,6 +260,7 @@ func GoVideoFrame(frame *C.struct__video_frame) *VideoFrame {
 		TextureID:      int(frame.texture_id),
 		Matrix:         [16]float32{},
 		AlphaBuffer:    nil,
+		AlphaMode:      int(frame.alpha_mode),
 	}
 	for i := 0; i < 16; i++ {
 		ret.Matrix[i] = float32(frame.matrix[i])

@@ -49,13 +49,28 @@ type AudioFrame struct {
 }
 
 // AudioCodec identifies a native encoded-audio codec.
-// Opus and AAC are named conveniences. Additional native codec values can be
-// converted from rtc.AudioCodecType, but transport and peer support vary.
+// Named codecs preserve the upstream enum; transport and peer support vary.
 type AudioCodec int
 
 const (
 	// Opus identifies the native Opus codec.
 	Opus AudioCodec = AudioCodec(rtc.AudioCodecOpus)
+	// PCMA identifies G.711 A-law.
+	PCMA AudioCodec = AudioCodec(rtc.AudioCodecPcma)
+	// PCMU identifies G.711 mu-law.
+	PCMU AudioCodec = AudioCodec(rtc.AudioCodecPcmu)
+	// G722 identifies G.722.
+	G722 AudioCodec = AudioCodec(rtc.AudioCodecG722)
+	// HEAAC identifies high-efficiency AAC.
+	HEAAC AudioCodec = AudioCodec(rtc.AudioCodecHeAac)
+	// HEAACv2 identifies high-efficiency AAC v2.
+	HEAACv2 AudioCodec = AudioCodec(rtc.AudioCodecHeAac2)
+	// JC1 identifies the native JC1 codec.
+	JC1 AudioCodec = AudioCodec(rtc.AudioCodecJc1)
+	// LPCNet identifies the native LPCNet codec.
+	LPCNet AudioCodec = AudioCodec(rtc.AudioCodecLpcnet)
+	// OpusMultiChannel identifies native Opus with 3–8 channels.
+	OpusMultiChannel AudioCodec = AudioCodec(rtc.AudioCodecOpusMC)
 	// AAC identifies AAC-LC, not an ADTS file or other AAC profiles.
 	AAC AudioCodec = AudioCodec(rtc.AudioCodecAacLc)
 )
@@ -64,19 +79,25 @@ const (
 // The wrapper checks metadata bounds but does not decode the packet or prove
 // that its contents match the declared codec, rate, channels, or sample count.
 type EncodedAudioFrame struct {
-	// Data contains one nonempty encoded packet. Keep it unchanged during the send call.
+	// Data contains one encoded packet. Keep it unchanged during the send call.
+	// Empty data is permitted only when SendEvenIfEmpty is explicitly true.
 	Data []byte
 	// Codec selects the native codec for Data; peer support must be verified.
 	Codec AudioCodec
 	// SampleRate is in Hz; accepted values are 7350, 8000, 11025, 12000, 16000,
 	// 22050, 24000, 32000, 44100, 48000, 64000, 88200, and 96000.
-	// Channels must be 1 or 2. SamplesPerChannel is nonnegative and is passed
+	// Channels must be 1 or 2, or 3–8 for OpusMultiChannel. SamplesPerChannel
+	// must fit nonnegative int32 and is passed
 	// through to the native SDK, including zero.
 	SampleRate, Channels, SamplesPerChannel int
 	// TimestampMillis is the native capture timestamp in milliseconds, not necessarily Unix time.
+	// The connection binding rewrites zero to -1 to select native synchronization.
 	TimestampMillis int64
 	// Speech sets the native encoded-frame speech indicator.
 	Speech bool
+	// SendEvenIfEmpty forwards the native empty-packet policy. A true value
+	// permits an empty Data slice; native codec/transport support still applies.
+	SendEvenIfEmpty bool
 }
 
 // ReceivedEncodedAudio is a copied native encoded-audio packet.
@@ -95,25 +116,26 @@ type ReceivedEncodedAudio struct {
 }
 
 func (s *Session) audioObserver() *rtc.AudioFrameObserver {
-	params := rtc.AudioFrameObserverAudioParams{SampleRate: s.cfg.Audio.Receive.SampleRate, Channels: s.cfg.Audio.Receive.Channels, Mode: rtc.RawAudioFrameOpModeReadOnly, SamplesPerCall: s.cfg.Audio.Receive.SampleRate / 100 * s.cfg.Audio.Receive.Channels}
 	capture := func(position AudioPosition, channel string, f *rtc.AudioFrame) bool {
 		if f != nil {
 			out := copyAudioFrame(f)
 			out.Position, out.Channel = position, channel
-			s.audio.push(out)
+			return s.observeAudioFrame(out, f, s.audioFrameParameters(position).Mode == rtc.RawAudioFrameOpModeReadWrite)
 		}
 		return true
 	}
 	return &rtc.AudioFrameObserver{
-		OnGetAudioFramePosition:           func(*rtc.LocalUser) int { return int(s.cfg.Receive.AudioPositions) },
-		OnGetPlaybackAudioFrameParam:      func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return params },
-		OnGetRecordAudioFrameParam:        func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return params },
-		OnGetMixedAudioFrameParam:         func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return params },
-		OnGetEarMonitoringAudioFrameParam: func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return params },
-		OnRecordAudioFrame:                func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioRecord, ch, f) },
-		OnPlaybackAudioFrame:              func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioPlayback, ch, f) },
-		OnMixedAudioFrame:                 func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioMixed, ch, f) },
-		OnEarMonitoringAudioFrame:         func(_ *rtc.LocalUser, f *rtc.AudioFrame) bool { return capture(AudioEarMonitoring, s.cfg.Channel, f) },
+		OnGetAudioFramePosition:      func(*rtc.LocalUser) int { return int(s.cfg.Receive.AudioPositions) },
+		OnGetPlaybackAudioFrameParam: func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return s.audioFrameParameters(AudioPlayback) },
+		OnGetRecordAudioFrameParam:   func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return s.audioFrameParameters(AudioRecord) },
+		OnGetMixedAudioFrameParam:    func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams { return s.audioFrameParameters(AudioMixed) },
+		OnGetEarMonitoringAudioFrameParam: func(*rtc.LocalUser) rtc.AudioFrameObserverAudioParams {
+			return s.audioFrameParameters(AudioEarMonitoring)
+		},
+		OnRecordAudioFrame:        func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioRecord, ch, f) },
+		OnPlaybackAudioFrame:      func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioPlayback, ch, f) },
+		OnMixedAudioFrame:         func(_ *rtc.LocalUser, ch string, f *rtc.AudioFrame) bool { return capture(AudioMixed, ch, f) },
+		OnEarMonitoringAudioFrame: func(_ *rtc.LocalUser, f *rtc.AudioFrame) bool { return capture(AudioEarMonitoring, s.cfg.Channel, f) },
 		OnPlaybackAudioFrameBeforeMixing: func(_ *rtc.LocalUser, channel, uid string, f *rtc.AudioFrame, vad rtc.VadState, speech *rtc.AudioFrame) bool {
 			if f == nil {
 				return true
@@ -123,10 +145,27 @@ func (s *Session) audioObserver() *rtc.AudioFrameObserver {
 			if speech != nil {
 				frame.Speech = slices.Clone(speech.Buffer)
 			}
-			s.audio.push(frame)
-			return true
+			return s.observeAudioFrame(frame, f, false)
 		},
 	}
+}
+
+// observeAudioFrame isolates synchronous hook buffers from the asynchronous
+// queue. Only accepted ReadWrite Data edits affect native and queued PCM.
+func (s *Session) observeAudioFrame(frame AudioFrame, native *rtc.AudioFrame, writable bool) bool {
+	if s.cfg.Audio.Callbacks == nil || s.cfg.Audio.Callbacks.OnFrame == nil {
+		s.audio.push(frame)
+		return true
+	}
+	hook := frame
+	hook.Data, hook.Speech = slices.Clone(frame.Data), slices.Clone(frame.Speech)
+	accepted := s.processAudioCallback(hook)
+	if accepted && writable {
+		copy(native.Buffer, hook.Data)
+		copy(frame.Data, hook.Data)
+	}
+	s.audio.push(frame)
+	return accepted
 }
 
 func copyAudioFrame(f *rtc.AudioFrame) AudioFrame {
@@ -277,17 +316,8 @@ func playPCM(ctx context.Context, reader io.Reader, rate, channels int, presenta
 // transcode, or parse the payload. Keep frame.Data unchanged during the call.
 // A nil result is local native acceptance, not a remote decode acknowledgement.
 func (s *Session) SendEncodedAudio(frame EncodedAudioFrame) error {
-	if len(frame.Data) == 0 {
-		return invalid("encoded audio", "must not be empty")
-	}
-	if err := validateEncodedAudioFormat(frame.SampleRate, frame.Channels); err != nil {
+	if err := frame.validate(); err != nil {
 		return err
-	}
-	if !validAudioCodec(frame.Codec) {
-		return invalid("audio codec", "is unsupported")
-	}
-	if frame.SamplesPerChannel < 0 {
-		return invalid("samples per channel", "must not be negative")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -300,7 +330,7 @@ func (s *Session) SendEncodedAudio(frame EncodedAudioFrame) error {
 	if err := s.publishAudioLocked(); err != nil {
 		return err
 	}
-	info := rtc.EncodedAudioFrameInfo{Codec: rtc.AudioCodecType(frame.Codec), SampleRateHz: frame.SampleRate, NumberOfChannels: frame.Channels, SamplesPerChannel: frame.SamplesPerChannel, CaptureTimeMs: frame.TimestampMillis, Speech: frame.Speech}
+	info := rtc.EncodedAudioFrameInfo{Codec: rtc.AudioCodecType(frame.Codec), SampleRateHz: frame.SampleRate, NumberOfChannels: frame.Channels, SamplesPerChannel: frame.SamplesPerChannel, CaptureTimeMs: frame.TimestampMillis, Speech: frame.Speech, SendEvenIfEmpty: frame.SendEvenIfEmpty}
 	return check("send encoded audio", s.native.PushAudioEncodedData(frame.Data, &info))
 }
 
@@ -384,7 +414,8 @@ func (s *Session) SetVolumeIndication(interval time.Duration, smoothing int, rep
 
 // SetAudioScenario selects native processing outside the callback thread.
 // Handle CapabilityFallback events and call this method if the application
-// chooses a supported fallback; the wrapper does not accept one automatically.
+// chooses a supported fallback. AudioConfig.Fallback or SetAudioFallback can
+// also select automatic native fallback without blocking on the event queue.
 // Changing the scenario does not change configured send/receive PCM formats.
 // A native rejection is returned as *Error.
 func (s *Session) SetAudioScenario(scenario AudioScenario) error {
@@ -396,6 +427,7 @@ func (s *Session) SetAudioScenario(scenario AudioScenario) error {
 	if s.closed {
 		return ErrClosed
 	}
+	defer s.syncNativeState()
 	if err := check("set audio scenario", s.native.UpdateAudioSenario(scenario.native())); err != nil {
 		return err
 	}
@@ -419,6 +451,29 @@ func validateEncodedAudioFormat(rate, channels int) error {
 	}
 	if channels != 1 && channels != 2 {
 		return invalid("encoded audio channels", "must be 1 or 2")
+	}
+	return nil
+}
+
+func (f EncodedAudioFrame) validate() error {
+	if (len(f.Data) == 0 && !f.SendEvenIfEmpty) || uint64(len(f.Data)) > math.MaxUint32 {
+		return invalid("encoded audio", "must fit uint32 bytes; empty requires SendEvenIfEmpty")
+	}
+	channels := f.Channels
+	if f.Codec == OpusMultiChannel {
+		if channels < 3 || channels > 8 {
+			return invalid("encoded audio channels", "OpusMultiChannel requires 3–8")
+		}
+		channels = 1 // Validate rate separately from multichannel layout.
+	}
+	if err := validateEncodedAudioFormat(f.SampleRate, channels); err != nil {
+		return err
+	}
+	if !validAudioCodec(f.Codec) {
+		return invalid("audio codec", "is unsupported")
+	}
+	if f.SamplesPerChannel < 0 || int64(f.SamplesPerChannel) > math.MaxInt32 {
+		return invalid("samples per channel", "must fit nonnegative int32")
 	}
 	return nil
 }

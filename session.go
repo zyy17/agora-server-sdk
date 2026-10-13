@@ -3,6 +3,7 @@ package agorasdk
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -40,6 +41,8 @@ type Session struct {
 	ready                          chan error
 	readyOnce                      sync.Once
 	info                           atomic.Pointer[ConnectionInfo]
+	role                           atomic.Uint32
+	fallback                       atomic.Int32
 	events                         *Stream[Event]
 	audio                          *Stream[AudioFrame]
 	video                          *Stream[ReceivedVideoFrame]
@@ -66,6 +69,8 @@ func emptySession(service *Service, cfg ChannelConfig) *Session {
 		video: newStream[ReceivedVideoFrame](cfg.QueueCapacity), encodedAudio: newStream[ReceivedEncodedAudio](cfg.QueueCapacity),
 		encodedVideo: newStream[ReceivedEncodedVideo](cfg.QueueCapacity), messages: newStream[Message](cfg.QueueCapacity)}
 	s.info.Store(&ConnectionInfo{Channel: cfg.Channel, UserID: cfg.UserID})
+	s.role.Store(uint32(cfg.Role))
+	s.storeAudioFallback(cfg.Audio.Fallback)
 	return s
 }
 
@@ -80,6 +85,7 @@ func newSession(service *Service, cfg ChannelConfig) (*Session, error) {
 		return nil, &Error{Op: "create connection", Code: -1}
 	}
 	s.transport = s.native
+	s.cfg.Mode = ChannelMode(connCfg.ChannelType)
 	// A failed setup must release every native object before returning.
 	if err := s.configure(); err != nil {
 		s.transport.Disconnect()
@@ -120,6 +126,9 @@ func sessionNativeConfig(cfg ChannelConfig) (*rtc.RtcConnectionConfig, *rtc.RtcC
 		if err := cfg.ConfigureNative(connCfg, pub); err != nil {
 			return nil, nil, err
 		}
+	}
+	if err := validateNativeOwnership(cfg, connCfg, pub); err != nil {
+		return nil, nil, err
 	}
 	if connCfg.ChannelType == rtc.ChannelTypeLargeScale && (connCfg.AutoSubscribeAudio || connCfg.AutoSubscribeVideo) {
 		return nil, nil, invalid("large-scale channel", "cannot auto-subscribe")
@@ -259,7 +268,9 @@ func (s *Session) closeStreams() {
 // for concurrent calls. Every call returns the same disconnect error, if any.
 //
 // Done closes before cleanup finishes. Buffered receive values remain available
-// through Stream.Next with a live context until io.EOF. Close is not a remote
+// through Stream.Next with a live context until io.EOF. With Config.IdleMode,
+// native handle destruction is briefly deferred; Service.Close drains it.
+// Close is not a remote
 // playback acknowledgement and does not guarantee pending sends were delivered.
 func (s *Session) Close() error {
 	s.closeOnce.Do(func() {
@@ -296,6 +307,8 @@ func (s *Session) withNative(op string, f func(*rtc.RtcConnection) int) error {
 // escape fn. Do not reenter Session methods, release resources, or replace
 // observers owned by the wrapper; these actions can deadlock or break ownership.
 //
+// The role and local publication state are reconciled after fn returns, even
+// when it returns an error after a partially successful native operation.
 // fn's error is returned unchanged; a closed session returns ErrClosed.
 // Raw operations retain their native validation, result-code, and lifetime
 // contracts, without additional high-level safety guarantees.
@@ -308,7 +321,9 @@ func (s *Session) WithNative(fn func(*rtc.RtcConnection) error) error {
 	if s.closed {
 		return ErrClosed
 	}
-	return fn(s.native)
+	err := fn(s.native)
+	s.syncNativeState()
+	return err
 }
 
 // RenewToken submits a nonempty replacement RTC token for this session's project,
@@ -317,8 +332,8 @@ func (s *Session) WithNative(fn func(*rtc.RtcConnection) error) error {
 // replacement credentials from a trusted server. Native acceptance is not proof
 // that the token will authorize every later operation.
 func (s *Session) RenewToken(token string) error {
-	if token == "" {
-		return invalid("token", "must not be empty")
+	if token == "" || strings.ContainsRune(token, 0) {
+		return invalid("token", "must be nonempty without NUL")
 	}
 	return s.withNative("renew token", func(c *rtc.RtcConnection) int { return c.RenewToken(token) })
 }
@@ -335,7 +350,8 @@ func (s *Session) SetParameters(parameters string) error {
 }
 
 func (s *Session) publishAudioLocked() error {
-	if s.cfg.Role == Audience || s.cfg.Audio.Mode == NoAudio {
+	s.syncNativeState()
+	if s.Role() == Audience || s.cfg.Audio.Mode == NoAudio {
 		return ErrNotPublishing
 	}
 	if s.audioPublished {
@@ -349,7 +365,8 @@ func (s *Session) publishAudioLocked() error {
 }
 
 func (s *Session) publishVideoLocked() error {
-	if s.cfg.Role == Audience || s.cfg.Video.Mode == NoVideo {
+	s.syncNativeState()
+	if s.Role() == Audience || s.cfg.Video.Mode == NoVideo {
 		return ErrNotPublishing
 	}
 	if s.videoPublished {
@@ -364,7 +381,7 @@ func (s *Session) publishVideoLocked() error {
 
 // PublishAudio explicitly publishes the configured audio track.
 // It is idempotent while published; SendPCM and SendEncodedAudio also publish
-// on first use. Audience and NoAudio configurations return ErrNotPublishing.
+// on first use. The current Audience role and NoAudio mode return ErrNotPublishing.
 func (s *Session) PublishAudio() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -376,7 +393,7 @@ func (s *Session) PublishAudio() error {
 
 // PublishVideo explicitly publishes the configured video track.
 // It is idempotent while published; video sends also publish on first use.
-// Audience and NoVideo configurations return ErrNotPublishing.
+// The current Audience role and NoVideo mode return ErrNotPublishing.
 func (s *Session) PublishVideo() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -394,9 +411,11 @@ func (s *Session) UnpublishAudio() error {
 	if s.closed {
 		return ErrClosed
 	}
-	if !s.audioPublished {
+	if !s.audioPublished && (s.Role() == Audience || s.cfg.Audio.Mode == NoAudio) {
 		return nil
 	}
+	// The raw call also cancels a pending retry after failed scenario rollback,
+	// even if the latest snapshot reports that no track is currently published.
 	if err := check("unpublish audio", s.transport.UnpublishAudio()); err != nil {
 		return err
 	}

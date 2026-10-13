@@ -15,7 +15,7 @@ OUTPUT_BIN_PATH ?= $(CURDIR)/bin
 WITH_AGORA := ./scripts/with_agora_env.sh
 
 .PHONY: help fmt fmt-check vet lint install-tools install-goimports test race build-examples check native-smoke \
-        download-agora-libs sync-agora-libs-headers test-tooling test-avcodec test-callbacks clean
+        download-agora-libs sync-agora-libs-headers test-tooling test-avcodec test-callbacks check-api-coverage clean
 
 help: ## Show available targets.
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "%-25s %s\n", $$1, $$2}'
@@ -33,7 +33,7 @@ install-tools: install-goimports ## Install checksum-verified, pinned Go develop
 	GOBIN="$(TOOLS_BIN)" $(GO) install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
 
 lint: install-tools ## Lint first-party APIs and examples; vet also checks native bindings.
-	PATH="$$(dirname "$$(command -v "$(GO)")"):$$PATH" $(WITH_AGORA) "$(TOOLS_BIN)/staticcheck" . ./messaging/... ./mediaio/... ./token/... ./examples/...
+	PATH="$$(dirname "$$(command -v "$(GO)")"):$$PATH" $(WITH_AGORA) "$(TOOLS_BIN)/staticcheck" . ./messaging/... ./mediaio/... ./token/... ./examples/... ./internal/cmd/...
 
 vet: ## Vet every package with the pinned native SDK.
 	$(WITH_AGORA) $(GO) vet ./...
@@ -50,13 +50,13 @@ build-examples: ## Build all examples from the root module.
 		$(WITH_AGORA) $(GO) build -o "$(OUTPUT_BIN_PATH)/$${package##*/}" "$$package" || exit $$?; \
 	done
 
-test-callbacks: ## Exercise registered C callbacks with synthetic data, race and cgo checks.
-	GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -tags agora_test -count=1 -run '^TestNativeCallback' ./agora/rtc
+test-callbacks: ## Exercise native callback/media ABI and lifecycle fixtures with race and cgo checks.
+	AGORA_NATIVE_SMOKE=1 GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -tags agora_test -count=1 -run '^TestNative' ./agora/rtc
 
 native-smoke: ## Check credential-free native lifecycle with strict cgo pointer checks.
 	AGORA_NATIVE_SMOKE=1 GOEXPERIMENT=cgocheck2 $(WITH_AGORA) $(GO) test -race -count=1 -run '^TestNative' ./...
 
-check: fmt-check test-tooling lint vet test race build-examples native-smoke test-callbacks ## Run all default offline checks after SDK installation.
+check: fmt-check test-tooling check-api-coverage lint vet test race build-examples native-smoke test-callbacks ## Run all default offline checks after SDK installation.
 
 download-agora-libs: ## Install the checksum-pinned SDK for this OS/architecture.
 	./scripts/download_agora_libs.sh
@@ -68,6 +68,10 @@ test-tooling: install-goimports ## Check installer and formatter behavior with o
 	$(GO) test ./internal/cmd/funcspacing
 	./scripts/test_tooling.sh
 	GOIMPORTS="$(TOOLS_BIN)/goimports" ./scripts/test_format.sh "$(GO)"
+
+check-api-coverage: ## Check pinned official Go contracts and coverage evidence offline, without cgo.
+	CGO_ENABLED=0 $(GO) test ./internal/cmd/apicoverage
+	CGO_ENABLED=0 $(GO) run ./internal/cmd/apicoverage
 
 test-avcodec: ## Test optional FFmpeg decoders (requires FFmpeg development packages).
 	$(WITH_AGORA) $(GO) test -tags avcodec -count=1 ./...

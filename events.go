@@ -68,10 +68,12 @@ const (
 	Statistics EventKind = "statistics"
 	// KeyFrameRequested asks an encoded-video publisher to provide an intra frame.
 	KeyFrameRequested EventKind = "keyframe_requested"
-	// CapabilityFallback reports a missing AI-QoS capability and native fallback Reason.
-	// The wrapper rejects the synchronous fallback callback; choose a scenario
-	// explicitly with Session.SetAudioScenario if appropriate.
+	// CapabilityFallback reports a missing AI-QoS capability, recommended native
+	// scenario in Reason, and the immediate AudioFallbackDecision in Data.
+	// A failed native application of the decision is reported separately as SDKError.
 	CapabilityFallback EventKind = "capability_fallback"
+	// CallbackPanic reports a contained panic in an application media callback.
+	CallbackPanic EventKind = "callback_panic"
 )
 
 // Event contains Go-owned callback data without native handles or tokens.
@@ -86,13 +88,18 @@ type Event struct {
 	// Reason, State, and Code preserve native values. Their meaning depends on
 	// Kind; for PublishStateChanged, Reason holds the previous state.
 	Reason, State, Code int
+	// ElapsedMillis preserves native elapsed timing for media state callbacks.
+	// It is elapsed time reported by the SDK, not an absolute timestamp.
+	ElapsedMillis int
 	// Message is a native error message or a statistics discriminator.
 	// Statistics uses "local_audio", "remote_audio", "local_video", or "remote_video".
 	Message string
 	// Data is nil, []Volume for AudioVolume, []byte for AudioMetadata,
 	// StreamFailure for StreamError, or a copied rtc.LocalAudioTrackStats,
 	// rtc.RemoteAudioTrackStats, rtc.LocalVideoTrackStats, or
-	// rtc.RemoteVideoTrackStats value for Statistics. Use a checked type assertion.
+	// rtc.RemoteVideoTrackStats value for Statistics, rtc.VideoTrackInfo for
+	// VideoSubscribed, or AudioFallbackDecision for CapabilityFallback.
+	// Use a checked type assertion.
 	Data any
 }
 
@@ -175,8 +182,12 @@ func (s *Session) connectionObserver() *rtc.RtcConnectionObserver {
 		},
 		OnEncryptionError: func(_ *rtc.RtcConnection, code int) { s.event(Event{Kind: EncryptionError, Code: code}) },
 		OnAIQoSCapabilityMissing: func(_ *rtc.RtcConnection, fallback int) int {
-			s.event(Event{Kind: CapabilityFallback, Reason: fallback})
-			return -1
+			selected := int(s.fallback.Load())
+			if selected == -2 {
+				selected = fallback
+			}
+			s.event(Event{Kind: CapabilityFallback, Reason: fallback, Data: AudioFallbackDecision{Recommended: rtc.AudioScenario(fallback), Selected: selected}})
+			return selected
 		},
 	}
 }
@@ -203,17 +214,21 @@ func (s *Session) localObserver() *rtc.LocalUserObserver {
 		OnUserAudioTrackSubscribed: func(_ *rtc.LocalUser, uid string, _ *rtc.RemoteAudioTrack) {
 			s.event(Event{Kind: AudioSubscribed, UserID: uid})
 		},
-		OnUserVideoTrackSubscribed: func(_ *rtc.LocalUser, uid string, _ *rtc.VideoTrackInfo, _ *rtc.RemoteVideoTrack) {
-			s.event(Event{Kind: VideoSubscribed, UserID: uid})
+		OnUserVideoTrackSubscribed: func(_ *rtc.LocalUser, uid string, info *rtc.VideoTrackInfo, _ *rtc.RemoteVideoTrack) {
+			event := Event{Kind: VideoSubscribed, UserID: uid}
+			if info != nil {
+				event.Data = *info
+			}
+			s.event(event)
 		},
 		OnUserAudioTrackStateChanged: func(_ *rtc.LocalUser, uid string, _ *rtc.RemoteAudioTrack, state, reason, elapsed int) {
-			s.event(Event{Kind: AudioStateChanged, UserID: uid, State: state, Reason: reason})
+			s.event(Event{Kind: AudioStateChanged, UserID: uid, State: state, Reason: reason, ElapsedMillis: elapsed})
 		},
 		OnUserVideoTrackStateChanged: func(_ *rtc.LocalUser, uid string, _ *rtc.RemoteVideoTrack, state, reason, elapsed int) {
-			s.event(Event{Kind: VideoStateChanged, UserID: uid, State: state, Reason: reason})
+			s.event(Event{Kind: VideoStateChanged, UserID: uid, State: state, Reason: reason, ElapsedMillis: elapsed})
 		},
 		OnAudioPublishStateChanged: func(_ *rtc.LocalUser, channel string, old, new, elapsed int) {
-			s.event(Event{Kind: PublishStateChanged, Channel: channel, State: new, Reason: old})
+			s.event(Event{Kind: PublishStateChanged, Channel: channel, State: new, Reason: old, ElapsedMillis: elapsed})
 		},
 		OnAudioVolumeIndication: func(_ *rtc.LocalUser, info []*rtc.AudioVolumeInfo, _ int, total int) {
 			v := make([]Volume, 0, len(info))

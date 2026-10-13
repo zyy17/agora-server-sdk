@@ -1,6 +1,7 @@
 package agorasdk
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -26,10 +27,17 @@ type Config struct {
 	// LogPath, ConfigDir, and DataDir are native SDK filesystem paths.
 	// Empty values leave path selection to the native SDK.
 	LogPath, ConfigDir, DataDir string
+	// IdleMode defers destruction of closed native connection handles briefly.
+	// Session.Close still stops callbacks and releases Go resources immediately;
+	// Service.Close drains all deferred handles before releasing the runtime.
+	IdleMode bool
+	// LocalAccessPoint optionally selects the native local proxy configuration.
+	// The value and its lists are copied. It is applied once after the first connection
+	// is created and before Connect, as required by the pinned SDK.
+	LocalAccessPoint *rtc.LocalAccessPointConfiguration
 	// ConfigureNative optionally adjusts native settings before initialization.
 	// It runs synchronously; return an error to abort creation. Do not retain its
-	// pointer. UseStringUid must agree with IdentityMode and IdleMode must remain
-	// false so Service.Close can deterministically release the runtime.
+	// pointer. UseStringUid must agree with IdentityMode.
 	ConfigureNative func(*rtc.AgoraServiceConfig) error
 }
 
@@ -100,9 +108,11 @@ type VideoMode uint8
 const (
 	// NoVideo disables video publication. It is the default.
 	NoVideo VideoMode = iota
-	// RawVideo publishes tightly packed CPU pixels through Session.SendVideo.
+	// RawVideo publishes CPU pixels through Session.SendVideo (compact layouts)
+	// or Session.SendCPUVideo (explicit stride, crop and pixel format).
 	RawVideo
-	// EncodedVideo publishes H.264 or H.265 packets through Session.SendEncodedVideo.
+	// EncodedVideo publishes encoded packets through Session.SendEncodedVideo.
+	// Codec availability depends on the installed native SDK and receiving peers.
 	EncodedVideo
 )
 
@@ -135,14 +145,15 @@ func (s AudioScenario) native() rtc.AudioScenario {
 }
 
 // PCMFormat describes signed interleaved little-endian PCM16.
-// SampleRate is in Hz and must be 8000, 16000, 32000, 44100, or 48000;
-// Channels must be 1 or 2. Zero fields select 16000 Hz and mono independently.
+// Session audio accepts 8000, 16000, 32000, 44100, or 48000 Hz and one or two
+// channels. Its zero fields select 16000 Hz and mono independently. Processor
+// and decoder APIs document their own supported formats and default rules.
 // Sending and receiving use separate formats; no implicit resampling is performed
 // by the Go wrapper.
 type PCMFormat struct {
-	// SampleRate is the sampling frequency in Hz; zero selects 16000.
+	// SampleRate is the sampling frequency in Hz; Session audio defaults to 16000.
 	SampleRate int
-	// Channels is 1 for mono or 2 for interleaved stereo; zero selects mono.
+	// Channels is 1 for mono or 2 for interleaved stereo; Session audio defaults to mono.
 	Channels int
 }
 
@@ -177,6 +188,16 @@ type AudioConfig struct {
 	// in 0–1, voice thresholds in 0–100, and RMS thresholds in -127–0 dB.
 	// A non-nil zero configuration is not identical to nil; consult rtc.AudioVadConfigV2.
 	VADConfig *rtc.AudioVadConfigV2
+	// Fallback selects the native synchronous AI-QoS compatibility decision.
+	// Nil rejects fallback. The policy is copied; no application function runs
+	// on a native callback thread. SetAudioFallback can change it later.
+	Fallback *AudioFallbackPolicy
+	// ReceiveParameters optionally overrides each mixed/local PCM observation
+	// point independently. Nil entries inherit Receive with 10 ms frames.
+	ReceiveParameters *AudioReceiveParameters
+	// Callbacks optionally handles synchronous native PCM accept/reject decisions.
+	// Prefer Audio() for ordinary asynchronous processing.
+	Callbacks *AudioCallbacks
 }
 
 // VideoConfig selects the video publication format. Receiving is configured
@@ -188,6 +209,14 @@ type VideoConfig struct {
 	Encoder *rtc.VideoEncoderConfiguration
 	// EncodedSender optionally configures the encoded-video sender. Join copies the value.
 	EncodedSender *rtc.VideoEncodedImageSenderOptions
+	// OnEncodedFrame optionally returns the synchronous native accept/reject
+	// decision for a received encoded frame. Prefer EncodedVideo() for ordinary
+	// asynchronous handling. It must return promptly without blocking, calling
+	// lifecycle-locked Session/Service methods, or retaining/concurrently accessing
+	// the copied callback buffers. It may run concurrently. Edits do not modify
+	// native packets or the independent receive-queue copy. A panic rejects the
+	// frame and emits CallbackPanic. Nil accepts every received frame.
+	OnEncodedFrame func(ReceivedEncodedVideo) bool
 }
 
 // AudioPosition is a bitmask of native PCM observation points.
@@ -241,7 +270,8 @@ type ChannelConfig struct {
 	UserID string
 	// Info is the optional native connection-information payload. It must not contain NUL.
 	Info string
-	// Role selects publication permission. Zero is Broadcaster.
+	// Role selects initial publication permission. Zero is Broadcaster.
+	// Session.SetRole can change it after joining.
 	Role Role
 	// Mode selects Standard or LargeScale. LargeScale requires manual subscriptions.
 	Mode ChannelMode
@@ -262,7 +292,8 @@ type ChannelConfig struct {
 	Encryption *rtc.EncryptionConfig
 	// ConfigureNative optionally adjusts native connection and publication settings
 	// before allocation. Return an error to abort Join. Do not retain the pointers
-	// or change ownership assumptions; LargeScale cannot enable auto-subscription.
+	// or change Role, publication modes, or publication enablement. LargeScale
+	// cannot enable auto-subscription. Other native options are passed through.
 	ConfigureNative func(*rtc.RtcConnectionConfig, *rtc.RtcConnectionPublishConfig) error
 }
 
@@ -274,6 +305,15 @@ func normalized(c ChannelConfig) (ChannelConfig, error) {
 		return c, invalid("mode", "is unknown")
 	}
 	if err := c.normalizeDefaults(); err != nil {
+		return c, err
+	}
+	if err := c.validateAudioCallbacks(); err != nil {
+		return c, err
+	}
+	if err := validateVideoEncoder(c.Video.Encoder); err != nil {
+		return c, err
+	}
+	if err := validateEncodedVideoSender(c.Video.EncodedSender); err != nil {
 		return c, err
 	}
 	if err := c.validateMediaOptions(); err != nil {
@@ -347,6 +387,7 @@ func (c ChannelConfig) validateMediaOptions() error {
 }
 
 func (c ChannelConfig) copyNativeOptions() ChannelConfig {
+	c.Audio = copyAudioOptions(c.Audio)
 	if c.Audio.VADConfig != nil {
 		v := *c.Audio.VADConfig
 		c.Audio.VADConfig = &v
@@ -380,6 +421,9 @@ func validatePCMFormat(rate, channels int) error {
 }
 
 func validateVAD(v rtc.AudioVadConfigV2) error {
+	if math.IsNaN(float64(v.ActivePercent)) || math.IsNaN(float64(v.InactivePercent)) || math.IsNaN(float64(v.AdaptiveRmsThresholdFactor)) {
+		return invalid("VAD probabilities", "must be finite")
+	}
 	if v.PreStartRecognizeCount < 0 || v.PreStartRecognizeCount > 10000 || v.StartRecognizeCount < 0 || v.StartRecognizeCount > 10000 || v.StopRecognizeCount < 0 || v.StopRecognizeCount > 10000 {
 		return invalid("VAD counts", "must be between 0 and 10000 (zero uses defaults)")
 	}
