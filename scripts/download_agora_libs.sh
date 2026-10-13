@@ -1,132 +1,40 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
+# shellcheck source=lib/sdk_common.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/sdk_common.sh"
 
-# Base URL for downloading SDKs.
-readonly BASE_URL="https://download.agora.io/sdk/release"
-
-# Latest SDK versions.
-readonly LINUX_SDK_URL="${BASE_URL}/agora_rtc_sdk_x86_64-linux-gnu-v4.4.32.164_27464_SERVER_20260228_1031_1017176_20251021_1427-3a.zip"
-readonly DARWIN_SDK_URL="${BASE_URL}/agora_sdk_mac_v4.4.32.164_27011_FULL_20260228_1856_1017201_20251021_1427-3a.zip"
-
-# Target libraries directory.
-readonly TARGET_LIBS_DIR="agora_libs"
-
-# Detect OS.
-detect_os() {
-    local uname_s
-    uname_s=$(uname -s)
-    
-    case "${uname_s}" in
-        Linux)
-            echo "linux"
-            ;;
-        Darwin)
-            echo "darwin"
-            ;;
-        *)
-            echo "Unsupported OS: ${uname_s}" >&2
-            exit 1
-            ;;
-    esac
-}
-
-# Detect architecture.
-detect_architecture() {
-    local uname_m
-    uname_m=$(uname -m)
-    
-    case "${uname_m}" in
-        x86_64)
-            echo "amd64"
-            ;;
-        aarch64)
-            echo "arm64"
-            ;;
-        arm64)
-            echo "arm64"
-            ;;
-        *)
-            echo "Unsupported architecture: ${uname_m}" >&2
-            exit 1
-            ;;
-    esac
-}
-
-# Download and extract SDK.
-check_and_download() {
-    local download_url=$1
-    local download_file_name=$2
-    local dst_dir=$3
-    local os=$4
-    local version_file="${dst_dir}/sdk_version"
-    local zip_file="${download_file_name}.zip"
-    
-    # Check if already downloaded with correct version.
-    if [[ -f "${version_file}" ]]; then
-        local sdk_version
-        sdk_version=$(cat "${version_file}")
-        if [[ "${sdk_version}" == "${download_url}" ]]; then
-            echo "✓ ${dst_dir} already downloaded"
-            return 0
-        fi
-    fi
-
-    # Determine the suffix of dynamic library.
-    local dynamic_library_suffix
-    if [[ "${os}" == "darwin" ]]; then
-        dynamic_library_suffix="dylib"
-    else
-        dynamic_library_suffix="so"
-    fi
-    
-    # Clean up old files.
-    [[ -f "${zip_file}" ]] && rm -f "${zip_file}"
-    [[ -d "${dst_dir}" ]] && rm -rf "${dst_dir}"
-    
-    # Download the zip file.
-    echo "Downloading ${download_url} and saving as ${zip_file}..."
-    if ! curl -f -L -o "${zip_file}" "${download_url}"; then
-        echo "✗ Failed to download ${download_url}" >&2
-        return 1
-    fi
-    
-    # Extract the zip file. 
-    echo "Extracting ${zip_file}..."
-    unzip -q "${zip_file}" -d "${dst_dir}"
-    rm -f "${zip_file}"
-
-    # Move the agora_sdk directory to the target libraries directory.
-    mv ${dst_dir}/agora_sdk/*."${dynamic_library_suffix}" ${dst_dir}
-    rm -rf "${dst_dir}/agora_sdk"
-    
-    # Write download URL to version file.
-    echo "${download_url}" > "${version_file}"
-    echo "✓ ${dst_dir} downloaded successfully"
-}
-
-main() {    
-    os=$(detect_os)
-    echo "Detected OS: ${os}"
-
-    architecture=$(detect_architecture)
-    echo "Detected architecture: ${architecture}"
-    
-    # Create target libraries directory if it doesn't exist.
-    mkdir -p "${TARGET_LIBS_DIR}"
-    
-     # Download SDK based on OS.
-    if [[ "${os}" == "darwin" ]]; then
-        SDK_DOWNLOAD_URL="${DARWIN_SDK_URL}"
-    else
-        SDK_DOWNLOAD_URL="${LINUX_SDK_URL}"
-    fi
-
-    # Download the SDK.
-    check_and_download "${SDK_DOWNLOAD_URL}" "agora_sdk_${architecture}_${os}" ${TARGET_LIBS_DIR} "${os}"
-    
-    echo "✓ All SDKs downloaded to ${TARGET_LIBS_DIR}"
-}
-
-# Entrypoint.
-main "$@"
+archive=''
+case "${1:-}" in
+    '') ;;
+    --archive)
+        [[ $# -eq 2 ]] || { sdk_die 'Usage: download_agora_libs.sh [--archive PATH]'; exit 2; }
+        archive=$2 ;;
+    --help|-h)
+        printf 'Usage: %s [--archive PATH]\n\nInstalls the pinned, SHA-256-verified native SDK for this host.\nEnvironment: AGORA_LIBS_DIR (default: repository/agora_libs),\n             AGORA_SDK_CACHE_DIR (default: user cache/agora-server-sdk).\n' "$0"
+        exit 0 ;;
+    *) sdk_die "Unknown argument: $1"; exit 2 ;;
+esac
+sdk_select_platform "$(sdk_host_platform)"
+target=${AGORA_LIBS_DIR:-${SDK_REPO_ROOT}/agora_libs}
+# A local archive is always checked, even when the installation is current.
+if [[ -n "$archive" ]]; then sdk_verify_checksum "$archive"; fi
+if sdk_validate_installation "$target"; then
+    sdk_log "Agora SDK ${SDK_VERSION} already installed in $target"
+    exit 0
+fi
+trap sdk_cleanup_transaction EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+sdk_begin_transaction "$target"
+sdk_prepare_archive "$archive" "$SDK_WORK_DIR"
+sdk_extract_archive "$SDK_ARCHIVE" "${SDK_WORK_DIR}/extracted"
+sdk_validate_libraries "${SDK_WORK_DIR}/extracted/agora_sdk"
+if [[ "$SDK_PLATFORM" == linux-amd64 ]]; then
+    sdk_validate_headers "${SDK_WORK_DIR}/extracted/agora_sdk"
+fi
+sdk_cache_archive "$SDK_ARCHIVE"
+printf '%s\n' "$SDK_URL" > "${SDK_WORK_DIR}/extracted/agora_sdk/sdk_version"
+printf '%s\n' "$SDK_SHA256" > "${SDK_WORK_DIR}/extracted/agora_sdk/sdk_sha256"
+printf '%s\n' "$SDK_PLATFORM" > "${SDK_WORK_DIR}/extracted/agora_sdk/sdk_platform"
+sdk_commit_directory "${SDK_WORK_DIR}/extracted/agora_sdk"
+sdk_log "Installed verified Agora SDK ${SDK_VERSION} in $SDK_TARGET"

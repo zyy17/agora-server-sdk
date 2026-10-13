@@ -263,6 +263,7 @@ func TestValidation(t *testing.T) {
 	c := testClient(t, 1)
 	ctx := context.Background()
 	for _, err := range []error{
+		//lint:ignore SA1012 This negative test verifies that nil contexts are rejected.
 		c.Login(nil, ""), c.Publish(ctx, "", []byte{1}, PublishOptions{}), c.Publish(ctx, "room", nil, PublishOptions{}),
 		c.Publish(ctx, "room", []byte{255}, PublishOptions{Text: true}), c.SetState(ctx, Channel{Name: "room", Type: MessageChannel}, map[string]string{"bad\x00key": "value"}),
 		c.SetLock(ctx, Channel{Name: "room", Type: MessageChannel}, "lock", time.Millisecond), c.SetParameters(ctx, "[]"), c.WithNative(ctx, nil),

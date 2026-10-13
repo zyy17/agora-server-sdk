@@ -1,0 +1,69 @@
+name: SDK checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux amd64 / Go 1.27.2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CGO_ENABLED: '1'
+      GOTOOLCHAIN: local
+      AGORA_SDK_CACHE_DIR: ${{ github.workspace }}/.cache/agora-sdk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          cache: true
+      - name: Install native build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential curl unzip
+      - name: Cache checksum-addressed SDK archives
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/agora-sdk
+          key: agora-linux-amd64-${{ hashFiles('scripts/sdk_versions.sh') }}
+      - name: Download pinned native SDK
+        run: make download-agora-libs
+      - name: Verify modules
+        run: go mod download && go mod verify
+      - name: Offline checks (no Agora credentials)
+        run: make check
+      - name: Verify default packages do not use system FFmpeg
+        shell: bash
+        run: |
+          if go list -f '{{join .CgoPkgConfig " "}}' ./... | grep -E 'libavcodec|libavformat|libavutil|libswresample'; then
+            echo 'Default build unexpectedly requires FFmpeg development libraries.' >&2
+            exit 1
+          fi
+
+  optional-codecs:
+    name: Optional FFmpeg codecs / Go 1.27.2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CGO_ENABLED: '1'
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          cache: true
+      - name: Install optional codec dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential curl unzip pkg-config ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+      - name: Install pinned Agora SDK
+        run: make download-agora-libs
+      - name: Verify optional decoders and workers offline
+        run: ./scripts/with_agora_env.sh go test -race -tags avcodec -count=1 ./...
